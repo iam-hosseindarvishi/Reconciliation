@@ -35,7 +35,7 @@ if %errorlevel% neq 0 (
 
 :: Run the application
 echo Starting application...
-python main_app.py
+python main.py
 
 :: Deactivate virtual environment when done
 call venv\Scripts\deactivate.bat

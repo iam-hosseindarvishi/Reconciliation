@@ -23,48 +23,84 @@
 - reportlab (برای تولید گزارش‌های PDF)
 - jdatetime (برای تبدیل تاریخ شمسی)
 
-## نصب
+## نحوه نصب و راه‌اندازی
 
 1. کلون کردن مخزن:
 
 ```bash
-git clone https://github.com/username/reconciliation-app.git
-cd reconciliation-app
+git clone https://github.com/username/reconciliation-system.git
+cd reconciliation-system
 ```
 
-2. نصب وابستگی‌ها:
+2. ایجاد محیط مجازی و نصب وابستگی‌ها:
 
 ```bash
+python -m venv venv
+source venv/bin/activate  # در لینوکس و مک
+venv\Scripts\activate  # در ویندوز
 pip install -r requirements.txt
 ```
 
 3. قرار دادن فونت فارسی:
    - فایل فونت `BNazanin.ttf` را در پوشه `config/fonts` قرار دهید.
 
+4. اجرای برنامه:
+
+در ویندوز:
+```bash
+# استفاده از فایل اجرایی
+run_app.bat
+
+# یا اجرای مستقیم
+python main.py
+```
+
+در لینوکس و مک:
+```bash
+# استفاده از فایل اجرایی
+chmod +x run_app.sh
+./run_app.sh
+
+# یا اجرای مستقیم
+python main.py
+```
+
 ## ساختار پروژه
 
 ```
-project_root/
-  ├── main_app.py          # نقطه ورود اصلی برنامه
-  ├── modules/             # ماژول‌های برنامه
-  │   ├── data_loader.py   # بارگذاری داده از فایل‌های اکسل
-  │   ├── database_manager.py # مدیریت پایگاه داده SQLite
-  │   ├── reconciliation_logic.py # منطق مغایرت‌گیری
-  │   ├── report_generator.py # تولید گزارش‌های PDF
-  │   ├── logger.py        # سیستم ثبت وقایع
-  │   └── utils.py         # توابع کمکی
-  ├── ui/                  # رابط کاربری
-  │   ├── main_window.py   # پنجره اصلی برنامه
-  │   └── ui_elements.py   # المان‌های رابط کاربری
-  ├── config/              # تنظیمات برنامه
-  │   ├── config.py        # تنظیمات پیکربندی
-  │   ├── splash.svg       # تصویر صفحه شروع
-  │   └── fonts/           # فونت‌های فارسی
-  ├── data/                # داده‌ها و فایل‌های لاگ
-  │   ├── reconciliation_db.sqlite # پایگاه داده
-  │   ├── activity.log     # لاگ فعالیت‌ها
-  │   └── errors.txt       # لاگ خطاها
-  └── reports/             # گزارش‌های تولید شده
+reconciliation-system/
+├── config/                  # تنظیمات برنامه
+│   ├── fonts/              # فونت‌های مورد نیاز
+│   ├── __init__.py         # ماژول پیکربندی
+│   ├── config.py           # پارامترهای پیکربندی
+│   └── splash.svg          # تصویر صفحه اسپلش
+├── data/                   # پوشه داده‌های ورودی
+├── modules/                # ماژول‌های اصلی برنامه
+│   ├── __init__.py         # ماژول اصلی
+│   ├── data_loader.py      # بارگذاری داده‌ها
+│   ├── database_manager.py # مدیریت پایگاه داده
+│   ├── logger.py           # سیستم لاگ‌گیری
+│   ├── reconciliation_logic.py # منطق مغایرت‌گیری
+│   ├── report_generator.py # تولید گزارش‌ها
+│   └── utils.py            # توابع کمکی
+├── reports/                # گزارش‌های خروجی
+├── ui/                     # رابط کاربری
+│   ├── __init__.py         # ماژول رابط کاربری
+│   ├── dialogs/            # دیالوگ‌ها
+│   ├── main_window.py      # پنجره اصلی برنامه
+│   ├── tabs/               # تب‌های برنامه
+│   │   ├── __init__.py     # ماژول تب‌ها
+│   │   ├── data_import_tab.py # تب واردسازی داده‌ها
+│   │   ├── reconciliation_tab.py # تب مغایرت‌گیری
+│   │   └── report_tab.py   # تب گزارش‌گیری
+│   ├── ui_elements.py      # عناصر رابط کاربری
+│   ├── widgets/            # ویجت‌های سفارشی
+│   └── workers/            # کارگرهای پس‌زمینه
+├── main.py                 # نقطه ورود برنامه
+├── requirements.txt        # وابستگی‌های برنامه
+├── run_app.bat             # اسکریپت اجرا در ویندوز
+├── run_app.sh              # اسکریپت اجرا در لینوکس/مک
+└── README.md               # مستندات
 ```
 
 ## نحوه استفاده

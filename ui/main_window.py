@@ -21,7 +21,7 @@ from modules.data_loader import DataLoader
 from modules.reconciliation_logic import ReconciliationEngine
 from modules.report_generator import ReportGenerator
 from modules.logger import get_logger
-from ui.ui_elements import DataImportTab, ReconciliationTab, ReportsTab
+from ui.tabs import DataImportTab, ReconciliationTab, ReportTab
 
 # تنظیم لاگر
 logger = get_logger(__name__)
@@ -76,17 +76,17 @@ class MainWindow(QMainWindow):
         self.tab_widget.setTabPosition(QTabWidget.North)
         self.tab_widget.setTabShape(QTabWidget.Rounded)
         
-        # تب ورود داده
-        self.data_import_tab = DataImportTab(self.data_loader, self.db_manager)
-        self.tab_widget.addTab(self.data_import_tab, "ورود داده")
+        # تب واردسازی داده‌ها
+        self.data_import_tab = DataImportTab(self.db_manager)
+        self.tab_widget.addTab(self.data_import_tab, "واردسازی داده‌ها")
         
         # تب مغایرت‌گیری
-        self.reconciliation_tab = ReconciliationTab(self.db_manager, self.reconciliation_engine)
+        self.reconciliation_tab = ReconciliationTab(self.db_manager)
         self.tab_widget.addTab(self.reconciliation_tab, "مغایرت‌گیری")
         
-        # تب گزارش‌ها
-        self.reports_tab = ReportsTab(self.db_manager, self.report_generator)
-        self.tab_widget.addTab(self.reports_tab, "گزارش‌ها")
+        # تب گزارش‌گیری
+        self.report_tab = ReportTab(self.db_manager)
+        self.tab_widget.addTab(self.report_tab, "گزارش‌گیری")
         
         # افزودن تب‌ها به چیدمان اصلی
         main_layout.addWidget(self.tab_widget)
@@ -103,14 +103,7 @@ class MainWindow(QMainWindow):
         
         # اتصال سیگنال‌های بین تب‌ها
         self.data_import_tab.import_completed.connect(self.on_import_completed)
-        """
-        اتصال سیگنال‌های برنامه
-        """
-        # اتصال سیگنال تغییر تب
-        self.tab_widget.currentChanged.connect(self.on_tab_changed)
-        
-        # اتصال سیگنال‌های بین تب‌ها
-        self.data_import_tab.import_completed.connect(self.on_import_completed)
+        self.reconciliation_tab.reconciliation_completed.connect(self.on_reconciliation_completed)
     
     def on_tab_changed(self, index):
         """
@@ -118,19 +111,36 @@ class MainWindow(QMainWindow):
         """
         # بروزرسانی داده‌ها در صورت نیاز
         if index == 1:  # تب مغایرت‌گیری
-            self.reconciliation_tab.refresh_data()
-        elif index == 2:  # تب گزارش‌ها
-            self.reports_tab.load_recent_reports()
+            self.reconciliation_tab.load_existing_data()
+        elif index == 2:  # تب گزارش‌گیری
+            pass  # در صورت نیاز به بروزرسانی خودکار
     
-    def on_import_completed(self):
+    def on_import_completed(self, success: bool, message: str):
         """
         رویداد تکمیل ورود داده
-        """
-        # نمایش پیام موفقیت
-        QMessageBox.information(self, "ورود داده", "ورود داده با موفقیت انجام شد.")
         
-        # تغییر به تب مغایرت‌گیری
-        self.tab_widget.setCurrentIndex(1)
+        پارامترها:
+            success: آیا واردسازی موفقیت‌آمیز بوده است
+            message: پیام نتیجه
+        """
+        if success:
+            # تغییر به تب مغایرت‌گیری
+            self.tab_widget.setCurrentIndex(1)
+    
+    def on_reconciliation_completed(self, success: bool, message: str):
+        """
+        رویداد تکمیل مغایرت‌گیری
+        
+        پارامترها:
+            success: آیا مغایرت‌گیری موفقیت‌آمیز بوده است
+            message: پیام نتیجه
+        """
+        if success:
+            # تغییر به تب گزارش‌گیری
+            self.tab_widget.setCurrentIndex(2)
+            
+            # نمایش گزارش خلاصه با استفاده از متد اختصاصی
+            self.report_tab.show_summary_report()
     
     def load_settings(self):
         """

@@ -10,29 +10,27 @@ import sys
 import os
 import traceback
 from datetime import datetime
-
-# تنظیم کدگذاری برای پشتیبانی از زبان فارسی
 import locale
 import platform
+
+from PySide6.QtWidgets import QApplication, QMessageBox, QSplashScreen
+from PySide6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QTimer
+from PySide6.QtGui import QPixmap, QFont, QFontDatabase
 
 # افزودن مسیر پروژه به مسیرهای پایتون
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
 # واردسازی ماژول‌های برنامه
-from PySide6.QtWidgets import QApplication, QMessageBox, QSplashScreen
-from PySide6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QTimer
-from PySide6.QtGui import QPixmap, QFont, QFontDatabase
-
 from config.config import APPLICATION_NAME, APPLICATION_VERSION, APPLICATION_ORGANIZATION
 from modules.logger import setup_logging, get_logger, log_exception
 from modules.database_manager import DatabaseManager
 from ui.main_window import MainWindow
 
-
 # راه‌اندازی سیستم لاگ
 setup_logging()
 logger = get_logger(__name__)
+
 
 def setup_persian_support():
     """
@@ -152,6 +150,7 @@ def main():
         QMessageBox.critical(None, "خطای سیستم", error_msg)
         
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

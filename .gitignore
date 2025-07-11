@@ -29,6 +29,12 @@ errors.txt
 
 # Generated reports
 reports/*.pdf
+reports/*.xlsx
+
+# Data files
+data/*.xlsx
+data/*.xls
+data/*.csv
 
 # Temporary files
 *.tmp

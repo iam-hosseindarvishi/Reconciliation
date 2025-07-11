@@ -475,7 +475,7 @@ class ManualReconciliationDialog(QDialog):
             
             if selected_type == "بانک":
                 # بارگذاری رکوردهای بانکی
-                records = self.reconciliation_engine.db_manager.get_unreconciled_bank_transactions()
+                records = self.db_manager.get_unreconciled_bank_transactions()
                 headers = ["تاریخ", "مبلغ واریز", "مبلغ برداشت", "توضیحات", "نوع تراکنش", "شناسه پیگیری"]
                 
                 # تنظیم مدل داده
@@ -484,7 +484,7 @@ class ManualReconciliationDialog(QDialog):
             
             elif selected_type == "پوز":
                 # بارگذاری رکوردهای پوز
-                records = self.reconciliation_engine.db_manager.get_unreconciled_pos_transactions()
+                records = self.db_manager.get_unreconciled_pos_transactions()
                 headers = ["تاریخ", "ساعت", "مبلغ", "شماره کارت", "شناسه ترمینال", "شماره پیگیری"]
                 
                 # تنظیم مدل داده
@@ -493,7 +493,7 @@ class ManualReconciliationDialog(QDialog):
             
             elif selected_type == "حسابداری":
                 # بارگذاری رکوردهای حسابداری
-                records = self.reconciliation_engine.db_manager.get_unreconciled_accounting_entries()
+                records = self.db_manager.get_unreconciled_accounting_entries()
                 headers = ["نوع", "شماره", "بدهکار", "بستانکار", "تاریخ سررسید", "توضیحات"]
                 
                 # تنظیم مدل داده
@@ -551,7 +551,7 @@ class DataImportTab(QWidget):
     """
     
     # سیگنال‌های مختلف برای اطلاع‌رسانی
-    import_completed = Signal(bool)
+    import_completed = Signal(bool, str)
     
     def __init__(self, data_loader: DataLoader, db_manager: DatabaseManager):
         """
@@ -748,15 +748,20 @@ class DataImportTab(QWidget):
         if success:
             QMessageBox.information(self, "موفقیت", "واردسازی داده‌ها با موفقیت انجام شد.")
             # ارسال سیگنال تکمیل واردسازی
-            self.import_completed.emit(True)
+            self.import_completed.emit(True, message)
         else:
             QMessageBox.critical(self, "خطا", f"خطا در واردسازی داده‌ها: {message}")
+            # ارسال سیگنال تکمیل واردسازی با وضعیت خطا
+            self.import_completed.emit(False, message)
 
 
 class ReconciliationTab(QWidget):
     """
     تب مغایرت‌گیری
     """
+    
+    # سیگنال‌های مختلف برای اطلاع‌رسانی
+    reconciliation_completed = Signal(bool, str)
     
     def __init__(self, db_manager: DatabaseManager, reconciliation_engine: ReconciliationEngine):
         """
@@ -869,7 +874,7 @@ class ReconciliationTab(QWidget):
         
         # اتصال سیگنال‌ها
         self.reconciliation_worker.progress_updated.connect(self.update_progress)
-        self.reconciliation_worker.reconciliation_completed.connect(self.reconciliation_completed)
+        self.reconciliation_worker.reconciliation_completed.connect(self.on_reconciliation_completed)
         self.reconciliation_worker.log_message.connect(self.log_text.append_log)
         
         # شروع کارگر
@@ -886,7 +891,7 @@ class ReconciliationTab(QWidget):
         self.progress_bar.setValue(value)
         self.status_label.setText(message)
     
-    def reconciliation_completed(self, success: bool, message: str):
+    def on_reconciliation_completed(self, success: bool, message: str):
         """
         تکمیل مغایرت‌گیری
         
@@ -907,8 +912,12 @@ class ReconciliationTab(QWidget):
         
         if success:
             QMessageBox.information(self, "موفقیت", "مغایرت‌گیری با موفقیت انجام شد.")
+            # ارسال سیگنال تکمیل مغایرت‌گیری
+            self.reconciliation_completed.emit(True, message)
         else:
             QMessageBox.critical(self, "خطا", f"خطا در مغایرت‌گیری: {message}")
+            # ارسال سیگنال تکمیل مغایرت‌گیری با وضعیت خطا
+            self.reconciliation_completed.emit(False, message)
     
     def load_unreconciled_records(self):
         """
@@ -1007,6 +1016,9 @@ class ReportsTab(QWidget):
     """
     تب گزارش‌ها
     """
+    
+    # سیگنال‌های مختلف برای اطلاع‌رسانی
+    report_generated = Signal(bool, str)
     
     def __init__(self, db_manager: DatabaseManager, report_generator: ReportGenerator):
         """
@@ -1131,19 +1143,31 @@ class ReportsTab(QWidget):
             report_path = self.report_generator.generate_unmatched_bank_report()
             
             if report_path:
-                self.status_label.setText(f"گزارش با موفقیت در {report_path} ذخیره شد.")
-                QMessageBox.information(self, "موفقیت", f"گزارش با موفقیت در {report_path} ذخیره شد.")
+                message = f"گزارش با موفقیت در {report_path} ذخیره شد."
+                self.status_label.setText(message)
+                QMessageBox.information(self, "موفقیت", message)
                 
                 # بازخوانی گزارش‌های اخیر
                 self.load_recent_reports()
+                
+                # ارسال سیگنال تولید گزارش
+                self.report_generated.emit(True, message)
             else:
-                self.status_label.setText("خطا در تولید گزارش.")
-                QMessageBox.critical(self, "خطا", "خطا در تولید گزارش.")
+                message = "خطا در تولید گزارش."
+                self.status_label.setText(message)
+                QMessageBox.critical(self, "خطا", message)
+                
+                # ارسال سیگنال تولید گزارش با وضعیت خطا
+                self.report_generated.emit(False, message)
             
         except Exception as e:
             logger.error(f"خطا در تولید گزارش تراکنش‌های بانکی مغایرت‌گیری نشده: {str(e)}")
-            self.status_label.setText(f"خطا در تولید گزارش: {str(e)}")
-            QMessageBox.critical(self, "خطا", f"خطا در تولید گزارش: {str(e)}")
+            message = f"خطا در تولید گزارش: {str(e)}"
+            self.status_label.setText(message)
+            QMessageBox.critical(self, "خطا", message)
+            
+            # ارسال سیگنال تولید گزارش با وضعیت خطا
+            self.report_generated.emit(False, message)
     
     def generate_unmatched_accounting_report(self):
         """
@@ -1156,19 +1180,31 @@ class ReportsTab(QWidget):
             report_path = self.report_generator.generate_unmatched_accounting_report()
             
             if report_path:
-                self.status_label.setText(f"گزارش با موفقیت در {report_path} ذخیره شد.")
-                QMessageBox.information(self, "موفقیت", f"گزارش با موفقیت در {report_path} ذخیره شد.")
+                message = f"گزارش با موفقیت در {report_path} ذخیره شد."
+                self.status_label.setText(message)
+                QMessageBox.information(self, "موفقیت", message)
                 
                 # بازخوانی گزارش‌های اخیر
                 self.load_recent_reports()
+                
+                # ارسال سیگنال تولید گزارش
+                self.report_generated.emit(True, message)
             else:
-                self.status_label.setText("خطا در تولید گزارش.")
-                QMessageBox.critical(self, "خطا", "خطا در تولید گزارش.")
+                message = "خطا در تولید گزارش."
+                self.status_label.setText(message)
+                QMessageBox.critical(self, "خطا", message)
+                
+                # ارسال سیگنال تولید گزارش با وضعیت خطا
+                self.report_generated.emit(False, message)
             
         except Exception as e:
             logger.error(f"خطا در تولید گزارش ورودی‌های حسابداری مغایرت‌گیری نشده: {str(e)}")
-            self.status_label.setText(f"خطا در تولید گزارش: {str(e)}")
-            QMessageBox.critical(self, "خطا", f"خطا در تولید گزارش: {str(e)}")
+            message = f"خطا در تولید گزارش: {str(e)}"
+            self.status_label.setText(message)
+            QMessageBox.critical(self, "خطا", message)
+            
+            # ارسال سیگنال تولید گزارش با وضعیت خطا
+            self.report_generated.emit(False, message)
     
     def generate_pos_not_in_accounting_report(self):
         """
@@ -1181,19 +1217,31 @@ class ReportsTab(QWidget):
             report_path = self.report_generator.generate_pos_not_in_accounting_report()
             
             if report_path:
-                self.status_label.setText(f"گزارش با موفقیت در {report_path} ذخیره شد.")
-                QMessageBox.information(self, "موفقیت", f"گزارش با موفقیت در {report_path} ذخیره شد.")
+                message = f"گزارش با موفقیت در {report_path} ذخیره شد."
+                self.status_label.setText(message)
+                QMessageBox.information(self, "موفقیت", message)
                 
                 # بازخوانی گزارش‌های اخیر
                 self.load_recent_reports()
+                
+                # ارسال سیگنال تولید گزارش
+                self.report_generated.emit(True, message)
             else:
-                self.status_label.setText("خطا در تولید گزارش.")
-                QMessageBox.critical(self, "خطا", "خطا در تولید گزارش.")
+                message = "خطا در تولید گزارش."
+                self.status_label.setText(message)
+                QMessageBox.critical(self, "خطا", message)
+                
+                # ارسال سیگنال تولید گزارش با وضعیت خطا
+                self.report_generated.emit(False, message)
             
         except Exception as e:
             logger.error(f"خطا در تولید گزارش تراکنش‌های پوز که در حسابداری نیستند: {str(e)}")
-            self.status_label.setText(f"خطا در تولید گزارش: {str(e)}")
-            QMessageBox.critical(self, "خطا", f"خطا در تولید گزارش: {str(e)}")
+            message = f"خطا در تولید گزارش: {str(e)}"
+            self.status_label.setText(message)
+            QMessageBox.critical(self, "خطا", message)
+            
+            # ارسال سیگنال تولید گزارش با وضعیت خطا
+            self.report_generated.emit(False, message)
     
     def generate_accounting_pos_not_in_pos_report(self):
         """
@@ -1206,19 +1254,31 @@ class ReportsTab(QWidget):
             report_path = self.report_generator.generate_accounting_pos_not_in_pos_report()
             
             if report_path:
-                self.status_label.setText(f"گزارش با موفقیت در {report_path} ذخیره شد.")
-                QMessageBox.information(self, "موفقیت", f"گزارش با موفقیت در {report_path} ذخیره شد.")
+                message = f"گزارش با موفقیت در {report_path} ذخیره شد."
+                self.status_label.setText(message)
+                QMessageBox.information(self, "موفقیت", message)
                 
                 # بازخوانی گزارش‌های اخیر
                 self.load_recent_reports()
+                
+                # ارسال سیگنال تولید گزارش
+                self.report_generated.emit(True, message)
             else:
-                self.status_label.setText("خطا در تولید گزارش.")
-                QMessageBox.critical(self, "خطا", "خطا در تولید گزارش.")
+                message = "خطا در تولید گزارش."
+                self.status_label.setText(message)
+                QMessageBox.critical(self, "خطا", message)
+                
+                # ارسال سیگنال تولید گزارش با وضعیت خطا
+                self.report_generated.emit(False, message)
             
         except Exception as e:
             logger.error(f"خطا در تولید گزارش ورودی‌های پوز حسابداری که در پوز نیستند: {str(e)}")
-            self.status_label.setText(f"خطا در تولید گزارش: {str(e)}")
-            QMessageBox.critical(self, "خطا", f"خطا در تولید گزارش: {str(e)}")
+            message = f"خطا در تولید گزارش: {str(e)}"
+            self.status_label.setText(message)
+            QMessageBox.critical(self, "خطا", message)
+            
+            # ارسال سیگنال تولید گزارش با وضعیت خطا
+            self.report_generated.emit(False, message)
     
     def generate_duplicate_accounting_entries_report(self):
         """
@@ -1231,19 +1291,31 @@ class ReportsTab(QWidget):
             report_path = self.report_generator.generate_duplicate_accounting_entries_report()
             
             if report_path:
-                self.status_label.setText(f"گزارش با موفقیت در {report_path} ذخیره شد.")
-                QMessageBox.information(self, "موفقیت", f"گزارش با موفقیت در {report_path} ذخیره شد.")
+                message = f"گزارش با موفقیت در {report_path} ذخیره شد."
+                self.status_label.setText(message)
+                QMessageBox.information(self, "موفقیت", message)
                 
                 # بازخوانی گزارش‌های اخیر
                 self.load_recent_reports()
+                
+                # ارسال سیگنال تولید گزارش
+                self.report_generated.emit(True, message)
             else:
-                self.status_label.setText("خطا در تولید گزارش.")
-                QMessageBox.critical(self, "خطا", "خطا در تولید گزارش.")
+                message = "خطا در تولید گزارش."
+                self.status_label.setText(message)
+                QMessageBox.critical(self, "خطا", message)
+                
+                # ارسال سیگنال تولید گزارش با وضعیت خطا
+                self.report_generated.emit(False, message)
             
         except Exception as e:
             logger.error(f"خطا در تولید گزارش ورودی‌های تکراری حسابداری: {str(e)}")
-            self.status_label.setText(f"خطا در تولید گزارش: {str(e)}")
-            QMessageBox.critical(self, "خطا", f"خطا در تولید گزارش: {str(e)}")
+            message = f"خطا در تولید گزارش: {str(e)}"
+            self.status_label.setText(message)
+            QMessageBox.critical(self, "خطا", message)
+            
+            # ارسال سیگنال تولید گزارش با وضعیت خطا
+            self.report_generated.emit(False, message)
     
     def generate_reconciliation_summary_report(self):
         """
@@ -1256,16 +1328,28 @@ class ReportsTab(QWidget):
             report_path = self.report_generator.generate_reconciliation_summary_report()
             
             if report_path:
-                self.status_label.setText(f"گزارش با موفقیت در {report_path} ذخیره شد.")
-                QMessageBox.information(self, "موفقیت", f"گزارش با موفقیت در {report_path} ذخیره شد.")
+                message = f"گزارش با موفقیت در {report_path} ذخیره شد."
+                self.status_label.setText(message)
+                QMessageBox.information(self, "موفقیت", message)
                 
                 # بازخوانی گزارش‌های اخیر
                 self.load_recent_reports()
+                
+                # ارسال سیگنال تولید گزارش
+                self.report_generated.emit(True, message)
             else:
-                self.status_label.setText("خطا در تولید گزارش.")
-                QMessageBox.critical(self, "خطا", "خطا در تولید گزارش.")
+                message = "خطا در تولید گزارش."
+                self.status_label.setText(message)
+                QMessageBox.critical(self, "خطا", message)
+                
+                # ارسال سیگنال تولید گزارش با وضعیت خطا
+                self.report_generated.emit(False, message)
             
         except Exception as e:
             logger.error(f"خطا در تولید گزارش خلاصه مغایرت‌گیری: {str(e)}")
-            self.status_label.setText(f"خطا در تولید گزارش: {str(e)}")
-            QMessageBox.critical(self, "خطا", f"خطا در تولید گزارش: {str(e)}")
+            message = f"خطا در تولید گزارش: {str(e)}"
+            self.status_label.setText(message)
+            QMessageBox.critical(self, "خطا", message)
+            
+            # ارسال سیگنال تولید گزارش با وضعیت خطا
+            self.report_generated.emit(False, message)
