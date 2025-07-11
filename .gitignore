@@ -1,0 +1,47 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+.env/
+
+# IDE files
+.idea/
+.vscode/
+*.sublime-*
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+
+# Log files
+*.log
+errors.txt
+
+# Generated reports
+reports/*.pdf
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+
+# Font files (should be added manually)
+config/fonts/*.ttf
+config/fonts/*.otf

@@ -1,0 +1,374 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+ماژول توابع کمکی
+این ماژول شامل توابع کمکی و ابزارهای مورد نیاز در سراسر برنامه است.
+"""
+
+import os
+import re
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple, Any, Union
+import pandas as pd
+
+from modules.logger import get_logger
+
+# ایجاد شیء لاگر
+logger = get_logger(__name__)
+
+
+def convert_date_format(date_str: str, input_format: str, output_format: str) -> Optional[str]:
+    """
+    تبدیل فرمت تاریخ
+    
+    پارامترها:
+        date_str: رشته تاریخ ورودی
+        input_format: فرمت ورودی
+        output_format: فرمت خروجی
+        
+    خروجی:
+        رشته تاریخ با فرمت جدید یا None در صورت خطا
+    """
+    try:
+        date_obj = datetime.strptime(date_str, input_format)
+        return date_obj.strftime(output_format)
+    except Exception as e:
+        logger.warning(f"خطا در تبدیل فرمت تاریخ: {str(e)}, تاریخ: {date_str}")
+        return None
+
+
+def jalali_to_gregorian(jy: int, jm: int, jd: int) -> Tuple[int, int, int]:
+    """
+    تبدیل تاریخ جلالی به میلادی
+    
+    پارامترها:
+        jy: سال جلالی
+        jm: ماه جلالی
+        jd: روز جلالی
+        
+    خروجی:
+        تاپل (سال، ماه، روز) میلادی
+    """
+    jy += 1595
+    days = -355668 + (365 * jy) + ((jy // 33) * 8) + (((jy % 33) + 3) // 4) + jd
+    
+    if jm < 7:
+        days += (jm - 1) * 31
+    else:
+        days += ((jm - 7) * 30) + 186
+    
+    gy = 400 * (days // 146097)
+    days %= 146097
+    
+    if days > 36524:
+        days -= 1
+        gy += 100 * (days // 36524)
+        days %= 36524
+        
+        if days >= 365:
+            days += 1
+    
+    gy += 4 * (days // 1461)
+    days %= 1461
+    
+    if days > 365:
+        gy += (days - 1) // 365
+        days = (days - 1) % 365
+    
+    gd = days + 1
+    
+    if ((gy % 4 == 0 and gy % 100 != 0) or (gy % 400 == 0)):
+        kab = 29
+    else:
+        kab = 28
+    
+    sal_a = [0, 31, kab, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    gm = 0
+    
+    while gm < 13 and gd > sal_a[gm]:
+        gd -= sal_a[gm]
+        gm += 1
+    
+    return gy, gm, gd
+
+
+def gregorian_to_jalali(gy: int, gm: int, gd: int) -> Tuple[int, int, int]:
+    """
+    تبدیل تاریخ میلادی به جلالی
+    
+    پارامترها:
+        gy: سال میلادی
+        gm: ماه میلادی
+        gd: روز میلادی
+        
+    خروجی:
+        تاپل (سال، ماه، روز) جلالی
+    """
+    g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+    
+    if (gy > 1600):
+        jy = 979
+        gy -= 1600
+    else:
+        jy = 0
+        gy -= 621
+    
+    gy2 = (gm > 2) and (gy + 1) or gy
+    days = (365 * gy) + ((gy2 + 3) // 4) - ((gy2 + 99) // 100) + ((gy2 + 399) // 400) - 80 + gd + g_d_m[gm - 1]
+    jy += 33 * (days // 12053)
+    days %= 12053
+    jy += 4 * (days // 1461)
+    days %= 1461
+    
+    if days > 365:
+        jy += (days - 1) // 365
+        days = (days - 1) % 365
+    
+    if days < 186:
+        jm = 1 + (days // 31)
+        jd = 1 + (days % 31)
+    else:
+        jm = 7 + ((days - 186) // 30)
+        jd = 1 + ((days - 186) % 30)
+    
+    return jy, jm, jd
+
+
+def convert_jalali_to_gregorian_str(jalali_date: str, input_format: str = '%Y/%m/%d', output_format: str = '%Y-%m-%d') -> Optional[str]:
+    """
+    تبدیل رشته تاریخ جلالی به میلادی
+    
+    پارامترها:
+        jalali_date: رشته تاریخ جلالی
+        input_format: فرمت ورودی
+        output_format: فرمت خروجی
+        
+    خروجی:
+        رشته تاریخ میلادی یا None در صورت خطا
+    """
+    try:
+        # استخراج اجزای تاریخ از رشته
+        date_obj = datetime.strptime(jalali_date, input_format)
+        jy, jm, jd = date_obj.year, date_obj.month, date_obj.day
+        
+        # تبدیل به میلادی
+        gy, gm, gd = jalali_to_gregorian(jy, jm, jd)
+        
+        # ایجاد شیء تاریخ میلادی
+        g_date = datetime(gy, gm, gd)
+        
+        # تبدیل به رشته با فرمت مورد نظر
+        return g_date.strftime(output_format)
+    except Exception as e:
+        logger.warning(f"خطا در تبدیل تاریخ جلالی به میلادی: {str(e)}, تاریخ: {jalali_date}")
+        return None
+
+
+def convert_gregorian_to_jalali_str(gregorian_date: str, input_format: str = '%Y-%m-%d', output_format: str = '%Y/%m/%d') -> Optional[str]:
+    """
+    تبدیل رشته تاریخ میلادی به جلالی
+    
+    پارامترها:
+        gregorian_date: رشته تاریخ میلادی
+        input_format: فرمت ورودی
+        output_format: فرمت خروجی
+        
+    خروجی:
+        رشته تاریخ جلالی یا None در صورت خطا
+    """
+    try:
+        # استخراج اجزای تاریخ از رشته
+        date_obj = datetime.strptime(gregorian_date, input_format)
+        gy, gm, gd = date_obj.year, date_obj.month, date_obj.day
+        
+        # تبدیل به جلالی
+        jy, jm, jd = gregorian_to_jalali(gy, gm, gd)
+        
+        # تبدیل به رشته با فرمت مورد نظر
+        jalali_date_str = output_format.replace('%Y', str(jy)).replace('%m', str(jm).zfill(2)).replace('%d', str(jd).zfill(2))
+        return jalali_date_str
+    except Exception as e:
+        logger.warning(f"خطا در تبدیل تاریخ میلادی به جلالی: {str(e)}, تاریخ: {gregorian_date}")
+        return None
+
+
+def extract_digits(text: str) -> Optional[str]:
+    """
+    استخراج ارقام از یک رشته
+    
+    پارامترها:
+        text: رشته ورودی
+        
+    خروجی:
+        رشته حاوی فقط ارقام یا None در صورت عدم وجود رقم
+    """
+    if not text or not isinstance(text, str):
+        return None
+        
+    digits = re.sub(r'\D', '', text)
+    return digits if digits else None
+
+
+def format_currency(amount: Union[float, int, str]) -> str:
+    """
+    فرمت‌بندی مبلغ به صورت پولی
+    
+    پارامترها:
+        amount: مبلغ
+        
+    خروجی:
+        رشته فرمت‌بندی شده
+    """
+    try:
+        if isinstance(amount, str):
+            amount = float(amount.replace(',', ''))
+        
+        return f"{int(amount):,}"
+    except Exception as e:
+        logger.warning(f"خطا در فرمت‌بندی مبلغ: {str(e)}, مبلغ: {amount}")
+        return str(amount)
+
+
+def normalize_persian_text(text: str) -> str:
+    """
+    یکسان‌سازی متن فارسی
+    
+    پارامترها:
+        text: متن ورودی
+        
+    خروجی:
+        متن یکسان‌سازی شده
+    """
+    if not text or not isinstance(text, str):
+        return ""
+    
+    # تبدیل کاراکترهای عربی به فارسی
+    replacements = {
+        'ي': 'ی',
+        'ك': 'ک',
+        '٠': '۰',
+        '١': '۱',
+        '٢': '۲',
+        '٣': '۳',
+        '٤': '۴',
+        '٥': '۵',
+        '٦': '۶',
+        '٧': '۷',
+        '٨': '۸',
+        '٩': '۹'
+    }
+    
+    for arabic, persian in replacements.items():
+        text = text.replace(arabic, persian)
+    
+    # حذف فاصله‌های اضافی
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    return text
+
+
+def get_file_extension(file_path: str) -> str:
+    """
+    دریافت پسوند فایل
+    
+    پارامترها:
+        file_path: مسیر فایل
+        
+    خروجی:
+        پسوند فایل
+    """
+    return os.path.splitext(file_path)[1].lower()
+
+
+def is_excel_file(file_path: str) -> bool:
+    """
+    بررسی اینکه آیا فایل از نوع اکسل است
+    
+    پارامترها:
+        file_path: مسیر فایل
+        
+    خروجی:
+        True اگر فایل اکسل باشد، در غیر این صورت False
+    """
+    ext = get_file_extension(file_path)
+    return ext in ['.xls', '.xlsx', '.xlsm']
+
+
+def read_excel_file(file_path: str, sheet_name: Optional[str] = None) -> pd.DataFrame:
+    """
+    خواندن فایل اکسل
+    
+    پارامترها:
+        file_path: مسیر فایل
+        sheet_name: نام شیت (اختیاری)
+        
+    خروجی:
+        دیتافریم پانداس
+    """
+    try:
+        if not os.path.exists(file_path):
+            logger.error(f"فایل {file_path} وجود ندارد.")
+            return pd.DataFrame()
+            
+        if not is_excel_file(file_path):
+            logger.error(f"فایل {file_path} یک فایل اکسل معتبر نیست.")
+            return pd.DataFrame()
+        
+        # خواندن فایل اکسل
+        if sheet_name:
+            df = pd.read_excel(file_path, sheet_name=sheet_name)
+        else:
+            df = pd.read_excel(file_path)
+            
+        return df
+    except Exception as e:
+        logger.error(f"خطا در خواندن فایل اکسل {file_path}: {str(e)}")
+        return pd.DataFrame()
+
+
+def find_close_matches(value: float, values_list: List[float], tolerance: float = 0.01) -> List[int]:
+    """
+    یافتن مقادیر نزدیک در یک لیست
+    
+    پارامترها:
+        value: مقدار مورد نظر
+        values_list: لیست مقادیر
+        tolerance: حد تلرانس (اختلاف مجاز)
+        
+    خروجی:
+        لیست ایندکس‌های مقادیر نزدیک
+    """
+    matches = []
+    for i, v in enumerate(values_list):
+        if abs(v - value) <= tolerance:
+            matches.append(i)
+    return matches
+
+
+def get_date_range(date_str: str, days_before: int = 0, days_after: int = 0, 
+                  date_format: str = '%Y/%m/%d') -> List[str]:
+    """
+    دریافت محدوده تاریخ
+    
+    پارامترها:
+        date_str: رشته تاریخ
+        days_before: تعداد روزهای قبل
+        days_after: تعداد روزهای بعد
+        date_format: فرمت تاریخ
+        
+    خروجی:
+        لیست رشته‌های تاریخ
+    """
+    try:
+        date_obj = datetime.strptime(date_str, date_format)
+        date_range = []
+        
+        for i in range(-days_before, days_after + 1):
+            new_date = date_obj + timedelta(days=i)
+            date_range.append(new_date.strftime(date_format))
+            
+        return date_range
+    except Exception as e:
+        logger.warning(f"خطا در محاسبه محدوده تاریخ: {str(e)}, تاریخ: {date_str}")
+        return [date_str]  # در صورت خطا، فقط تاریخ اصلی را برگردان

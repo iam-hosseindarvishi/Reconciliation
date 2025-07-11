@@ -1,0 +1,20 @@
+# Core dependencies
+PySide6>=6.4.0
+
+# Data processing
+pandas>=1.5.0
+xlrd>=2.0.1  # For .xls files
+openpyxl>=3.0.10  # For .xlsx files
+
+# Database
+# sqlite3 is part of Python's standard library
+
+# PDF generation
+reportlab>=3.6.12
+
+# Date conversion (Gregorian to Jalali)
+jdatetime>=4.1.0
+
+# Utilities
+python-dateutil>=2.8.2
+numpy>=1.23.0
