@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QLabel, QPushButton,
     QFileDialog, QProgressBar, QMessageBox, QGroupBox
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 
 from modules.data_loader import DataLoader
 from modules.database_manager import DatabaseManager
@@ -25,6 +25,9 @@ class DataImportTab(QWidget):
     """
     تب واردسازی داده‌ها
     """
+    
+    # تعریف سیگنال‌ها
+    import_completed = Signal(bool, str)
     
     def __init__(self, db_manager: DatabaseManager, parent=None):
         """
@@ -42,7 +45,10 @@ class DataImportTab(QWidget):
         self.bank_file_path = ""
         self.pos_file_path = ""
         self.accounting_file_path = ""
-        
+         # **اضافه کردن ویژگی‌های مسیرهای پیش‌فرض برای استفاده در load_settings/save_settings**
+        self.default_bank_path = ""
+        self.default_pos_path = ""
+        self.default_accounting_path = ""
         # راه‌اندازی رابط کاربری
         self.init_ui()
     
@@ -212,3 +218,6 @@ class DataImportTab(QWidget):
             QMessageBox.information(self, "موفقیت", message)
         else:
             QMessageBox.critical(self, "خطا", message)
+        
+        # ارسال سیگنال تکمیل واردسازی
+        self.import_completed.emit(success, message)

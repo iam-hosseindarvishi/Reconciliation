@@ -55,8 +55,8 @@ class ImportWorker(QThread):
                 self.progress_updated.emit(10, "در حال بارگذاری داده‌های بانک...")
                 self.log_message.emit(f"بارگذاری داده‌های بانک از فایل {os.path.basename(self.bank_file)}", "blue")
                 
-                bank_data = self.data_loader.load_bank_data(self.bank_file)
-                if bank_data:
+                bank_data = self.data_loader.load_bank_file(self.bank_file)
+                if self.bank_file and not bank_data.empty:
                     self.progress_updated.emit(30, "در حال ذخیره داده‌های بانک در پایگاه داده...")
                     self.db_manager.insert_bank_transactions(bank_data)
                     self.log_message.emit(f"{len(bank_data)} رکورد بانکی با موفقیت بارگذاری شد.", "green")
@@ -68,7 +68,7 @@ class ImportWorker(QThread):
                 self.progress_updated.emit(40, "در حال بارگذاری داده‌های پوز...")
                 self.log_message.emit(f"بارگذاری داده‌های پوز از پوشه {os.path.basename(self.pos_folder)}", "blue")
                 
-                pos_data = self.data_loader.load_pos_data(self.pos_folder)
+                pos_data = self.data_loader.load_pos_files(self.pos_folder)
                 if pos_data:
                     self.progress_updated.emit(60, "در حال ذخیره داده‌های پوز در پایگاه داده...")
                     self.db_manager.insert_pos_transactions(pos_data)
@@ -81,7 +81,7 @@ class ImportWorker(QThread):
                 self.progress_updated.emit(70, "در حال بارگذاری داده‌های حسابداری...")
                 self.log_message.emit(f"بارگذاری داده‌های حسابداری از فایل {os.path.basename(self.accounting_file)}", "blue")
                 
-                accounting_data = self.data_loader.load_accounting_data(self.accounting_file)
+                accounting_data = self.data_loader.load_accounting_file(self.accounting_file)
                 if accounting_data:
                     self.progress_updated.emit(90, "در حال ذخیره داده‌های حسابداری در پایگاه داده...")
                     self.db_manager.insert_accounting_entries(accounting_data)

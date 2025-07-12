@@ -96,61 +96,60 @@ def main():
     """
     تابع اصلی برنامه که مسئول راه‌اندازی برنامه است
     """
-    try:
-        # ثبت شروع برنامه در لاگ
-        logger.info(f"شروع برنامه {APPLICATION_NAME} نسخه {APPLICATION_VERSION}")
-        
-        # تنظیم هندلر استثناهای پیش‌بینی نشده
-        sys.excepthook = exception_hook
-        
-        # راه‌اندازی برنامه Qt
-        app = QApplication(sys.argv)
-        app.setApplicationName(APPLICATION_NAME)
-        app.setApplicationVersion(APPLICATION_VERSION)
-        app.setOrganizationName(APPLICATION_ORGANIZATION)
-        
-        # تنظیم پشتیبانی از زبان فارسی
-        setup_persian_support()
-        setup_qt_persian_support(app)
-        
-        # نمایش صفحه اسپلش
-        splash_pixmap = QPixmap(os.path.join(BASE_DIR, 'config', 'splash.svg'))
-        if not splash_pixmap.isNull():
-            splash = QSplashScreen(splash_pixmap)
-            splash.show()
-            app.processEvents()
-        else:
-            splash = None
-        
-        # راه‌اندازی پایگاه داده
-        db_manager = DatabaseManager()
-        db_manager.connect()
-        db_manager.setup_database()
-        
-        # راه‌اندازی پنجره اصلی با تاخیر
-        def show_main_window():
-            main_window = MainWindow()
-            main_window.show()
-            if splash:
-                splash.finish(main_window)
-        
-        # نمایش پنجره اصلی پس از 1 ثانیه
-        QTimer.singleShot(1000, show_main_window)
-        
-        # اجرای حلقه رویداد برنامه
-        return app.exec()
+    # ثبت شروع برنامه در لاگ
+    logger.info(f"شروع برنامه {APPLICATION_NAME} نسخه {APPLICATION_VERSION}")
     
-    except Exception as e:
-        # ثبت خطا در لاگ
-        logger.critical(f"خطای بحرانی در اجرای برنامه: {str(e)}")
-        log_exception(e, traceback.extract_tb(sys.exc_info()[2]))
-        
-        # نمایش پیام خطا به کاربر
-        error_msg = f"خطای بحرانی در اجرای برنامه: {str(e)}"
-        QMessageBox.critical(None, "خطای سیستم", error_msg)
-        
-        return 1
+    # تنظیم هندلر استثناهای پیش‌بینی نشده
+    # sys.excepthook = exception_hook  # موقتاً غیرفعال شد
+    
+    # راه‌اندازی برنامه Qt
+    app = QApplication(sys.argv)
+    app.setApplicationName(APPLICATION_NAME)
+    app.setApplicationVersion(APPLICATION_VERSION)
+    app.setOrganizationName(APPLICATION_ORGANIZATION)
+    
+    # تنظیم پشتیبانی از زبان فارسی
+    setup_persian_support()
+    setup_qt_persian_support(app)
+    
+    # نمایش صفحه اسپلش
+    splash_pixmap = QPixmap(os.path.join(BASE_DIR, 'config', 'splash.svg'))
+    if not splash_pixmap.isNull():
+        splash = QSplashScreen(splash_pixmap)
+        splash.show()
+        app.processEvents()
+    else:
+        splash = None
+    
+    # راه‌اندازی پایگاه داده
+    db_manager = DatabaseManager()
+    db_manager.connect()
+    db_manager.setup_database()
+    main_window=MainWindow()
+    # راه‌اندازی پنجره اصلی با تاخیر
+    def show_main_window():
+        print("نمایش پنجره اصلی...")
+        main_window.show()
+        if splash:
+            splash.finish(main_window)
+        print("پنجره اصلی نمایش داده شد.")
+    
+    # نمایش پنجره اصلی پس از 1 ثانیه
+    print("تنظیم تایمر برای نمایش پنجره اصلی...")
+    QTimer.singleShot(1000, show_main_window)
+    print("تایمر تنظیم شد.")
+    
+    # اجرای حلقه رویداد برنامه
+    print("شروع حلقه رویداد برنامه...")
+    return app.exec()
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    exit_code = main()
+    
+    # اگر برنامه مستقیماً با پایتون اجرا شده باشد (نه از طریق run_app.bat)، منتظر فشردن کلید بماند
+    if len(sys.argv) <= 1:  # هیچ آرگومانی به برنامه داده نشده است
+        print("\nبرنامه با موفقیت اجرا شد. برای خروج کلیدی را فشار دهید...")
+        input()
+    
+    sys.exit(exit_code)
