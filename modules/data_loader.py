@@ -115,9 +115,10 @@ class DataLoader:
             # تغییر نام ستون‌ها
             df = df.rename(columns=column_mapping)
             
+
             # استخراج شناسه ترمینال شاپرک
             df['Extracted_Shaparak_Terminal_ID'] = df.apply(
-                lambda row: self._extract_terminal_id(row) if row['Payer_Receiver'] == "مرکز شاپرک" else None, 
+                lambda row: self._extract_terminal_id(row) if row['Payer_Receiver'] == "مرکزشاپرک" else None, 
                 axis=1
             )
             
@@ -258,8 +259,9 @@ class DataLoader:
         try:
             tracking_id = str(row['Shaparak_Deposit_Tracking_ID_Raw'])
             # استخراج 7 رقم بعد از صفرهای ابتدایی
-            match = re.search(r'^0*([0-9]{7})', tracking_id)
+            match = re.search(r'0{3,}([0-9]{7})', tracking_id)
             if match:
+                print(match.group(1))
                 return match.group(1)
             return None
         except:
