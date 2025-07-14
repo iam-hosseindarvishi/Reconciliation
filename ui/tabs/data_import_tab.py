@@ -171,8 +171,6 @@ class DataImportTab(QWidget):
         
         # ایجاد و راه‌اندازی ImportWorker
         self.import_worker = ImportWorker(
-            self.data_loader,
-            self.db_manager,
             self.bank_file_path,
             self.pos_file_path,
             self.accounting_file_path

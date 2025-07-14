@@ -41,7 +41,7 @@ class MainWindow(QMainWindow):
         self.db_manager = DatabaseManager()
         
         # تنظیم بارگذار داده
-        self.data_loader = DataLoader(self.db_manager)
+        self.data_loader = DataLoader()
         
         # تنظیم موتور مغایرت‌گیری
         self.reconciliation_engine = ReconciliationEngine()

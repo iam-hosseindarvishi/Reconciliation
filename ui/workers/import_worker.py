@@ -26,8 +26,7 @@ class ImportWorker(QThread):
     import_completed = Signal(bool, str)
     log_message = Signal(str, str)
     
-    def __init__(self, data_loader: DataLoader, db_manager: DatabaseManager, 
-                 bank_file: str, pos_folder: str, accounting_file: str):
+    def __init__(self, bank_file: str, pos_folder: str, accounting_file: str):
         """
         مقداردهی اولیه کلاس ImportWorker
         
@@ -39,8 +38,8 @@ class ImportWorker(QThread):
             accounting_file: مسیر فایل حسابداری
         """
         super().__init__()
-        self.data_loader = data_loader
-        self.db_manager = db_manager
+        self.data_loader = DataLoader()
+        self.db_manager = DatabaseManager()
         self.bank_file = bank_file
         self.pos_folder = pos_folder
         self.accounting_file = accounting_file

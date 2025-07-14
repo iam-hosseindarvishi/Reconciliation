@@ -13,6 +13,7 @@ import re
 from datetime import datetime, timedelta
 
 from modules.logger import get_logger
+from modules.database_manager import DatabaseManager
 
 # ایجاد شیء لاگر
 logger = get_logger(__name__)
@@ -23,17 +24,14 @@ class DataLoader:
     کلاس اصلی برای بارگذاری داده‌ها از فایل‌های اکسل
     """
     
-    def __init__(self, db_manager=None):
+    def __init__(self):
         """
         مقداردهی اولیه کلاس DataLoader
-        
-        پارامترها:
-            db_manager: شیء مدیریت پایگاه داده (اختیاری)
         """
         self.bank_data = None
         self.pos_data = None
         self.accounting_data = None
-        self.db_manager = db_manager
+        self.db_manager = DatabaseManager()
         
     def load_bank_data(self, file_path: str) -> List[Dict]:
         """
@@ -158,26 +156,32 @@ class DataLoader:
                     
                     # خواندن فایل اکسل پوز
                     df = pd.read_excel(file_path)
+                    logger.info(f"ستون‌های فایل '{file}': {df.columns.tolist()}")
+                    logger.info(f"تعداد ردیف‌ها در فایل '{file}': {len(df)}")
                     
                     # نگاشت نام ستون‌ها
                     column_mapping = {
-                        'شماره پیگیری': 'POS_Tracking_Number',
-                        'شماره کارت': 'Card_Number',
+                        'ردیف': 'Row_ID',
                         'شناسه شعبه مشتری': 'Terminal_ID',
-                        'نام شعبه مشتری': 'Terminal_Name',
                         'شناسه پایانه': 'Terminal_Identifier',
+                        'شماره پیگیری': 'Pos_Tracking_Number',
+                        # 'شماره مرجع': 'Reference_Number',
+                        'شماره کارت': 'Card_Number',
+                        'نام شعبه مشتری': 'Terminal_Name',
                         'نوع تراکنش': 'Transaction_Type',
                         'مبلغ تراکنش': 'Transaction_Amount',
+                        'زمان درخواست تراکنش': 'Transaction_Time',
                         'تاریخ تراکنش': 'Transaction_Date',
-                        'ساعت تراکنش': 'Transaction_Time',
+                        'تاریخ تایید تراکنش': 'Approval_Date',
+                        'شماره درخواست': 'Request_Number',
                         'وضعیت تراکنش': 'Transaction_Status'
                     }
-                    
+
                     # تغییر نام ستون‌ها
                     df = df.rename(columns=column_mapping)
-                    
-                    # فیلتر کردن فقط تراکنش‌های خرید
-                    df = df[df['Transaction_Type'] == "خرید"]
+
+                    # # فیلتر کردن فقط تراکنش‌های خرید
+                    # df = df[df['Transaction_Type'] == "خرید"]
                     
                     # افزودن به لیست دیتافریم‌ها
                     all_dfs.append(df)
