@@ -216,8 +216,10 @@ class DataLoader:
         """
         try:
             logger.info(f"بارگذاری فایل حسابداری: {file_path}")
-            # خواندن فایل اکسل حسابداری
-            df = pd.read_excel(file_path)
+            df = pd.read_excel(file_path, engine='xlrd')
+            logger.info(f"ستون‌های فایل حسابداری: {df.columns.tolist()}")
+            
+
             
             # نگاشت نام ستون‌ها
             column_mapping = {
@@ -225,10 +227,12 @@ class DataLoader:
                 'شماره': 'Account_Reference_Suffix',
                 'Debit': 'Debit',
                 'Credit': 'Credit',
-                'تاریخ سررسید': 'Due_Date',
+                'تاريخ سررسيد': 'Description_Notes_Acc',
+                'TotalRemainAmnt': 'Total_Remain_Amnt',
                 'totmergedpersonsName': 'Person_Name',
-                'ChqStDate': 'Check_Date',
-                'توضیحات': 'Description_Notes_Acc'
+                'chqSTdate': 'Check_Date',
+                'chqSTdate_1': 'Due_Date',
+                # 'کد نوع چک': 'Cheque_Status_Description'
             }
             
             # تغییر نام ستون‌ها
