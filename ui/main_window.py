@@ -44,10 +44,10 @@ class MainWindow(QMainWindow):
         self.data_loader = DataLoader(self.db_manager)
         
         # تنظیم موتور مغایرت‌گیری
-        self.reconciliation_engine = ReconciliationEngine(self.db_manager)
+        self.reconciliation_engine = ReconciliationEngine()
         
         # تنظیم تولیدکننده گزارش
-        self.report_generator = ReportGenerator(self.db_manager)
+        self.report_generator = ReportGenerator()
         
         # تنظیم تنظیمات برنامه
         self.settings = QSettings("ReconciliationApp", "Settings")
@@ -77,15 +77,15 @@ class MainWindow(QMainWindow):
         self.tab_widget.setTabShape(QTabWidget.Rounded)
         
         # تب واردسازی داده‌ها
-        self.data_import_tab = DataImportTab(self.db_manager)
+        self.data_import_tab = DataImportTab()
         self.tab_widget.addTab(self.data_import_tab, "واردسازی داده‌ها")
         
         # تب مغایرت‌گیری
-        self.reconciliation_tab = ReconciliationTab(self.db_manager)
+        self.reconciliation_tab = ReconciliationTab()
         self.tab_widget.addTab(self.reconciliation_tab, "مغایرت‌گیری")
         
         # تب گزارش‌گیری
-        self.report_tab = ReportTab(self.db_manager)
+        self.report_tab = ReportTab()
         self.tab_widget.addTab(self.report_tab, "گزارش‌گیری")
         
         # افزودن تب‌ها به چیدمان اصلی

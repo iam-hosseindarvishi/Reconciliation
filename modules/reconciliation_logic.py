@@ -22,14 +22,14 @@ class ReconciliationEngine:
     موتور مغایرت‌گیری برای تطبیق داده‌های بانک، پوز و حسابداری
     """
     
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self):
         """
         مقداردهی اولیه کلاس ReconciliationEngine
         
         پارامترها:
             db_manager: نمونه‌ای از کلاس DatabaseManager
         """
-        self.db_manager = db_manager
+        self.db_manager = DatabaseManager()
         self.reconciliation_results = []
         
     def get_unreconciled_bank_transactions(self):

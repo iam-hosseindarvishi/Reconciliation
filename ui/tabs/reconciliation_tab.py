@@ -31,7 +31,7 @@ class ReconciliationTab(QWidget):
     # سیگنال‌ها
     reconciliation_completed = Signal(bool, str)
     
-    def __init__(self, db_manager: DatabaseManager, parent=None):
+    def __init__(self, parent=None):
         """
         مقداردهی اولیه کلاس ReconciliationTab
         
@@ -40,8 +40,8 @@ class ReconciliationTab(QWidget):
             parent: ویجت والد
         """
         super().__init__(parent)
-        self.db_manager = db_manager
-        self.reconciliation_engine = ReconciliationEngine(db_manager)
+        self.db_manager = DatabaseManager()
+        self.reconciliation_engine = ReconciliationEngine()
         
         # راه‌اندازی رابط کاربری
         self.init_ui()

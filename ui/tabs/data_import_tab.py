@@ -17,6 +17,7 @@ from modules.logger import get_logger
 from ui.widgets import LogTextEdit
 from ui.workers import ImportWorker
 
+import os
 # ایجاد شیء لاگر
 logger = get_logger(__name__)
 
@@ -29,7 +30,7 @@ class DataImportTab(QWidget):
     # تعریف سیگنال‌ها
     import_completed = Signal(bool, str)
     
-    def __init__(self, db_manager: DatabaseManager, parent=None):
+    def __init__(self, parent=None):
         """
         مقداردهی اولیه کلاس DataImportTab
         
@@ -38,7 +39,7 @@ class DataImportTab(QWidget):
             parent: ویجت والد
         """
         super().__init__(parent)
-        self.db_manager = db_manager
+        self.db_manager = DatabaseManager()
         self.data_loader = DataLoader()
         
         # مسیرهای فایل‌ها
@@ -129,13 +130,13 @@ class DataImportTab(QWidget):
         """
         انتخاب فایل پوز
         """
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "انتخاب فایل پوز", "", "Excel Files (*.xlsx *.xls);;CSV Files (*.csv)"
-        )
-        if file_path:
-            self.pos_file_path = file_path
-            self.pos_file_label.setText(file_path.split("/")[-1])
-            self.log_text.append_log(f"فایل پوز انتخاب شد: {file_path}", "blue")
+        folder_path = QFileDialog.getExistingDirectory(
+                self, "انتخاب پوشه فایل‌های پوز", "" # عنوان پنجره و مسیر اولیه
+            )
+        if folder_path:
+            self.pos_file_path = folder_path
+            self.pos_file_label.setText(os.path.basename(folder_path)) 
+            self.log_text.append_log(f"پوشه پوز انتخاب شد: {folder_path}", "blue")
     
     def select_accounting_file(self):
         """

@@ -25,7 +25,7 @@ class ReportTab(QWidget):
     تب گزارش‌گیری
     """
     
-    def __init__(self, db_manager: DatabaseManager, parent=None):
+    def __init__(self, parent=None):
         """
         مقداردهی اولیه کلاس ReportTab
         
@@ -34,8 +34,8 @@ class ReportTab(QWidget):
             parent: ویجت والد
         """
         super().__init__(parent)
-        self.db_manager = db_manager
-        self.report_generator = ReportGenerator(db_manager)
+        self.db_manager = DatabaseManager()
+        self.report_generator = ReportGenerator()
         
         # راه‌اندازی رابط کاربری
         self.init_ui()

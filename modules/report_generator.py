@@ -67,14 +67,14 @@ class ReportGenerator:
     کلاس تولید گزارش‌های PDF
     """
     
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self):
         """
         مقداردهی اولیه کلاس ReportGenerator
         
         پارامترها:
             db_manager: نمونه‌ای از کلاس DatabaseManager
         """
-        self.db_manager = db_manager
+        self.db_manager = DatabaseManager()
         self.fonts_registered = register_fonts()
         
         # ایجاد استایل‌های پاراگراف

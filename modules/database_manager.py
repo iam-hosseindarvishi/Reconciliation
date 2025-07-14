@@ -18,6 +18,12 @@ logger = get_logger(__name__)
 
 
 class DatabaseManager:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(DatabaseManager, cls).__new__(cls)
+        return cls._instance
     """
     کلاس مدیریت پایگاه داده SQLite
     """
@@ -25,18 +31,21 @@ class DatabaseManager:
     def __init__(self, db_path: str = None):
         """
         مقداردهی اولیه کلاس DatabaseManager
-        
+
         پارامترها:
             db_path: مسیر فایل پایگاه داده (اختیاری)
         """
-        # تنظیم مسیر پیش‌فرض پایگاه داده اگر مسیر ارائه نشده باشد
-        if db_path is None:
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            db_path = os.path.join(base_dir, 'data', 'reconciliation_db.sqlite')
-        
-        self.db_path = db_path
-        self.connection = None
-        self.cursor = None
+        if not hasattr(self, 'initialized'):  # جلوگیری از مقداردهی مجدد
+            # تنظیم مسیر پیش‌فرض پایگاه داده اگر مسیر ارائه نشده باشد
+            if db_path is None:
+                base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                db_path = os.path.join(base_dir, 'data', 'reconciliation_db.sqlite')
+            
+            self.db_path = db_path
+            self.connection = None
+            self.cursor = None
+            self.connect()
+            self.initialized = True
     
     def connect(self) -> None:
         """
@@ -69,7 +78,8 @@ class DatabaseManager:
         ایجاد جداول پایگاه داده در صورت عدم وجود
         """
         try:
-            self.connect()
+            if not self.connection:
+                self.connect()
             
             # ایجاد جدول تراکنش‌های بانک
             self.cursor.execute('''
@@ -150,7 +160,7 @@ class DatabaseManager:
             logger.error(f"خطا در راه‌اندازی پایگاه داده: {str(e)}")
             raise
         finally:
-            self.disconnect()
+            pass  # اتصال را باز نگه می‌داریم
     
     def insert_bank_transactions(self, df: pd.DataFrame) -> int:
         """
@@ -163,7 +173,8 @@ class DatabaseManager:
             تعداد رکوردهای درج شده
         """
         try:
-            self.connect()
+            if not self.connection:
+                self.connect()
             inserted_count = 0
             
             for _, row in df.iterrows():
@@ -208,7 +219,7 @@ class DatabaseManager:
             logger.error(f"خطا در درج داده‌های بانک: {str(e)}")
             raise
         finally:
-            self.disconnect()
+            pass  # اتصال را باز نگه می‌داریم
     
     def insert_pos_transactions(self, df: pd.DataFrame) -> int:
         """
@@ -221,7 +232,8 @@ class DatabaseManager:
             تعداد رکوردهای درج شده
         """
         try:
-            self.connect()
+            if not self.connection:
+                self.connect()
             inserted_count = 0
             
             for _, row in df.iterrows():
@@ -264,7 +276,7 @@ class DatabaseManager:
             logger.error(f"خطا در درج داده‌های پوز: {str(e)}")
             raise
         finally:
-            self.disconnect()
+            pass  # اتصال را باز نگه می‌داریم
     
     def insert_accounting_entries(self, df: pd.DataFrame) -> int:
         """
@@ -277,7 +289,8 @@ class DatabaseManager:
             تعداد رکوردهای درج شده
         """
         try:
-            self.connect()
+            if not self.connection:
+                self.connect()
             inserted_count = 0
             
             for _, row in df.iterrows():
@@ -318,7 +331,7 @@ class DatabaseManager:
             logger.error(f"خطا در درج داده‌های حسابداری: {str(e)}")
             raise
         finally:
-            self.disconnect()
+            pass  # اتصال را باز نگه می‌داریم
     
     def get_unreconciled_bank_transactions(self) -> List[Dict[str, Any]]:
         """

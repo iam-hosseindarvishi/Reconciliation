@@ -56,33 +56,33 @@ class ImportWorker(QThread):
                 self.log_message.emit(f"بارگذاری داده‌های بانک از فایل {os.path.basename(self.bank_file)}", "blue")
                 
                 bank_data = self.data_loader.load_bank_file(self.bank_file)
-                if self.bank_file and not bank_data.empty:
+                if not bank_data.empty:
                     self.progress_updated.emit(30, "در حال ذخیره داده‌های بانک در پایگاه داده...")
                     self.db_manager.insert_bank_transactions(bank_data)
                     self.log_message.emit(f"{len(bank_data)} رکورد بانکی با موفقیت بارگذاری شد.", "green")
                 else:
                     self.log_message.emit("خطا در بارگذاری داده‌های بانک.", "red")
-            
+
             # واردسازی داده‌های پوز
             if self.pos_folder:
                 self.progress_updated.emit(40, "در حال بارگذاری داده‌های پوز...")
                 self.log_message.emit(f"بارگذاری داده‌های پوز از پوشه {os.path.basename(self.pos_folder)}", "blue")
                 
                 pos_data = self.data_loader.load_pos_files(self.pos_folder)
-                if pos_data:
+                if not pos_data.empty:
                     self.progress_updated.emit(60, "در حال ذخیره داده‌های پوز در پایگاه داده...")
                     self.db_manager.insert_pos_transactions(pos_data)
                     self.log_message.emit(f"{len(pos_data)} رکورد پوز با موفقیت بارگذاری شد.", "green")
                 else:
                     self.log_message.emit("خطا در بارگذاری داده‌های پوز.", "red")
-            
+
             # واردسازی داده‌های حسابداری
             if self.accounting_file:
                 self.progress_updated.emit(70, "در حال بارگذاری داده‌های حسابداری...")
                 self.log_message.emit(f"بارگذاری داده‌های حسابداری از فایل {os.path.basename(self.accounting_file)}", "blue")
                 
                 accounting_data = self.data_loader.load_accounting_file(self.accounting_file)
-                if accounting_data:
+                if not accounting_data.empty:
                     self.progress_updated.emit(90, "در حال ذخیره داده‌های حسابداری در پایگاه داده...")
                     self.db_manager.insert_accounting_entries(accounting_data)
                     self.log_message.emit(f"{len(accounting_data)} رکورد حسابداری با موفقیت بارگذاری شد.", "green")
