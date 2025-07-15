@@ -15,23 +15,20 @@ class DataTableModel(QAbstractTableModel):
     مدل داده برای نمایش در جدول
     """
     
-    def __init__(self, data: List[Dict[str, Any]], headers: List[str], parent=None):
+    def __init__(self, data: List[Dict[str, Any]], headers: List[str], db_keys_order: List[str], parent=None):
         """
         مقداردهی اولیه کلاس DataTableModel
         
         پارامترها:
             data: لیست دیکشنری‌های داده
             headers: لیست عناوین ستون‌ها
+            db_keys_order: ترتیب کلیدهای دیتابیس
             parent: ویجت والد
         """
         super().__init__(parent)
         self._data = data
         self._headers = headers
-        self._keys = []
-        
-        # استخراج کلیدهای دیکشنری برای دسترسی به داده‌ها
-        if data and len(data) > 0:
-            self._keys = list(data[0].keys())
+        self._db_keys = db_keys_order
     
     def rowCount(self, parent=QModelIndex()):
         """
@@ -57,21 +54,25 @@ class DataTableModel(QAbstractTableModel):
         
         if role == Qt.DisplayRole:
             # نمایش داده
-            if col < len(self._keys):
-                key = self._keys[col]
+            if col < len(self._db_keys):
+                key = self._db_keys[col]
                 value = self._data[row].get(key, "")
                 
-                # فرمت‌بندی مقادیر خاص
+                # فرمت‌بندی مقادیر خاص (مالی)
                 if key in ["Deposit_Amount", "Withdrawal_Amount", "Debit", "Credit", "Transaction_Amount"]:
-                    if value and value != 0:
+                    if value is not None and value != 0:
                         return format_currency(value)
+                
+                # تبدیل مقادیر بولی
+                if isinstance(value, bool):
+                    return "بله" if value else "خیر"
                 
                 return str(value)
         
         elif role == Qt.TextAlignmentRole:
             # تراز متن
-            if col < len(self._keys):
-                key = self._keys[col]
+            if col < len(self._db_keys):
+                key = self._db_keys[col]
                 if key in ["Deposit_Amount", "Withdrawal_Amount", "Debit", "Credit", "Transaction_Amount"]:
                     return Qt.AlignLeft | Qt.AlignVCenter
             
@@ -88,17 +89,15 @@ class DataTableModel(QAbstractTableModel):
         
         return None
     
-    def update_data(self, data: List[Dict[str, Any]]):
+    def update_data(self, data: List[Dict[str, Any]], db_keys_order: List[str]):
         """
         به‌روزرسانی داده‌های جدول
         
         پارامترها:
             data: لیست دیکشنری‌های داده جدید
+            db_keys_order: ترتیب کلیدهای دیتابیس
         """
         self.beginResetModel()
         self._data = data
-        if data and len(data) > 0:
-            self._keys = list(data[0].keys())
-        else:
-            self._keys = []
+        self._db_keys = db_keys_order
         self.endResetModel()

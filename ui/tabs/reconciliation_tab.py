@@ -122,20 +122,65 @@ class ReconciliationTab(QWidget):
             # بارگذاری مغایرت‌های بانک
             bank_unreconciled = self.db_manager.get_unreconciled_bank_transactions()
             if bank_unreconciled:
-                headers = ["تاریخ", "مبلغ واریز", "مبلغ برداشت", "توضیحات", "نوع تراکنش", "شناسه پیگیری"]
-                self.bank_table.setModel(DataTableModel(bank_unreconciled, headers))
+                # تعریف سربرگ‌های فارسی (با ترتیبی که می‌خواهید نمایش دهید)
+                headers = [
+                    "تاریخ", "مبلغ واریز", "مبلغ برداشت", "توضیحات",
+                    "واریزکننده/دریافت‌کننده", "شناسه پیگیری", "شناسه شاپرک",
+                    "نوع تراکنش بانک"
+                ]
+                
+                # تعریف ترتیب کلیدهای دیتابیس (انگلیسی) که با ترتیب سربرگ‌های فارسی بالا مطابقت دارد
+                db_keys_order = [
+                    "Date",
+                    "Deposit_Amount",
+                    "Withdrawal_Amount",
+                    "Description_Bank",
+                    "Payer_Receiver",
+                    "Bank_Tracking_ID",
+                    "Extracted_Shaparak_Terminal_ID",
+                    "Transaction_Type_Bank"
+                ]
+                
+                # بررسی تطابق تعداد سربرگ‌ها و کلیدها
+                if len(headers) != len(db_keys_order):
+                    logger.error("تعداد سربرگ‌های فارسی و کلیدهای دیتابیس مطابقت ندارد.")
+                    QMessageBox.critical(self, "خطا در پیکربندی", "تعداد ستون‌های نمایش و داده مطابقت ندارد. لطفاً با توسعه‌دهنده تماس بگیرید.")
+                    return
+                
+                self.bank_table.setModel(DataTableModel(bank_unreconciled, headers, db_keys_order))
+            else:
+                # اگر داده‌ای وجود ندارد، مدل را با لیست‌های خالی مقداردهی کنید
+                self.bank_table.setModel(DataTableModel([], [], []))
             
             # بارگذاری مغایرت‌های پوز
             pos_unreconciled = self.db_manager.get_unreconciled_pos_transactions()
             if pos_unreconciled:
-                headers = ["تاریخ", "ساعت", "مبلغ", "شماره کارت", "شناسه ترمینال", "شماره پیگیری"]
-                self.pos_table.setModel(DataTableModel(pos_unreconciled, headers))
+                headers = ["شماره پیگیری", "شماره کارت", "شناسه ترمینال", "نوع تراکنش", "مبلغ تراکنش", "تاریخ تراکنش", "وضعیت تراکنش"]
+                db_keys_order = ["POS_Tracking_Number", "Card_Number", "Terminal_ID", "Transaction_Type", "Transaction_Amount", "Transaction_Date", "Transaction_Status"]
+                
+                if len(headers) != len(db_keys_order):
+                    logger.error("تعداد سربرگ‌های فارسی و کلیدهای دیتابیس پوز مطابقت ندارد.")
+                    QMessageBox.critical(self, "خطا در پیکربندی", "تعداد ستون‌های نمایش و داده پوز مطابقت ندارد. لطفاً با توسعه‌دهنده تماس بگیرید.")
+                    return
+                
+                self.pos_table.setModel(DataTableModel(pos_unreconciled, headers, db_keys_order))
+            else:
+                self.pos_table.setModel(DataTableModel([], [], []))
             
             # بارگذاری مغایرت‌های حسابداری
             accounting_unreconciled = self.db_manager.get_unreconciled_accounting_entries()
             if accounting_unreconciled:
-                headers = ["نوع", "شماره", "بدهکار", "بستانکار", "تاریخ سررسید", "توضیحات"]
-                self.accounting_table.setModel(DataTableModel(accounting_unreconciled, headers))
+                headers = ["نوع ورودی", "مرجع حساب", "بدهکار", "بستانکار", "تاریخ سررسید", "نام شخص", "توضیحات"]
+                db_keys_order = ["Entry_Type_Acc", "Account_Reference_Suffix", "Debit", "Credit", "Due_Date", "Person_Name", "Description_Notes_Acc"]
+                
+                if len(headers) != len(db_keys_order):
+                    logger.error("تعداد سربرگ‌های فارسی و کلیدهای دیتابیس حسابداری مطابقت ندارد.")
+                    QMessageBox.critical(self, "خطا در پیکربندی", "تعداد ستون‌های نمایش و داده حسابداری مطابقت ندارد. لطفاً با توسعه‌دهنده تماس بگیرید.")
+                    return
+                
+                self.accounting_table.setModel(DataTableModel(accounting_unreconciled, headers, db_keys_order))
+            else:
+                self.accounting_table.setModel(DataTableModel([], [], []))
             
         except Exception as e:
             logger.error(f"خطا در بارگذاری داده‌های موجود: {str(e)}")

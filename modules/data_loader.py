@@ -159,12 +159,17 @@ class DataLoader:
                     logger.info(f"ستون‌های فایل '{file}': {df.columns.tolist()}")
                     logger.info(f"تعداد ردیف‌ها در فایل '{file}': {len(df)}")
                     
+                    # بررسی وجود ستون شماره پیگیری
+                    if 'شماره پیگیری' not in df.columns:
+                        logger.warning(f"ستون 'شماره پیگیری' در فایل '{file}' یافت نشد. این ستون برای مغایرت‌گیری ضروری است.")
+                        logger.info(f"ستون‌های موجود در فایل: {df.columns.tolist()}")
+                    
                     # نگاشت نام ستون‌ها
                     column_mapping = {
                         'ردیف': 'Row_ID',
                         'شناسه شعبه مشتری': 'Terminal_ID',
                         'شناسه پایانه': 'Terminal_Identifier',
-                        'شماره پیگیری': 'Pos_Tracking_Number',
+                        'شماره پیگیری': 'POS_Tracking_Number',
                         # 'شماره مرجع': 'Reference_Number',
                         'شماره کارت': 'Card_Number',
                         'نام شعبه مشتری': 'Terminal_Name',
@@ -179,6 +184,11 @@ class DataLoader:
 
                     # تغییر نام ستون‌ها
                     df = df.rename(columns=column_mapping)
+                    
+                    # اگر ستون شماره پیگیری وجود نداشت، مقدار None قرار می‌دهیم
+                    if 'POS_Tracking_Number' not in df.columns:
+                        df['POS_Tracking_Number'] = None
+                        logger.warning(f"ستون POS_Tracking_Number برای فایل '{file}' با مقدار None ایجاد شد.")
 
                     # # فیلتر کردن فقط تراکنش‌های خرید
                     # df = df[df['Transaction_Type'] == "خرید"]
