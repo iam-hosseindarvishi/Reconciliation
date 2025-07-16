@@ -7,7 +7,7 @@
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QLabel, QPushButton,
-    QFileDialog, QProgressBar, QMessageBox, QGroupBox
+    QFileDialog, QProgressBar, QMessageBox, QGroupBox, QComboBox
 )
 from PySide6.QtCore import Qt, Signal
 
@@ -50,6 +50,11 @@ class DataImportTab(QWidget):
         self.default_bank_path = ""
         self.default_pos_path = ""
         self.default_accounting_path = ""
+        
+        # شناسه‌های بانک انتخاب شده
+        self.selected_bank_id_for_bank = None
+        self.selected_bank_id_for_pos = None
+        self.selected_bank_id_for_accounting = None
         # راه‌اندازی رابط کاربری
         self.init_ui()
     
@@ -72,6 +77,11 @@ class DataImportTab(QWidget):
         bank_layout.addWidget(self.bank_file_button)
         file_layout.addRow("فایل بانک:", bank_layout)
         
+        # انتخاب بانک برای فایل بانک
+        self.bank_combo_for_bank = QComboBox()
+        self.bank_combo_for_bank.currentIndexChanged.connect(self.on_bank_selection_changed_for_bank)
+        file_layout.addRow("انتخاب بانک برای فایل بانک:", self.bank_combo_for_bank)
+        
         # انتخاب فایل پوز
         pos_layout = QHBoxLayout()
         self.pos_file_label = QLabel("فایل انتخاب نشده")
@@ -81,6 +91,11 @@ class DataImportTab(QWidget):
         pos_layout.addWidget(self.pos_file_button)
         file_layout.addRow("فایل پوز:", pos_layout)
         
+        # انتخاب بانک برای فایل پوز
+        self.bank_combo_for_pos = QComboBox()
+        self.bank_combo_for_pos.currentIndexChanged.connect(self.on_bank_selection_changed_for_pos)
+        file_layout.addRow("انتخاب بانک برای فایل پوز:", self.bank_combo_for_pos)
+        
         # انتخاب فایل حسابداری
         accounting_layout = QHBoxLayout()
         self.accounting_file_label = QLabel("فایل انتخاب نشده")
@@ -89,6 +104,11 @@ class DataImportTab(QWidget):
         accounting_layout.addWidget(self.accounting_file_label)
         accounting_layout.addWidget(self.accounting_file_button)
         file_layout.addRow("فایل حسابداری:", accounting_layout)
+        
+        # انتخاب بانک برای فایل حسابداری
+        self.bank_combo_for_accounting = QComboBox()
+        self.bank_combo_for_accounting.currentIndexChanged.connect(self.on_bank_selection_changed_for_accounting)
+        file_layout.addRow("انتخاب بانک برای فایل حسابداری:", self.bank_combo_for_accounting)
         
         file_group.setLayout(file_layout)
         layout.addWidget(file_group)
@@ -113,6 +133,55 @@ class DataImportTab(QWidget):
         layout.addWidget(self.log_text)
         
         self.setLayout(layout)
+        
+        # بارگذاری لیست بانک‌ها
+        self.load_banks()
+    
+    def load_banks(self):
+        """
+        بارگذاری لیست بانک‌ها در کمبوباکس‌ها
+        """
+        try:
+            banks = self.db_manager.get_all_banks()
+            
+            # پاک کردن کمبوباکس‌ها
+            self.bank_combo_for_bank.clear()
+            self.bank_combo_for_pos.clear()
+            self.bank_combo_for_accounting.clear()
+            
+            # افزودن گزینه پیش‌فرض
+            self.bank_combo_for_bank.addItem("انتخاب بانک", None)
+            self.bank_combo_for_pos.addItem("انتخاب بانک", None)
+            self.bank_combo_for_accounting.addItem("انتخاب بانک", None)
+            
+            # افزودن بانک‌ها
+            for bank in banks:
+                bank_name = bank['BankName']
+                bank_id = bank['id']
+                self.bank_combo_for_bank.addItem(bank_name, bank_id)
+                self.bank_combo_for_pos.addItem(bank_name, bank_id)
+                self.bank_combo_for_accounting.addItem(bank_name, bank_id)
+                
+        except Exception as e:
+            logger.error(f"خطا در بارگذاری لیست بانک‌ها: {str(e)}")
+    
+    def on_bank_selection_changed_for_bank(self, index):
+        """
+        رویداد تغییر انتخاب بانک برای فایل بانک
+        """
+        self.selected_bank_id_for_bank = self.bank_combo_for_bank.currentData()
+    
+    def on_bank_selection_changed_for_pos(self, index):
+        """
+        رویداد تغییر انتخاب بانک برای فایل پوز
+        """
+        self.selected_bank_id_for_pos = self.bank_combo_for_pos.currentData()
+    
+    def on_bank_selection_changed_for_accounting(self, index):
+        """
+        رویداد تغییر انتخاب بانک برای فایل حسابداری
+        """
+        self.selected_bank_id_for_accounting = self.bank_combo_for_accounting.currentData()
     
     def select_bank_file(self):
         """
@@ -159,6 +228,19 @@ class DataImportTab(QWidget):
             QMessageBox.warning(self, "هشدار", "لطفاً حداقل یک فایل را انتخاب کنید.")
             return
         
+        # بررسی انتخاب بانک برای فایل‌های انتخاب شده
+        if self.bank_file_path and not self.selected_bank_id_for_bank:
+            QMessageBox.warning(self, "هشدار", "لطفاً بانک مربوط به فایل بانک را انتخاب کنید.")
+            return
+        
+        if self.pos_file_path and not self.selected_bank_id_for_pos:
+            QMessageBox.warning(self, "هشدار", "لطفاً بانک مربوط به فایل پوز را انتخاب کنید.")
+            return
+        
+        if self.accounting_file_path and not self.selected_bank_id_for_accounting:
+            QMessageBox.warning(self, "هشدار", "لطفاً بانک مربوط به فایل حسابداری را انتخاب کنید.")
+            return
+        
         # غیرفعال کردن دکمه‌ها
         self.bank_file_button.setEnabled(False)
         self.pos_file_button.setEnabled(False)
@@ -173,7 +255,10 @@ class DataImportTab(QWidget):
         self.import_worker = ImportWorker(
             self.bank_file_path,
             self.pos_file_path,
-            self.accounting_file_path
+            self.accounting_file_path,
+            self.selected_bank_id_for_bank,
+            self.selected_bank_id_for_pos,
+            self.selected_bank_id_for_accounting
         )
         
         # اتصال سیگنال‌ها

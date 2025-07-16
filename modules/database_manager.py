@@ -81,10 +81,20 @@ class DatabaseManager:
             if not self.connection:
                 self.connect()
             
+            # ایجاد جدول بانک‌ها
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS Banks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    BankName TEXT UNIQUE NOT NULL,
+                    BankCode TEXT UNIQUE
+                )
+            ''')
+            
             # ایجاد جدول تراکنش‌های بانک
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS BankTransactions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    BankID INTEGER NOT NULL,
                     Description_Bank TEXT,
                     Payer_Receiver TEXT,
                     Bank_Tracking_ID TEXT UNIQUE,
@@ -97,7 +107,8 @@ class DatabaseManager:
                     Date TEXT,
                     Extracted_Shaparak_Terminal_ID TEXT,
                     Transaction_Type_Bank TEXT,
-                    is_reconciled BOOLEAN DEFAULT 0
+                    is_reconciled BOOLEAN DEFAULT 0,
+                    FOREIGN KEY (BankID) REFERENCES Banks(id)
                 )
             ''')
             
@@ -105,6 +116,7 @@ class DatabaseManager:
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS PosTransactions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    BankID INTEGER NOT NULL,
                     POS_Tracking_Number TEXT,
                     Card_Number TEXT,
                     Terminal_ID TEXT,
@@ -116,6 +128,7 @@ class DatabaseManager:
                     Transaction_Time TEXT,
                     Transaction_Status TEXT,
                     is_reconciled BOOLEAN DEFAULT 0,
+                    FOREIGN KEY (BankID) REFERENCES Banks(id),
                     UNIQUE(POS_Tracking_Number, Terminal_ID)
                 )
             ''')
@@ -124,8 +137,9 @@ class DatabaseManager:
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS AccountingEntries (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    BankID INTEGER NOT NULL,
                     Entry_Type_Acc TEXT,
-                    Account_Reference_Suffix TEXT UNIQUE,
+                    Account_Reference_Suffix INTEGER UNIQUE,
                     Debit REAL,
                     Credit REAL,
                     Due_Date TEXT,
@@ -133,7 +147,8 @@ class DatabaseManager:
                     Check_Date TEXT,
                     Description_Notes_Acc TEXT,
                     Extracted_Card_Suffix_Acc TEXT,
-                    is_reconciled BOOLEAN DEFAULT 0
+                    is_reconciled BOOLEAN DEFAULT 0,
+                    FOREIGN KEY (BankID) REFERENCES Banks(id)
                 )
             ''')
             
@@ -162,12 +177,13 @@ class DatabaseManager:
         finally:
             pass  # اتصال را باز نگه می‌داریم
     
-    def insert_bank_transactions(self, df: pd.DataFrame) -> int:
+    def insert_bank_transactions(self, df: pd.DataFrame, bank_id: int) -> int:
         """
         درج داده‌های تراکنش بانک در پایگاه داده
         
         پارامترها:
             df: دیتافریم حاوی داده‌های تراکنش بانک
+            bank_id: شناسه بانک
             
         خروجی:
             تعداد رکوردهای درج شده
@@ -181,12 +197,13 @@ class DatabaseManager:
                 try:
                     self.cursor.execute('''
                         INSERT OR IGNORE INTO BankTransactions (
-                            Description_Bank, Payer_Receiver, Bank_Tracking_ID,
+                            BankID, Description_Bank, Payer_Receiver, Bank_Tracking_ID,
                             Shaparak_Deposit_Tracking_ID_Raw, Balance, Deposit_Amount,
                             Withdrawal_Amount, Branch_Code, Time, Date,
                             Extracted_Shaparak_Terminal_ID, Transaction_Type_Bank, is_reconciled
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
+                        bank_id,
                         row.get('Description_Bank'),
                         row.get('Payer_Receiver'),
                         row.get('Bank_Tracking_ID'),
@@ -221,12 +238,13 @@ class DatabaseManager:
         finally:
             pass  # اتصال را باز نگه می‌داریم
     
-    def insert_pos_transactions(self, df: pd.DataFrame) -> int:
+    def insert_pos_transactions(self, df: pd.DataFrame, bank_id: int) -> int:
         """
         درج داده‌های تراکنش پوز در پایگاه داده
         
         پارامترها:
             df: دیتافریم حاوی داده‌های تراکنش پوز
+            bank_id: شناسه بانک
             
         خروجی:
             تعداد رکوردهای درج شده
@@ -240,12 +258,13 @@ class DatabaseManager:
                 try:
                     self.cursor.execute('''
                         INSERT OR IGNORE INTO PosTransactions (
-                            POS_Tracking_Number, Card_Number, Terminal_ID,
+                            BankID, POS_Tracking_Number, Card_Number, Terminal_ID,
                             Terminal_Name, Terminal_Identifier, Transaction_Type,
                             Transaction_Amount, Transaction_Date, Transaction_Time,
                             Transaction_Status, is_reconciled
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
+                        bank_id,
                         row.get('POS_Tracking_Number'),
                         row.get('Card_Number'),
                         row.get('Terminal_ID'),
@@ -278,12 +297,13 @@ class DatabaseManager:
         finally:
             pass  # اتصال را باز نگه می‌داریم
     
-    def insert_accounting_entries(self, df: pd.DataFrame) -> int:
+    def insert_accounting_entries(self, df: pd.DataFrame, bank_id: int) -> int:
         """
         درج داده‌های حسابداری در پایگاه داده
         
         پارامترها:
             df: دیتافریم حاوی داده‌های حسابداری
+            bank_id: شناسه بانک
             
         خروجی:
             تعداد رکوردهای درج شده
@@ -297,11 +317,12 @@ class DatabaseManager:
                 try:
                     self.cursor.execute('''
                         INSERT OR IGNORE INTO AccountingEntries (
-                            Entry_Type_Acc, Account_Reference_Suffix, Debit,
+                            BankID, Entry_Type_Acc, Account_Reference_Suffix, Debit,
                             Credit, Due_Date, Person_Name, Check_Date,
                             Description_Notes_Acc, Extracted_Card_Suffix_Acc, is_reconciled
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
+                        bank_id,
                         row.get('Entry_Type_Acc'),
                         row.get('Account_Reference_Suffix'),
                         row.get('Debit'),
@@ -333,18 +354,26 @@ class DatabaseManager:
         finally:
             pass  # اتصال را باز نگه می‌داریم
     
-    def get_unreconciled_bank_transactions(self) -> List[Dict[str, Any]]:
+    def get_unreconciled_bank_transactions(self, bank_id: int = None) -> List[Dict[str, Any]]:
         """
         دریافت تراکنش‌های بانکی مغایرت‌گیری نشده
+        
+        پارامترها:
+            bank_id: شناسه بانک (اختیاری - اگر مشخص نشود، همه بانک‌ها)
         
         خروجی:
             لیستی از دیکشنری‌های حاوی اطلاعات تراکنش‌های بانکی
         """
         try:
             self.connect()
-            self.cursor.execute('''
-                SELECT * FROM BankTransactions WHERE is_reconciled = 0
-            ''')
+            if bank_id:
+                self.cursor.execute('''
+                    SELECT * FROM BankTransactions WHERE is_reconciled = 0 AND BankID = ?
+                ''', (bank_id,))
+            else:
+                self.cursor.execute('''
+                    SELECT * FROM BankTransactions WHERE is_reconciled = 0
+                ''')
             columns = [desc[0] for desc in self.cursor.description]
             result = [dict(zip(columns, row)) for row in self.cursor.fetchall()]
             return result
@@ -354,18 +383,26 @@ class DatabaseManager:
         finally:
             self.disconnect()
     
-    def get_unreconciled_pos_transactions(self) -> List[Dict[str, Any]]:
+    def get_unreconciled_pos_transactions(self, bank_id: int = None) -> List[Dict[str, Any]]:
         """
         دریافت تراکنش‌های پوز مغایرت‌گیری نشده
+        
+        پارامترها:
+            bank_id: شناسه بانک (اختیاری - اگر مشخص نشود، همه بانک‌ها)
         
         خروجی:
             لیستی از دیکشنری‌های حاوی اطلاعات تراکنش‌های پوز
         """
         try:
             self.connect()
-            self.cursor.execute('''
-                SELECT * FROM PosTransactions WHERE is_reconciled = 0
-            ''')
+            if bank_id:
+                self.cursor.execute('''
+                    SELECT * FROM PosTransactions WHERE is_reconciled = 0 AND BankID = ?
+                ''', (bank_id,))
+            else:
+                self.cursor.execute('''
+                    SELECT * FROM PosTransactions WHERE is_reconciled = 0
+                ''')
             columns = [desc[0] for desc in self.cursor.description]
             result = [dict(zip(columns, row)) for row in self.cursor.fetchall()]
             return result
@@ -375,18 +412,26 @@ class DatabaseManager:
         finally:
             self.disconnect()
     
-    def get_unreconciled_accounting_entries(self) -> List[Dict[str, Any]]:
+    def get_unreconciled_accounting_entries(self, bank_id: int = None) -> List[Dict[str, Any]]:
         """
         دریافت ورودی‌های حسابداری مغایرت‌گیری نشده
+        
+        پارامترها:
+            bank_id: شناسه بانک (اختیاری - اگر مشخص نشود، همه بانک‌ها)
         
         خروجی:
             لیستی از دیکشنری‌های حاوی اطلاعات ورودی‌های حسابداری
         """
         try:
             self.connect()
-            self.cursor.execute('''
-                SELECT * FROM AccountingEntries WHERE is_reconciled = 0
-            ''')
+            if bank_id:
+                self.cursor.execute('''
+                    SELECT * FROM AccountingEntries WHERE is_reconciled = 0 AND BankID = ?
+                ''', (bank_id,))
+            else:
+                self.cursor.execute('''
+                    SELECT * FROM AccountingEntries WHERE is_reconciled = 0
+                ''')
             columns = [desc[0] for desc in self.cursor.description]
             result = [dict(zip(columns, row)) for row in self.cursor.fetchall()]
             return result
@@ -518,5 +563,130 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"خطا در دریافت آمار مغایرت‌گیری: {str(e)}")
             return {}
+        finally:
+            self.disconnect()
+    
+    def add_bank(self, bank_name: str, bank_code: str = None) -> bool:
+        """
+        افزودن بانک جدید
+        
+        پارامترها:
+            bank_name: نام بانک
+            bank_code: کد بانک (اختیاری)
+            
+        خروجی:
+            موفقیت عملیات
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                INSERT INTO Banks (BankName, BankCode) VALUES (?, ?)
+            ''', (bank_name, bank_code))
+            
+            self.connection.commit()
+            logger.info(f"بانک '{bank_name}' با موفقیت اضافه شد.")
+            return True
+            
+        except Exception as e:
+            logger.error(f"خطا در افزودن بانک: {str(e)}")
+            return False
+        finally:
+            self.disconnect()
+    
+    def get_all_banks(self) -> List[Dict[str, Any]]:
+        """
+        دریافت تمام بانک‌ها
+        
+        خروجی:
+            لیستی از دیکشنری‌های حاوی اطلاعات بانک‌ها
+        """
+        try:
+            self.connect()
+            self.cursor.execute('''
+                SELECT * FROM Banks ORDER BY BankName
+            ''')
+            columns = [desc[0] for desc in self.cursor.description]
+            result = [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+            return result
+        except Exception as e:
+            logger.error(f"خطا در دریافت لیست بانک‌ها: {str(e)}")
+            return []
+        finally:
+            self.disconnect()
+    
+    def update_bank(self, bank_id: int, bank_name: str, bank_code: str = None) -> bool:
+        """
+        به‌روزرسانی اطلاعات بانک
+        
+        پارامترها:
+            bank_id: شناسه بانک
+            bank_name: نام جدید بانک
+            bank_code: کد جدید بانک (اختیاری)
+            
+        خروجی:
+            موفقیت عملیات
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                UPDATE Banks SET BankName = ?, BankCode = ? WHERE id = ?
+            ''', (bank_name, bank_code, bank_id))
+            
+            self.connection.commit()
+            return self.cursor.rowcount > 0
+            
+        except Exception as e:
+            logger.error(f"خطا در به‌روزرسانی بانک: {str(e)}")
+            return False
+        finally:
+            self.disconnect()
+    
+    def delete_bank(self, bank_id: int) -> bool:
+        """
+        حذف بانک
+        
+        پارامترها:
+            bank_id: شناسه بانک
+            
+        خروجی:
+            موفقیت عملیات
+        """
+        try:
+            self.connect()
+            
+            # بررسی وجود تراکنش‌های مرتبط با این بانک
+            self.cursor.execute('''
+                SELECT COUNT(*) FROM BankTransactions WHERE BankID = ?
+            ''', (bank_id,))
+            bank_transactions_count = self.cursor.fetchone()[0]
+            
+            self.cursor.execute('''
+                SELECT COUNT(*) FROM PosTransactions WHERE BankID = ?
+            ''', (bank_id,))
+            pos_transactions_count = self.cursor.fetchone()[0]
+            
+            self.cursor.execute('''
+                SELECT COUNT(*) FROM AccountingEntries WHERE BankID = ?
+            ''', (bank_id,))
+            accounting_entries_count = self.cursor.fetchone()[0]
+            
+            total_related_records = bank_transactions_count + pos_transactions_count + accounting_entries_count
+            
+            if total_related_records > 0:
+                logger.warning(f"نمی‌توان بانک را حذف کرد. {total_related_records} رکورد مرتبط وجود دارد.")
+                return False
+            
+            self.cursor.execute('''
+                DELETE FROM Banks WHERE id = ?
+            ''', (bank_id,))
+            
+            self.connection.commit()
+            return self.cursor.rowcount > 0
+            
+        except Exception as e:
+            logger.error(f"خطا در حذف بانک: {str(e)}")
+            return False
         finally:
             self.disconnect()

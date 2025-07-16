@@ -293,14 +293,26 @@ class DataLoader:
             row: سطر دیتافریم
             
         خروجی:
-            نوع تراکنش (واریز پوز، انتقال دریافتی، انتقال پرداختی، چک دریافتی، چک پرداختی، سایر)
+            نوع تراکنش (POS Deposit، Received Check، Paid Check، کارمزد، Received Transfer، Paid Transfer، Other)
         """
         description = str(row.get('Description_Bank', '')).lower()
         payer_receiver = str(row.get('Payer_Receiver', '')).lower()
         
-        # تشخیص واریز پوز
-        if payer_receiver == "مرکز شاپرک" and pd.notna(row.get('Deposit_Amount')):
+        # تشخیص واریز پوز - اگر پرداخت کننده/دریافت کننده "مرکز شاپرک" باشد
+        if "مرکز شاپرک" in payer_receiver:
             return "POS Deposit"
+        
+        # تشخیص چک - اگر در توضیحات کلمه "چک" وجود داشته باشد
+        if "چک" in description:
+            # تعیین نوع چک بر اساس مبلغ واریز یا برداشت
+            if pd.notna(row.get('Deposit_Amount')):
+                return "Received Check"
+            elif pd.notna(row.get('Withdrawal_Amount')):
+                return "Paid Check"
+        
+        # تشخیص کارمزد - اگر در توضیحات کلمه "کارمزد" وجود داشته باشد
+        if "کارمزد" in description:
+            return "کارمزد"
         
         # تشخیص انتقال
         if "انتقال" in description or "حواله" in description:
@@ -308,13 +320,6 @@ class DataLoader:
                 return "Received Transfer"
             elif pd.notna(row.get('Withdrawal_Amount')):
                 return "Paid Transfer"
-        
-        # تشخیص چک
-        if "چک" in description:
-            if pd.notna(row.get('Deposit_Amount')):
-                return "Received Check"
-            elif pd.notna(row.get('Withdrawal_Amount')):
-                return "Paid Check"
         
         # سایر موارد
         return "Other"

@@ -26,16 +26,19 @@ class ImportWorker(QThread):
     import_completed = Signal(bool, str)
     log_message = Signal(str, str)
     
-    def __init__(self, bank_file: str, pos_folder: str, accounting_file: str):
+    def __init__(self, bank_file: str, pos_folder: str, accounting_file: str, 
+                 bank_id_for_bank: int = None, bank_id_for_pos: int = None, 
+                 bank_id_for_accounting: int = None):
         """
         مقداردهی اولیه کلاس ImportWorker
         
         پارامترها:
-            data_loader: نمونه‌ای از کلاس DataLoader
-            db_manager: نمونه‌ای از کلاس DatabaseManager
             bank_file: مسیر فایل بانک
             pos_folder: مسیر پوشه فایل‌های پوز
             accounting_file: مسیر فایل حسابداری
+            bank_id_for_bank: شناسه بانک برای فایل بانک
+            bank_id_for_pos: شناسه بانک برای فایل پوز
+            bank_id_for_accounting: شناسه بانک برای فایل حسابداری
         """
         super().__init__()
         self.data_loader = DataLoader()
@@ -43,6 +46,9 @@ class ImportWorker(QThread):
         self.bank_file = bank_file
         self.pos_folder = pos_folder
         self.accounting_file = accounting_file
+        self.bank_id_for_bank = bank_id_for_bank
+        self.bank_id_for_pos = bank_id_for_pos
+        self.bank_id_for_accounting = bank_id_for_accounting
     
     def run(self):
         """
@@ -57,7 +63,7 @@ class ImportWorker(QThread):
                 bank_data = self.data_loader.load_bank_file(self.bank_file)
                 if not bank_data.empty:
                     self.progress_updated.emit(30, "در حال ذخیره داده‌های بانک در پایگاه داده...")
-                    self.db_manager.insert_bank_transactions(bank_data)
+                    self.db_manager.insert_bank_transactions(bank_data, self.bank_id_for_bank)
                     self.log_message.emit(f"{len(bank_data)} رکورد بانکی با موفقیت بارگذاری شد.", "green")
                 else:
                     self.log_message.emit("خطا در بارگذاری داده‌های بانک.", "red")
@@ -70,7 +76,7 @@ class ImportWorker(QThread):
                 pos_data = self.data_loader.load_pos_files(self.pos_folder)
                 if not pos_data.empty:
                     self.progress_updated.emit(60, "در حال ذخیره داده‌های پوز در پایگاه داده...")
-                    self.db_manager.insert_pos_transactions(pos_data)
+                    self.db_manager.insert_pos_transactions(pos_data, self.bank_id_for_pos)
                     self.log_message.emit(f"{len(pos_data)} رکورد پوز با موفقیت بارگذاری شد.", "green")
                 else:
                     self.log_message.emit("خطا در بارگذاری داده‌های پوز.", "red")
@@ -83,7 +89,7 @@ class ImportWorker(QThread):
                 accounting_data = self.data_loader.load_accounting_file(self.accounting_file)
                 if not accounting_data.empty:
                     self.progress_updated.emit(90, "در حال ذخیره داده‌های حسابداری در پایگاه داده...")
-                    self.db_manager.insert_accounting_entries(accounting_data)
+                    self.db_manager.insert_accounting_entries(accounting_data, self.bank_id_for_accounting)
                     self.log_message.emit(f"{len(accounting_data)} رکورد حسابداری با موفقیت بارگذاری شد.", "green")
                 else:
                     self.log_message.emit("خطا در بارگذاری داده‌های حسابداری.", "red")

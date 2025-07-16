@@ -21,7 +21,7 @@ from modules.data_loader import DataLoader
 from modules.reconciliation_logic import ReconciliationEngine
 from modules.report_generator import ReportGenerator
 from modules.logger import get_logger
-from ui.tabs import DataImportTab, ReconciliationTab, ReportTab
+from ui.tabs import DataImportTab, ReconciliationTab, ReportTab, BankManagementTab
 
 # تنظیم لاگر
 logger = get_logger(__name__)
@@ -76,6 +76,10 @@ class MainWindow(QMainWindow):
         self.tab_widget.setTabPosition(QTabWidget.North)
         self.tab_widget.setTabShape(QTabWidget.Rounded)
         
+        # تب مدیریت بانک‌ها
+        self.bank_management_tab = BankManagementTab()
+        self.tab_widget.addTab(self.bank_management_tab, "مدیریت بانک‌ها")
+        
         # تب واردسازی داده‌ها
         self.data_import_tab = DataImportTab()
         self.tab_widget.addTab(self.data_import_tab, "واردسازی داده‌ها")
@@ -110,9 +114,11 @@ class MainWindow(QMainWindow):
         رویداد تغییر تب
         """
         # بروزرسانی داده‌ها در صورت نیاز
-        if index == 1:  # تب مغایرت‌گیری
+        if index == 0:  # تب مدیریت بانک‌ها
+            self.bank_management_tab.load_banks()
+        elif index == 2:  # تب مغایرت‌گیری
             self.reconciliation_tab.load_existing_data()
-        elif index == 2:  # تب گزارش‌گیری
+        elif index == 3:  # تب گزارش‌گیری
             pass  # در صورت نیاز به بروزرسانی خودکار
     
     def on_import_completed(self, success: bool, message: str):
@@ -125,7 +131,7 @@ class MainWindow(QMainWindow):
         """
         if success:
             # تغییر به تب مغایرت‌گیری
-            self.tab_widget.setCurrentIndex(1)
+            self.tab_widget.setCurrentIndex(2)
     
     def on_reconciliation_completed(self, success: bool, message: str):
         """
@@ -137,7 +143,7 @@ class MainWindow(QMainWindow):
         """
         if success:
             # تغییر به تب گزارش‌گیری
-            self.tab_widget.setCurrentIndex(2)
+            self.tab_widget.setCurrentIndex(3)
             
             # نمایش گزارش خلاصه با استفاده از متد اختصاصی
             self.report_tab.show_summary_report()
