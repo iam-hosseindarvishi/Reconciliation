@@ -139,7 +139,7 @@ class DatabaseManager:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     BankID INTEGER NOT NULL,
                     Entry_Type_Acc TEXT,
-                    Account_Reference_Suffix INTEGER UNIQUE,
+                    Account_Reference_Suffix TEXT UNIQUE,
                     Debit REAL,
                     Credit REAL,
                     Due_Date TEXT,
@@ -594,6 +594,59 @@ class DatabaseManager:
         finally:
             self.disconnect()
     
+    def get_pos_transactions_by_terminal(self, bank_id: int, terminal_id: str) -> List[Dict[str, Any]]:
+        """
+        دریافت تراکنش‌های پوز بر اساس شناسه ترمینال
+        
+        پارامترها:
+            bank_id: شناسه بانک
+            terminal_id: شناسه ترمینال
+            
+        خروجی:
+            لیست تراکنش‌های پوز
+        """
+        try:
+            self.connect()
+            self.cursor.execute('''
+                SELECT * FROM PosTransactions 
+                WHERE BankID = ? AND Terminal_ID = ? AND is_reconciled = 0
+            ''', (bank_id, terminal_id))
+            columns = [desc[0] for desc in self.cursor.description]
+            result = [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+            return result
+        except Exception as e:
+            logger.error(f"خطا در دریافت تراکنش‌های پوز بر اساس ترمینال: {str(e)}")
+            return []
+        finally:
+            self.disconnect()
+    
+    def get_pos_transactions_by_terminal_date(self, bank_id: int, terminal_id: str, transaction_date: str) -> List[Dict[str, Any]]:
+        """
+        دریافت تراکنش‌های پوز بر اساس شناسه ترمینال و تاریخ
+        
+        پارامترها:
+            bank_id: شناسه بانک
+            terminal_id: شناسه ترمینال
+            transaction_date: تاریخ تراکنش
+            
+        خروجی:
+            لیست تراکنش‌های پوز
+        """
+        try:
+            self.connect()
+            self.cursor.execute('''
+                SELECT * FROM PosTransactions 
+                WHERE BankID = ? AND Terminal_ID = ? AND Transaction_Date = ? AND is_reconciled = 0
+            ''', (bank_id, terminal_id, transaction_date))
+            columns = [desc[0] for desc in self.cursor.description]
+            result = [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+            return result
+        except Exception as e:
+            logger.error(f"خطا در دریافت تراکنش‌های پوز بر اساس ترمینال و تاریخ: {str(e)}")
+            return []
+        finally:
+            self.disconnect()
+
     def get_all_banks(self) -> List[Dict[str, Any]]:
         """
         دریافت تمام بانک‌ها
@@ -688,5 +741,128 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"خطا در حذف بانک: {str(e)}")
             return False
+        finally:
+            self.disconnect()
+    
+    def clear_all_data_except_banks(self) -> bool:
+        """
+        پاک کردن کلیه داده‌ها به استثنای جدول بانک‌ها
+        
+        خروجی:
+            موفقیت عملیات
+        """
+        try:
+            self.connect()
+            
+            # حذف داده‌های جداول به ترتیب (به دلیل foreign key constraints)
+            self.cursor.execute('DELETE FROM ReconciliationResults')
+            self.cursor.execute('DELETE FROM BankTransactions')
+            self.cursor.execute('DELETE FROM PosTransactions')
+            self.cursor.execute('DELETE FROM AccountingEntries')
+            
+            self.connection.commit()
+            logger.info("کلیه داده‌ها به استثنای بانک‌ها با موفقیت حذف شدند.")
+            return True
+            
+        except Exception as e:
+            logger.error(f"خطا در پاک کردن کلیه داده‌ها: {str(e)}")
+            return False
+        finally:
+            self.disconnect()
+    
+    def clear_reconciled_data(self) -> bool:
+        """
+        حذف اطلاعات مغایرت‌گیری شده
+        
+        خروجی:
+            موفقیت عملیات
+        """
+        try:
+            self.connect()
+            
+            # حذف نتایج مغایرت‌گیری
+            self.cursor.execute('DELETE FROM ReconciliationResults')
+            
+            # حذف رکوردهای مغایرت‌گیری شده از جداول
+            self.cursor.execute('DELETE FROM BankTransactions WHERE is_reconciled = 1')
+            self.cursor.execute('DELETE FROM PosTransactions WHERE is_reconciled = 1')
+            self.cursor.execute('DELETE FROM AccountingEntries WHERE is_reconciled = 1')
+            
+            self.connection.commit()
+            logger.info("اطلاعات مغایرت‌گیری شده با موفقیت حذف شدند.")
+            return True
+            
+        except Exception as e:
+            logger.error(f"خطا در حذف اطلاعات مغایرت‌گیری شده: {str(e)}")
+            return False
+        finally:
+            self.disconnect()
+    
+    def get_latest_accounting_entry_date(self) -> Optional[str]:
+        """
+        دریافت تاریخ آخرین رکورد جدول اطلاعات حسابداری
+        
+        خروجی:
+            تاریخ آخرین رکورد یا None در صورت عدم وجود رکورد
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                SELECT MAX(Due_Date) FROM AccountingEntries
+            ''')
+            
+            result = self.cursor.fetchone()
+            return result[0] if result and result[0] else None
+            
+        except Exception as e:
+            logger.error(f"خطا در دریافت تاریخ آخرین رکورد حسابداری: {str(e)}")
+            return None
+        finally:
+            self.disconnect()
+    
+    def get_latest_bank_transaction_date(self) -> Optional[str]:
+        """
+        دریافت تاریخ آخرین رکورد جدول تراکنش‌های بانکی
+        
+        خروجی:
+            تاریخ آخرین رکورد یا None در صورت عدم وجود رکورد
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                SELECT MAX(Date) FROM BankTransactions
+            ''')
+            
+            result = self.cursor.fetchone()
+            return result[0] if result and result[0] else None
+            
+        except Exception as e:
+            logger.error(f"خطا در دریافت تاریخ آخرین رکورد بانکی: {str(e)}")
+            return None
+        finally:
+            self.disconnect()
+    
+    def get_latest_pos_transaction_date(self) -> Optional[str]:
+        """
+        دریافت تاریخ آخرین تراکنش پوز
+        
+        خروجی:
+            تاریخ آخرین تراکنش یا None در صورت عدم وجود رکورد
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                SELECT MAX(Transaction_Date) FROM PosTransactions
+            ''')
+            
+            result = self.cursor.fetchone()
+            return result[0] if result and result[0] else None
+            
+        except Exception as e:
+            logger.error(f"خطا در دریافت تاریخ آخرین تراکنش پوز: {str(e)}")
+            return None
         finally:
             self.disconnect()

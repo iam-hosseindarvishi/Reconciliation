@@ -93,8 +93,9 @@ class DataLoader:
         """
         try:
             logger.info(f"بارگذاری فایل بانک: {file_path}")
-            # خواندن فایل اکسل بانک
-            df = pd.read_excel(file_path)
+            # خواندن فایل اکسل بانک با engine مناسب
+            engine = 'xlrd' if file_path.endswith('.xls') else 'openpyxl'
+            df = pd.read_excel(file_path, engine=engine)
             
             # نگاشت نام ستون‌ها
             column_mapping = {
@@ -148,14 +149,15 @@ class DataLoader:
             logger.info(f"بارگذاری فایل‌های پوز از پوشه: {folder_path}")
             all_dfs = []
             
-            # بررسی تمام فایل‌های xlsx در پوشه
+            # بررسی تمام فایل‌های اکسل در پوشه
             for file in os.listdir(folder_path):
-                if file.endswith('.xlsx'):
+                if file.endswith(('.xlsx', '.xls')):
                     file_path = os.path.join(folder_path, file)
                     logger.info(f"بارگذاری فایل پوز: {file}")
                     
-                    # خواندن فایل اکسل پوز
-                    df = pd.read_excel(file_path)
+                    # خواندن فایل اکسل پوز با engine مناسب
+                    engine = 'xlrd' if file_path.endswith('.xls') else 'openpyxl'
+                    df = pd.read_excel(file_path, engine=engine)
                     logger.info(f"ستون‌های فایل '{file}': {df.columns.tolist()}")
                     logger.info(f"تعداد ردیف‌ها در فایل '{file}': {len(df)}")
                     
@@ -226,7 +228,9 @@ class DataLoader:
         """
         try:
             logger.info(f"بارگذاری فایل حسابداری: {file_path}")
-            df = pd.read_excel(file_path, engine='xlrd')
+            # خواندن فایل اکسل حسابداری با engine مناسب
+            engine = 'xlrd' if file_path.endswith('.xls') else 'openpyxl'
+            df = pd.read_excel(file_path, engine=engine)
             logger.info(f"ستون‌های فایل حسابداری: {df.columns.tolist()}")
             
 

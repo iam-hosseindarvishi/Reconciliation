@@ -271,71 +271,23 @@ class ReconciliationWorker(QThread):
         اجرای عملیات مغایرت‌گیری
         """
         try:
-            # مغایرت‌گیری شاپرک (پوز)
-            self.progress_updated.emit(10, "در حال مغایرت‌گیری تراکنش‌های شاپرک (پوز)...")
-            self.log_message.emit("شروع مغایرت‌گیری تراکنش‌های شاپرک (پوز)...", "blue")
+            # شروع مغایرت‌گیری کامل
+            self.progress_updated.emit(10, "در حال شروع مغایرت‌گیری...")
+            self.log_message.emit("شروع مغایرت‌گیری...", "blue")
             
-            shaparak_results = self.reconciliation_engine.reconcile_shaparak_pos()
-            self.log_message.emit(
-                f"مغایرت‌گیری شاپرک (پوز): {shaparak_results['matched']} مورد تطبیق، "
-                f"{shaparak_results['unmatched']} مورد عدم تطبیق.",
-                "green" if shaparak_results['matched'] > 0 else "orange"
-            )
+            # فراخوانی متد اصلی مغایرت‌گیری
+            results = self.reconciliation_engine.start_reconciliation(selected_bank_id=1)
             
-            # مغایرت‌گیری چک‌ها
-            self.progress_updated.emit(30, "در حال مغایرت‌گیری چک‌ها...")
-            self.log_message.emit("شروع مغایرت‌گیری چک‌ها...", "blue")
-            
-            checks_results = self.reconciliation_engine.reconcile_checks()
-            self.log_message.emit(
-                f"مغایرت‌گیری چک‌ها: {checks_results['matched']} مورد تطبیق، "
-                f"{checks_results['unmatched']} مورد عدم تطبیق.",
-                "green" if checks_results['matched'] > 0 else "orange"
-            )
-            
-            # مغایرت‌گیری انتقال‌ها
-            self.progress_updated.emit(50, "در حال مغایرت‌گیری انتقال‌ها...")
-            self.log_message.emit("شروع مغایرت‌گیری انتقال‌ها...", "blue")
-            
-            transfers_results = self.reconciliation_engine.reconcile_transfers()
-            self.log_message.emit(
-                f"مغایرت‌گیری انتقال‌ها: {transfers_results['matched']} مورد تطبیق، "
-                f"{transfers_results['unmatched']} مورد عدم تطبیق.",
-                "green" if transfers_results['matched'] > 0 else "orange"
-            )
-            
-            # مغایرت‌گیری پوز با حسابداری
-            self.progress_updated.emit(70, "در حال مغایرت‌گیری پوز با حسابداری...")
-            self.log_message.emit("شروع مغایرت‌گیری پوز با حسابداری...", "blue")
-            
-            pos_acc_results = self.reconciliation_engine.reconcile_pos_accounting()
-            self.log_message.emit(
-                f"مغایرت‌گیری پوز با حسابداری: {pos_acc_results['matched']} مورد تطبیق، "
-                f"{pos_acc_results['unmatched']} مورد عدم تطبیق.",
-                "green" if pos_acc_results['matched'] > 0 else "orange"
-            )
-            
-            # پیشنهاد بر اساس پسوند کارت
-            self.progress_updated.emit(90, "در حال یافتن پیشنهادات بر اساس پسوند کارت...")
-            self.log_message.emit("شروع یافتن پیشنهادات بر اساس پسوند کارت...", "blue")
-            
-            card_suffix_hints = self.reconciliation_engine.find_card_suffix_hints()
-            self.log_message.emit(
-                f"{len(card_suffix_hints['results'])} پیشنهاد بر اساس پسوند کارت یافت شد.",
-                "green" if len(card_suffix_hints['results']) > 0 else "orange"
-            )
-            
-            # نمایش نتایج کلی
-            total_matched = (
-                shaparak_results['matched'] + 
-                checks_results['matched'] + 
-                transfers_results['matched'] + 
-                pos_acc_results['matched']
-            )
-            
-            self.progress_updated.emit(100, "مغایرت‌گیری با موفقیت انجام شد.")
-            self.log_message.emit(f"مغایرت‌گیری با موفقیت انجام شد. مجموعاً {total_matched} مورد تطبیق یافت شد.", "green")
-            self.reconciliation_completed.emit(True, "مغایرت‌گیری با موفقیت انجام شد.")
+            # نمایش نتایج
+            if results:
+                total_matched = results.get('total_matched', 0)
+                self.progress_updated.emit(100, "مغایرت‌گیری با موفقیت انجام شد.")
+                self.log_message.emit(f"مغایرت‌گیری با موفقیت انجام شد. مجموعاً {total_matched} مورد تطبیق یافت شد.", "green")
+                self.reconciliation_completed.emit(True, "مغایرت‌گیری با موفقیت انجام شد.")
+            else:
+                self.progress_updated.emit(100, "مغایرت‌گیری انجام شد اما نتایج دریافت نشد.")
+                self.log_message.emit("مغایرت‌گیری انجام شد اما نتایج دریافت نشد.", "orange")
+                self.reconciliation_completed.emit(True, "مغایرت‌گیری انجام شد.")
             
         except Exception as e:
             logger.error(f"خطا در مغایرت‌گیری: {str(e)}")
