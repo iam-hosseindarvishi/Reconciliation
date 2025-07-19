@@ -128,7 +128,7 @@ class ReportTab(QWidget):
                 headers = ["نوع رکورد 1", "شناسه رکورد 1", "نوع رکورد 2", "شناسه رکورد 2", "تاریخ تطبیق", "روش تطبیق"]
             
             elif report_type == "خلاصه وضعیت مغایرت‌گیری":
-                data = self.report_generator.generate_summary_report()
+                data = self.db_manager.get_reconciliation_summary_data()
                 headers = ["نوع رکورد", "تعداد کل", "تطبیق داده شده", "مغایرت‌ها", "درصد تطبیق"]
             
             else:
@@ -136,11 +136,25 @@ class ReportTab(QWidget):
                 return
             
             if data:
-                self.report_table.setModel(DataTableModel(data, headers))
+                # تعیین ترتیب کلیدهای دیتابیس بر اساس نوع گزارش
+                if report_type == "مغایرت‌های بانک":
+                    db_keys = ['Date', 'Deposit_Amount', 'Withdrawal_Amount', 'Description_Bank', 'Transaction_Type', 'Shaparak_Deposit_Tracking_ID']
+                elif report_type == "مغایرت‌های پوز":
+                    db_keys = ['Transaction_Date', 'Transaction_Time', 'Transaction_Amount', 'Card_Number', 'Terminal_ID', 'POS_Tracking_Number']
+                elif report_type == "مغایرت‌های حسابداری":
+                    db_keys = ['Entry_Type_Acc', 'Account_Reference_Suffix', 'Debit', 'Credit', 'Due_Date', 'Description_Notes_Acc']
+                elif report_type == "تراکنش‌های تطبیق داده شده":
+                    db_keys = ['record_type_1', 'record_id_1', 'record_type_2', 'record_id_2', 'reconciliation_date', 'reconciliation_method']
+                elif report_type == "خلاصه وضعیت مغایرت‌گیری":
+                    db_keys = ['record_type', 'total_count', 'reconciled_count', 'unreconciled_count', 'reconciliation_percentage']
+                else:
+                    db_keys = list(data[0].keys()) if data else []
+                
+                self.report_table.setModel(DataTableModel(data, headers, db_keys))
                 self.log_text.append_log(f"گزارش با موفقیت بارگذاری شد. تعداد رکوردها: {len(data)}", "green")
             else:
                 self.log_text.append_log("داده‌ای برای نمایش وجود ندارد.", "yellow")
-                self.report_table.setModel(DataTableModel([], headers))
+                self.report_table.setModel(DataTableModel([], headers, []))
             
         except Exception as e:
             logger.error(f"خطا در نمایش گزارش: {str(e)}")

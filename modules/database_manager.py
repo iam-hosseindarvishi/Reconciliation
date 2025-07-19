@@ -106,6 +106,7 @@ class DatabaseManager:
                     Time TEXT,
                     Date TEXT,
                     Extracted_Shaparak_Terminal_ID TEXT,
+                    Extracted_Switch_Tracking_ID TEXT,
                     Transaction_Type_Bank TEXT,
                     is_reconciled BOOLEAN DEFAULT 0,
                     FOREIGN KEY (BankID) REFERENCES Banks(id)
@@ -195,26 +196,44 @@ class DatabaseManager:
             
             for _, row in df.iterrows():
                 try:
+                    # تبدیل مقادیر عددی بزرگ به رشته برای جلوگیری از خطای SQLite
+                    def safe_convert_to_float(value):
+                        if pd.isna(value) or value is None:
+                            return None
+                        try:
+                            float_val = float(value)
+                            # بررسی محدوده SQLite INTEGER (حداکثر 9223372036854775807)
+                            if abs(float_val) > 9223372036854775807:
+                                return None  # مقدار خیلی بزرگ - None قرار می‌دهیم
+                            return float_val
+                        except (ValueError, TypeError, OverflowError):
+                            return None
+                    
+                    balance = safe_convert_to_float(row.get('Balance'))
+                    deposit_amount = safe_convert_to_float(row.get('Deposit_Amount'))
+                    withdrawal_amount = safe_convert_to_float(row.get('Withdrawal_Amount'))
+                    
                     self.cursor.execute('''
                         INSERT OR IGNORE INTO BankTransactions (
                             BankID, Description_Bank, Payer_Receiver, Bank_Tracking_ID,
                             Shaparak_Deposit_Tracking_ID_Raw, Balance, Deposit_Amount,
                             Withdrawal_Amount, Branch_Code, Time, Date,
-                            Extracted_Shaparak_Terminal_ID, Transaction_Type_Bank, is_reconciled
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            Extracted_Shaparak_Terminal_ID, Extracted_Switch_Tracking_ID, Transaction_Type_Bank, is_reconciled
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         bank_id,
                         row.get('Description_Bank'),
                         row.get('Payer_Receiver'),
-                        row.get('Bank_Tracking_ID'),
-                        row.get('Shaparak_Deposit_Tracking_ID_Raw'),
-                        row.get('Balance'),
-                        row.get('Deposit_Amount'),
-                        row.get('Withdrawal_Amount'),
+                        str(row.get('Bank_Tracking_ID')) if row.get('Bank_Tracking_ID') is not None else None,
+                        str(row.get('Shaparak_Deposit_Tracking_ID_Raw')) if row.get('Shaparak_Deposit_Tracking_ID_Raw') is not None else None,
+                        balance,
+                        deposit_amount,
+                        withdrawal_amount,
                         row.get('Branch_Code'),
                         row.get('Time'),
                         row.get('Date'),
                         row.get('Extracted_Shaparak_Terminal_ID'),
+                        row.get('Extracted_Switch_Tracking_ID'),
                         row.get('Transaction_Type_Bank'),
                         False
                     ))
@@ -256,6 +275,20 @@ class DatabaseManager:
             
             for _, row in df.iterrows():
                 try:
+                    # تبدیل مقادیر عددی بزرگ برای جلوگیری از خطای SQLite
+                    def safe_convert_to_float(value):
+                        if pd.isna(value) or value is None:
+                            return None
+                        try:
+                            float_val = float(value)
+                            if abs(float_val) > 9223372036854775807:
+                                return None
+                            return float_val
+                        except (ValueError, TypeError, OverflowError):
+                            return None
+                    
+                    transaction_amount = safe_convert_to_float(row.get('Transaction_Amount'))
+                    
                     self.cursor.execute('''
                         INSERT OR IGNORE INTO PosTransactions (
                             BankID, POS_Tracking_Number, Card_Number, Terminal_ID,
@@ -265,13 +298,13 @@ class DatabaseManager:
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         bank_id,
-                        row.get('POS_Tracking_Number'),
-                        row.get('Card_Number'),
-                        row.get('Terminal_ID'),
+                        str(row.get('POS_Tracking_Number')) if row.get('POS_Tracking_Number') is not None else None,
+                        str(row.get('Card_Number')) if row.get('Card_Number') is not None else None,
+                        str(row.get('Terminal_ID')) if row.get('Terminal_ID') is not None else None,
                         row.get('Terminal_Name'),
                         row.get('Terminal_Identifier'),
                         row.get('Transaction_Type'),
-                        row.get('Transaction_Amount'),
+                        transaction_amount,
                         row.get('Transaction_Date'),
                         row.get('Transaction_Time'),
                         row.get('Transaction_Status'),
@@ -315,6 +348,21 @@ class DatabaseManager:
             
             for _, row in df.iterrows():
                 try:
+                    # تبدیل مقادیر عددی بزرگ برای جلوگیری از خطای SQLite
+                    def safe_convert_to_float(value):
+                        if pd.isna(value) or value is None:
+                            return None
+                        try:
+                            float_val = float(value)
+                            if abs(float_val) > 9223372036854775807:
+                                return None
+                            return float_val
+                        except (ValueError, TypeError, OverflowError):
+                            return None
+                    
+                    debit = safe_convert_to_float(row.get('Debit'))
+                    credit = safe_convert_to_float(row.get('Credit'))
+                    
                     self.cursor.execute('''
                         INSERT OR IGNORE INTO AccountingEntries (
                             BankID, Entry_Type_Acc, Account_Reference_Suffix, Debit,
@@ -324,9 +372,9 @@ class DatabaseManager:
                     ''', (
                         bank_id,
                         row.get('Entry_Type_Acc'),
-                        row.get('Account_Reference_Suffix'),
-                        row.get('Debit'),
-                        row.get('Credit'),
+                        str(row.get('Account_Reference_Suffix')) if row.get('Account_Reference_Suffix') is not None else None,
+                        debit,
+                        credit,
                         row.get('Due_Date'),
                         row.get('Person_Name'),
                         row.get('Check_Date'),
@@ -454,25 +502,42 @@ class DatabaseManager:
             موفقیت عملیات
         """
         try:
+            logger.info(f"🏷️ شروع به‌روزرسانی وضعیت مغایرت‌گیری")
+            logger.info(f"📊 جدول: {table}, رکورد ID: {record_id}, وضعیت: {is_reconciled}")
+            
             self.connect()
+            logger.info(f"🔗 اتصال به دیتابیس برقرار شد")
             
             # بررسی اعتبار نام جدول
             valid_tables = ['BankTransactions', 'PosTransactions', 'AccountingEntries']
             if table not in valid_tables:
-                logger.error(f"نام جدول نامعتبر: {table}")
+                logger.error(f"❌ نام جدول نامعتبر: {table}")
                 return False
             
+            logger.info(f"💾 اجرای کوئری UPDATE برای جدول {table}...")
             self.cursor.execute(f'''
                 UPDATE {table} SET is_reconciled = ? WHERE id = ?
             ''', (is_reconciled, record_id))
             
+            logger.info(f"💾 کامیت تغییرات...")
             self.connection.commit()
-            return self.cursor.rowcount > 0
+            
+            affected_rows = self.cursor.rowcount
+            logger.info(f"📊 تعداد رکوردهای تأثیر یافته: {affected_rows}")
+            
+            if affected_rows > 0:
+                logger.info(f"✅ وضعیت مغایرت‌گیری با موفقیت به‌روزرسانی شد")
+                return True
+            else:
+                logger.warning(f"⚠️ هیچ رکوردی تأثیر نپذیرفت - ممکن است رکورد وجود نداشته باشد")
+                return False
             
         except Exception as e:
-            logger.error(f"خطا در به‌روزرسانی وضعیت مغایرت‌گیری: {str(e)}")
+            logger.error(f"❌ خطا در به‌روزرسانی وضعیت مغایرت‌گیری: {str(e)}")
+            logger.error(f"🔍 جزئیات خطا: table={table}, record_id={record_id}, is_reconciled={is_reconciled}")
             return False
         finally:
+            logger.info(f"🔌 قطع اتصال از دیتابیس")
             self.disconnect()
     
     def record_reconciliation_result(self, bank_id: Optional[int], pos_id: Optional[int], 
@@ -492,11 +557,19 @@ class DatabaseManager:
             موفقیت عملیات
         """
         try:
+            logger.info(f"🗄️ شروع ثبت نتیجه مغایرت‌گیری در دیتابیس")
+            logger.info(f"📊 پارامترهای ورودی: bank_id={bank_id}, pos_id={pos_id}, accounting_id={accounting_id}")
+            logger.info(f"📝 نوع مغایرت‌گیری: {reconciliation_type}")
+            logger.info(f"📄 یادداشت: {notes}")
+            
             self.connect()
+            logger.info(f"🔗 اتصال به دیتابیس برقرار شد")
             
             from datetime import datetime
             reconciliation_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logger.info(f"⏰ تاریخ مغایرت‌گیری: {reconciliation_date}")
             
+            logger.info(f"💾 درج رکورد در جدول ReconciliationResults...")
             self.cursor.execute('''
                 INSERT INTO ReconciliationResults (
                     bank_transaction_id, pos_transaction_id, accounting_entry_id,
@@ -504,22 +577,22 @@ class DatabaseManager:
                 ) VALUES (?, ?, ?, ?, ?, ?)
             ''', (bank_id, pos_id, accounting_id, reconciliation_type, reconciliation_date, notes))
             
+            logger.info(f"💾 کامیت تغییرات...")
             self.connection.commit()
             
-            # به‌روزرسانی وضعیت مغایرت‌گیری رکوردها
-            if bank_id:
-                self.update_reconciliation_status('BankTransactions', bank_id, True)
-            if pos_id:
-                self.update_reconciliation_status('PosTransactions', pos_id, True)
-            if accounting_id:
-                self.update_reconciliation_status('AccountingEntries', accounting_id, True)
+            logger.info(f"✅ نتیجه مغایرت‌گیری با موفقیت ثبت شد: نوع={reconciliation_type}, بانک={bank_id}, پوز={pos_id}, حسابداری={accounting_id}")
             
             return True
             
         except Exception as e:
-            logger.error(f"خطا در ثبت نتیجه مغایرت‌گیری: {str(e)}")
+            logger.error(f"❌ خطا در ثبت نتیجه مغایرت‌گیری: {str(e)}")
+            logger.error(f"🔍 جزئیات خطا: bank_id={bank_id}, pos_id={pos_id}, accounting_id={accounting_id}, type={reconciliation_type}")
+            if self.connection:
+                logger.info(f"🔄 رولبک تغییرات...")
+                self.connection.rollback()
             return False
         finally:
+            logger.info(f"🔌 قطع اتصال از دیتابیس")
             self.disconnect()
     
     def get_reconciliation_statistics(self) -> Dict[str, int]:
@@ -866,3 +939,107 @@ class DatabaseManager:
             return None
         finally:
             self.disconnect()
+    
+    def get_reconciled_transactions(self) -> List[Dict[str, Any]]:
+        """
+        دریافت تراکنش‌های تطبیق داده شده از جدول ReconciliationResults
+        
+        خروجی:
+            لیستی از دیکشنری‌های حاوی اطلاعات تراکنش‌های تطبیق داده شده
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                SELECT 
+                    id,
+                    bank_transaction_id,
+                    pos_transaction_id,
+                    accounting_entry_id,
+                    reconciliation_type,
+                    reconciliation_date,
+                    notes
+                FROM ReconciliationResults
+                ORDER BY reconciliation_date DESC
+            ''')
+            
+            columns = [desc[0] for desc in self.cursor.description]
+            result = [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+            
+            # تبدیل شناسه‌ها به نوع رکورد و شناسه رکورد برای نمایش بهتر
+            formatted_result = []
+            for row in result:
+                formatted_row = {
+                    'record_type_1': '',
+                    'record_id_1': '',
+                    'record_type_2': '',
+                    'record_id_2': '',
+                    'reconciliation_date': row['reconciliation_date'],
+                    'reconciliation_method': row['reconciliation_type']
+                }
+                
+                # تعیین نوع رکورد اول
+                if row['bank_transaction_id']:
+                    formatted_row['record_type_1'] = 'بانک'
+                    formatted_row['record_id_1'] = str(row['bank_transaction_id'])
+                elif row['pos_transaction_id']:
+                    formatted_row['record_type_1'] = 'پوز'
+                    formatted_row['record_id_1'] = str(row['pos_transaction_id'])
+                elif row['accounting_entry_id']:
+                    formatted_row['record_type_1'] = 'حسابداری'
+                    formatted_row['record_id_1'] = str(row['accounting_entry_id'])
+                
+                # تعیین نوع رکورد دوم (اگر وجود داشته باشد)
+                if row['accounting_entry_id'] and (row['bank_transaction_id'] or row['pos_transaction_id']):
+                    formatted_row['record_type_2'] = 'حسابداری'
+                    formatted_row['record_id_2'] = str(row['accounting_entry_id'])
+                
+                formatted_result.append(formatted_row)
+            
+            return formatted_result
+            
+        except Exception as e:
+            logger.error(f"خطا در دریافت تراکنش‌های تطبیق داده شده: {str(e)}")
+            return []
+        finally:
+            self.disconnect()
+    
+    def get_reconciliation_summary_data(self) -> List[Dict[str, Any]]:
+        """
+        دریافت آمار مغایرت‌گیری به صورت لیست برای نمایش در جدول
+        
+        خروجی:
+            لیستی از دیکشنری‌های حاوی آمار مغایرت‌گیری
+        """
+        try:
+            stats = self.get_reconciliation_statistics()
+            
+            summary_data = [
+                {
+                    'record_type': 'تراکنش‌های بانکی',
+                    'total_count': stats.get('total_bank', 0),
+                    'reconciled_count': stats.get('reconciled_bank', 0),
+                    'unreconciled_count': stats.get('unreconciled_bank', 0),
+                    'reconciliation_percentage': f"{stats.get('reconciled_bank', 0) / stats.get('total_bank', 1) * 100:.1f}%" if stats.get('total_bank', 0) > 0 else "0%"
+                },
+                {
+                    'record_type': 'تراکنش‌های پوز',
+                    'total_count': stats.get('total_pos', 0),
+                    'reconciled_count': stats.get('reconciled_pos', 0),
+                    'unreconciled_count': stats.get('unreconciled_pos', 0),
+                    'reconciliation_percentage': f"{stats.get('reconciled_pos', 0) / stats.get('total_pos', 1) * 100:.1f}%" if stats.get('total_pos', 0) > 0 else "0%"
+                },
+                {
+                    'record_type': 'ورودی‌های حسابداری',
+                    'total_count': stats.get('total_accounting', 0),
+                    'reconciled_count': stats.get('reconciled_accounting', 0),
+                    'unreconciled_count': stats.get('unreconciled_accounting', 0),
+                    'reconciliation_percentage': f"{stats.get('reconciled_accounting', 0) / stats.get('total_accounting', 1) * 100:.1f}%" if stats.get('total_accounting', 0) > 0 else "0%"
+                }
+            ]
+            
+            return summary_data
+            
+        except Exception as e:
+            logger.error(f"خطا در دریافت آمار خلاصه مغایرت‌گیری: {str(e)}")
+            return []

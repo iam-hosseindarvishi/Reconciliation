@@ -121,6 +121,11 @@ class DataLoader:
                 axis=1
             )
             
+            # استخراج شماره پیگیری سوئیچ
+            df['Extracted_Switch_Tracking_ID'] = df['Description_Bank'].apply(
+                lambda x: self._extract_switch_tracking_id(x)
+            )
+            
             # تعیین نوع تراکنش بانک
             df['Transaction_Type_Bank'] = df.apply(self._determine_bank_transaction_type, axis=1)
             
@@ -291,42 +296,79 @@ class DataLoader:
     
     def _determine_bank_transaction_type(self, row) -> str:
         """
-        تعیین نوع تراکنش بانک
-        
-        پارامترها:
-            row: سطر دیتافریم
-            
-        خروجی:
-            نوع تراکنش (POS Deposit، Received Check، Paid Check، کارمزد، Received Transfer، Paid Transfer، Other)
+        تعیین نوع تراکنش بانک بر اساس توضیحات، واریز/برداشت و واریزکننده/دریافت‌کننده.
         """
         description = str(row.get('Description_Bank', '')).lower()
         payer_receiver = str(row.get('Payer_Receiver', '')).lower()
+        deposit_amount = row.get('Deposit_Amount')
+        withdrawal_amount = row.get('Withdrawal_Amount')
         
-        # تشخیص واریز پوز - اگر پرداخت کننده/دریافت کننده "مرکز شاپرک" باشد
-        if "مرکز شاپرک" in payer_receiver:
+        # تبدیل مقادیر به عدد برای جلوگیری از خطای مقایسه
+        try:
+            deposit_amount = float(deposit_amount) if pd.notna(deposit_amount) and str(deposit_amount).strip() != '' else 0
+        except (ValueError, TypeError):
+            deposit_amount = 0
+            
+        try:
+            withdrawal_amount = float(withdrawal_amount) if pd.notna(withdrawal_amount) and str(withdrawal_amount).strip() != '' else 0
+        except (ValueError, TypeError):
+            withdrawal_amount = 0
+
+        # 1. تشخیص واریز پوز (اولین اولویت)
+        if payer_receiver == "مرکزشاپرک" and deposit_amount > 0:
             return "POS Deposit"
-        
-        # تشخیص چک - اگر در توضیحات کلمه "چک" وجود داشته باشد
-        if "چک" in description:
-            # تعیین نوع چک بر اساس مبلغ واریز یا برداشت
-            if pd.notna(row.get('Deposit_Amount')):
-                return "Received Check"
-            elif pd.notna(row.get('Withdrawal_Amount')):
-                return "Paid Check"
-        
-        # تشخیص کارمزد - اگر در توضیحات کلمه "کارمزد" وجود داشته باشد
-        if "کارمزد" in description:
-            return "کارمزد"
-        
-        # تشخیص انتقال
-        if "انتقال" in description or "حواله" in description:
-            if pd.notna(row.get('Deposit_Amount')):
+
+        # 2. تشخیص انتقال (پایا، پل، واریز انتقالی)
+        transfer_keywords = ["انتقال", "حواله", "پايا", "پل","انتقالKYOS","انتقالMOB","انتقال IB", "واريز انتقالي","انتقالPAYMENT","انتقالATM"]
+        is_transfer = any(keyword in description for keyword in transfer_keywords)
+        if not is_transfer:
+            is_transfer= 'واريزتجمعي' in description and 'نام واریز کننده:' in description
+            
+        if is_transfer:
+            if deposit_amount > 0:
                 return "Received Transfer"
-            elif pd.notna(row.get('Withdrawal_Amount')):
+            elif withdrawal_amount > 0:
                 return "Paid Transfer"
         
-        # سایر موارد
+        # 3. تشخیص چک (شامل چکاوک)
+        check_keywords = ["چک", "چکاوک","وصول چكاوك","واريز انتقالي با چ","در-چک","چك انتقالي","چك"]
+        is_check = any(keyword in description for keyword in check_keywords)
+        
+        if is_check:
+            if deposit_amount > 0:
+                return "Received Check"
+            elif withdrawal_amount > 0:
+                return "Paid Check"
+
+        # 4. تشخیص کارمزد (Commission)
+        commission_keywords=["كارمزدPOS","کارمزد"]
+        if any(keyword in description for keyword in commission_keywords):
+             if withdrawal_amount > 0:
+                return "Bank Commission"
+             elif deposit_amount > 0:
+                 return "Commission Refund" # اگر کارمزد برگشت داده شده باشد
+
+        # 5. سایر موارد
+        if deposit_amount > 0:
+            return "Other Deposit"
+        elif withdrawal_amount > 0:
+            return "Other Withdrawal"
+            
         return "Other"
+    
+    def _extract_switch_tracking_id(self, description: str) -> Optional[str]:
+        """
+        استخراج شماره پیگیری سوئیچ از متن توضیحات.
+        مثال: "شماره پیگیری سوئیچ: 670781" -> "670781"
+        """
+        if not description or not isinstance(description, str):
+            return None
+        
+        # الگوی regex برای یافتن "شماره پیگیری سوئیچ:" و سپس 6 رقم (یا بیشتر)
+        match = re.search(r'شماره پیگیری سوئیچ:\s*(\d+)', description, re.IGNORECASE)
+        if match:
+            return match.group(1)
+        return None
     
     def _extract_card_suffix(self, description: str) -> Optional[str]:
         """
