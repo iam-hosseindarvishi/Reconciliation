@@ -18,24 +18,78 @@ from modules.logger import get_logger
 logger = get_logger(__name__)
 
 
-def convert_date_format(date_str: str, input_format: str, output_format: str) -> Optional[str]:
+def convert_date_format(date_str: str, from_format: str, to_format: str) -> str:
     """
-    تبدیل فرمت تاریخ
+    تبدیل فرمت تاریخ با پشتیبانی از فرمت‌های مختلف
     
     پارامترها:
         date_str: رشته تاریخ ورودی
-        input_format: فرمت ورودی
-        output_format: فرمت خروجی
+        from_format: فرمت ورودی ('YYYY/MM/DD' یا 'YYYYMMDD')
+        to_format: فرمت خروجی ('YYYY/MM/DD' یا 'YYYYMMDD')
         
     خروجی:
-        رشته تاریخ با فرمت جدید یا None در صورت خطا
+        رشته تاریخ با فرمت جدید
     """
     try:
-        date_obj = datetime.strptime(date_str, input_format)
-        return date_obj.strftime(output_format)
+        if not date_str:
+            return ""
+            
+        date_str = date_str.strip()
+        
+        # تبدیل از YYYY/MM/DD به YYYYMMDD
+        if from_format == 'YYYY/MM/DD' and to_format == 'YYYYMMDD':
+            if '/' in date_str:
+                parts = date_str.split('/')
+                if len(parts) == 3:
+                    year, month, day = parts
+                    # اطمینان از اینکه ماه و روز دو رقمی هستند
+                    month = month.zfill(2)
+                    day = day.zfill(2)
+                    return f"{year}{month}{day}"
+            return date_str.replace('/', '')
+            
+        # تبدیل از YYYYMMDD به YYYY/MM/DD
+        elif from_format == 'YYYYMMDD' and to_format == 'YYYY/MM/DD':
+            if len(date_str) == 8 and date_str.isdigit():
+                year = date_str[:4]
+                month = date_str[4:6]
+                day = date_str[6:8]
+                return f"{year}/{month}/{day}"
+            return date_str
+            
+        # پشتیبانی از فرمت YY/MM/DD -> 14YYMMDD
+        elif from_format == 'YY/MM/DD' and to_format == 'YYYYMMDD':
+            if '/' in date_str:
+                parts = date_str.split('/')
+                if len(parts) == 3:
+                    year, month, day = parts
+                    # اضافه کردن 14 به ابتدای سال دو رقمی
+                    full_year = f"14{year.zfill(2)}"
+                    month = month.zfill(2)
+                    day = day.zfill(2)
+                    return f"{full_year}{month}{day}"
+                    
+        # اگر فرمت‌ها یکسان باشند
+        if from_format == to_format:
+            return date_str
+            
+        # تلاش برای تبدیل با استفاده از datetime
+        date_obj = datetime.strptime(date_str, from_format)
+        return date_obj.strftime(to_format)
+        
     except Exception as e:
         logger.warning(f"خطا در تبدیل فرمت تاریخ: {str(e)}, تاریخ: {date_str}")
-        return None
+        return date_str  # بازگرداندن تاریخ اصلی در صورت خطا
+
+
+def get_current_persian_date() -> str:
+    """
+    دریافت تاریخ فارسی فعلی در فرمت YYYY-MM-DD HH:MM:SS
+    
+    خروجی:
+        تاریخ فارسی فعلی
+    """
+    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
 def jalali_to_gregorian(jy: int, jm: int, jd: int) -> Tuple[int, int, int]:

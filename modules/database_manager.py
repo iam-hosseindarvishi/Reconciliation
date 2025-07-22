@@ -539,6 +539,68 @@ class DatabaseManager:
             logger.info(f"🔌 قطع اتصال از دیتابیس")
             self.disconnect()
     
+    def update_bank_transaction_reconciled_status(self, transaction_id: int, is_reconciled: bool) -> bool:
+        """
+        به‌روزرسانی وضعیت مغایرت‌گیری تراکنش بانکی
+        
+        پارامترها:
+            transaction_id: شناسه تراکنش بانکی
+            is_reconciled: وضعیت مغایرت‌گیری
+            
+        خروجی:
+            موفقیت عملیات
+        """
+        return self.update_reconciliation_status('BankTransactions', transaction_id, is_reconciled)
+    
+    def update_accounting_entry_reconciled_status(self, entry_id: int, is_reconciled: bool) -> bool:
+        """
+        به‌روزرسانی وضعیت مغایرت‌گیری ورودی حسابداری
+        
+        پارامترها:
+            entry_id: شناسه ورودی حسابداری
+            is_reconciled: وضعیت مغایرت‌گیری
+            
+        خروجی:
+            موفقیت عملیات
+        """
+        return self.update_reconciliation_status('AccountingEntries', entry_id, is_reconciled)
+    
+    def insert_reconciliation_result(self, bank_transaction_id: Optional[int] = None, 
+                                   accounting_entry_id: Optional[int] = None,
+                                   pos_transaction_id: Optional[int] = None,
+                                   reconciliation_type: str = "Match",
+                                   reconciliation_date: str = None,
+                                   notes: str = None) -> bool:
+        """
+        درج نتیجه مغایرت‌گیری در جدول ReconciliationResults
+        
+        پارامترها:
+            bank_transaction_id: شناسه تراکنش بانکی (اختیاری)
+            accounting_entry_id: شناسه ورودی حسابداری (اختیاری)
+            pos_transaction_id: شناسه تراکنش پوز (اختیاری)
+            reconciliation_type: نوع مغایرت‌گیری
+            reconciliation_date: تاریخ مغایرت‌گیری (اختیاری)
+            notes: یادداشت‌ها (اختیاری)
+            
+        خروجی:
+            موفقیت عملیات
+        """
+        try:
+            if reconciliation_date is None:
+                from datetime import datetime
+                reconciliation_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            return self.record_reconciliation_result(
+                bank_id=bank_transaction_id,
+                pos_id=pos_transaction_id,
+                accounting_id=accounting_entry_id,
+                reconciliation_type=reconciliation_type,
+                notes=notes
+            )
+        except Exception as e:
+            logger.error(f"خطا در درج نتیجه مغایرت‌گیری: {str(e)}")
+            return False
+    
     def record_reconciliation_result(self, bank_id: Optional[int], pos_id: Optional[int], 
                                     accounting_id: Optional[int], reconciliation_type: str, 
                                     notes: str = None) -> bool:
@@ -715,6 +777,159 @@ class DatabaseManager:
             return result
         except Exception as e:
             logger.error(f"خطا در دریافت تراکنش‌های پوز بر اساس ترمینال و تاریخ: {str(e)}")
+            return []
+        finally:
+            self.disconnect()
+    
+    def get_unreconciled_bank_transfers(self, bank_id: int) -> List[Dict[str, Any]]:
+        """
+        دریافت حواله‌های بانکی مغایرت‌گیری نشده
+        
+        پارامترها:
+            bank_id: شناسه بانک
+            
+        خروجی:
+            لیست حواله‌های بانکی مغایرت‌گیری نشده
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                SELECT * FROM BankTransactions 
+                WHERE BankID = ? 
+                AND is_reconciled = 0 
+                AND (Transaction_Type_Bank = 'Received Transfer' OR Transaction_Type_Bank = 'Paid Transfer')
+                ORDER BY Date DESC
+            ''', (bank_id,))
+            
+            columns = [desc[0] for desc in self.cursor.description]
+            result = [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+            
+            logger.info(f"دریافت حواله‌های مغایرت‌گیری نشده برای بانک {bank_id}: {len(result)} رکورد")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"خطا در دریافت حواله‌های مغایرت‌گیری نشده: {str(e)}")
+            return []
+        finally:
+            self.disconnect()
+    
+    def search_accounting_entries_for_transfer(self, bank_id: int, normalized_date: str, 
+                                             target_amount: float, target_entry_type: str) -> List[Dict[str, Any]]:
+        """
+        جستجوی ورودی‌های حسابداری برای مغایرت‌گیری حواله‌ها
+        
+        پارامترها:
+            bank_id: شناسه بانک
+            normalized_date: تاریخ نرمال‌سازی شده (فرمت YYYYMMDD)
+            target_amount: مبلغ هدف
+            target_entry_type: نوع ورودی حسابداری هدف
+            
+        خروجی:
+            لیست ورودی‌های حسابداری مطابق
+        """
+        try:
+            self.connect()
+            
+            # تبدیل ستون Due_Date به فرمت YYYYMMDD برای مقایسه
+            # فرض می‌کنیم Due_Date در فرمت YYYY/MM/DD ذخیره شده است
+            self.cursor.execute('''
+                SELECT * FROM AccountingEntries 
+                WHERE BankID = ? 
+                AND is_reconciled = 0 
+                AND REPLACE(Due_Date, '/', '') = ? 
+                AND Price = ? 
+                AND Entry_Type_Acc = ?
+            ''', (bank_id, normalized_date, target_amount, target_entry_type))
+            
+            columns = [desc[0] for desc in self.cursor.description]
+            result = [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+            
+            logger.info(f"جستجوی ورودی‌های حسابداری: بانک={bank_id}, تاریخ={normalized_date}, مبلغ={target_amount}, نوع={target_entry_type}")
+            logger.info(f"تعداد نتایج یافت شده: {len(result)}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"خطا در جستجوی ورودی‌های حسابداری برای حواله: {str(e)}")
+            return []
+        finally:
+            self.disconnect()
+
+    def get_matching_accounting_entries_for_transfer(self, bank_id: int, normalized_bank_date: str, 
+                                                   target_amount: float, target_acc_entry_type: str) -> List[Dict[str, Any]]:
+        """
+        بازیابی ورودی‌های حسابداری مغایرت‌گیری نشده برای حواله/فیش
+        
+        پارامترها:
+            bank_id: شناسه بانک
+            normalized_bank_date: تاریخ نرمال‌سازی شده بانک (فرمت YYYYMMDD)
+            target_amount: مبلغ هدف
+            target_acc_entry_type: نوع ورودی حسابداری هدف
+            
+        خروجی:
+            لیست ورودی‌های حسابداری مطابق
+        """
+        try:
+            self.connect()
+            
+            # جستجوی ورودی‌های حسابداری مطابق با شرایط
+            # استفاده از Due_Date به عنوان تاریخ تراکنش حسابداری
+            self.cursor.execute('''
+                SELECT * FROM AccountingEntries 
+                WHERE is_reconciled = 0 
+                AND BankID = ? 
+                AND Due_Date = ? 
+                AND Price = ? 
+                AND Entry_Type_Acc = ?
+            ''', (bank_id, normalized_bank_date, target_amount, target_acc_entry_type))
+            
+            columns = [desc[0] for desc in self.cursor.description]
+            result = [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+            
+            logger.info(f"بازیابی ورودی‌های حسابداری برای حواله: بانک={bank_id}, تاریخ={normalized_bank_date}, مبلغ={target_amount}, نوع={target_acc_entry_type}")
+            logger.info(f"تعداد نتایج یافت شده: {len(result)}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"خطا در بازیابی ورودی‌های حسابداری برای حواله: {str(e)}")
+            return []
+        finally:
+            self.disconnect()
+            
+    def get_unreconciled_transfer_transactions(self, bank_id: int) -> List[Dict[str, Any]]:
+        """
+        بازیابی تراکنش‌های حواله/فیش مغایرت‌گیری نشده از بانک
+        
+        پارامترها:
+            bank_id: شناسه بانک
+            
+        خروجی:
+            لیست تراکنش‌های حواله مغایرت‌گیری نشده
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                SELECT * FROM BankTransactions 
+                WHERE is_reconciled = 0 
+                AND BankID = ? 
+                AND Transaction_Type_Bank IN ('Received Transfer', 'Paid Transfer')
+                ORDER BY Date, id
+            ''', (bank_id,))
+            
+            columns = [description[0] for description in self.cursor.description]
+            rows = self.cursor.fetchall()
+            
+            result = [dict(zip(columns, row)) for row in rows]
+            
+            logger.info(f"بازیابی {len(result)} تراکنش حواله مغایرت‌گیری نشده برای بانک {bank_id}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"خطا در بازیابی تراکنش‌های حواله مغایرت‌گیری نشده: {str(e)}")
             return []
         finally:
             self.disconnect()
@@ -1000,6 +1215,352 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"خطا در دریافت تراکنش‌های تطبیق داده شده: {str(e)}")
             return []
+        finally:
+            self.disconnect()
+    
+    def search_accounting_entries_for_check(self, bank_id: int, normalized_date: str, 
+                                           amount: float, entry_type: str) -> List[Dict[str, Any]]:
+        """
+        جستجوی ورودی‌های حسابداری برای چک‌ها (بر اساس Date_Of_Receipt)
+        
+        پارامترها:
+            bank_id: شناسه بانک
+            normalized_date: تاریخ نرمال‌سازی شده (فرمت YYYYMMDD)
+            amount: مبلغ
+            entry_type: نوع ورودی حسابداری
+            
+        خروجی:
+            لیست ورودی‌های حسابداری مطابق
+        """
+        try:
+            self.connect()
+            
+            # تبدیل ستون Date_Of_Receipt به فرمت YYYYMMDD برای مقایسه
+            self.cursor.execute('''
+                SELECT * FROM AccountingEntries 
+                WHERE BankID = ? 
+                AND is_reconciled = 0 
+                AND REPLACE(Date_Of_Receipt, '/', '') = ? 
+                AND Price = ? 
+                AND Entry_Type_Acc = ?
+            ''', (bank_id, normalized_date, amount, entry_type))
+            
+            columns = [desc[0] for desc in self.cursor.description]
+            result = [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+            
+            logger.info(f"جستجوی ورودی‌های حسابداری چک: بانک={bank_id}, تاریخ={normalized_date}, مبلغ={amount}, نوع={entry_type}")
+            logger.info(f"تعداد نتایج یافت شده: {len(result)}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"خطا در جستجوی ورودی‌های حسابداری برای چک: {str(e)}")
+            return []
+        finally:
+            self.disconnect()
+    
+    def get_pos_transactions_for_terminal(self, bank_id: int, terminal_id: str, date: str) -> List[Dict[str, Any]]:
+        """
+        دریافت تراکنش‌های پوز برای ترمینال و تاریخ مشخص
+        
+        پارامترها:
+            bank_id: شناسه بانک
+            terminal_id: شناسه ترمینال
+            date: تاریخ (فرمت YYYY/MM/DD)
+            
+        خروجی:
+            لیست تراکنش‌های پوز
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                SELECT * FROM PosTransactions 
+                WHERE BankID = ? 
+                AND Terminal_ID = ? 
+                AND Transaction_Date = ? 
+                AND is_reconciled = 0
+                ORDER BY Transaction_Time
+            ''', (bank_id, terminal_id, date))
+            
+            columns = [desc[0] for desc in self.cursor.description]
+            result = [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+            
+            logger.info(f"دریافت تراکنش‌های پوز: بانک={bank_id}, ترمینال={terminal_id}, تاریخ={date}")
+            logger.info(f"تعداد تراکنش‌ها: {len(result)}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"خطا در دریافت تراکنش‌های پوز برای ترمینال: {str(e)}")
+            return []
+        finally:
+            self.disconnect()
+    
+    def get_accounting_entry_by_id(self, entry_id: int) -> Optional[Dict[str, Any]]:
+        """
+        دریافت ورودی حسابداری بر اساس شناسه
+        
+        پارامترها:
+            entry_id: شناسه ورودی حسابداری
+            
+        خروجی:
+            ورودی حسابداری یا None
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                SELECT * FROM AccountingEntries WHERE id = ?
+            ''', (entry_id,))
+            
+            row = self.cursor.fetchone()
+            if row:
+                columns = [desc[0] for desc in self.cursor.description]
+                return dict(zip(columns, row))
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"خطا در دریافت ورودی حسابداری: {str(e)}")
+            return None
+        finally:
+            self.disconnect()
+    
+    def get_pos_transactions_for_date(self, bank_id: int, terminal_id: str, date: str) -> List[Dict[str, Any]]:
+        """
+        دریافت تراکنش‌های پوز برای تاریخ مشخص
+        
+        پارامترها:
+            bank_id: شناسه بانک
+            terminal_id: شناسه ترمینال
+            date: تاریخ (فرمت YYYY/MM/DD)
+            
+        خروجی:
+            لیست تراکنش‌های پوز
+        """
+        return self.get_pos_transactions_for_terminal(bank_id, terminal_id, date)
+    
+    def get_unreconciled_check_transactions(self, bank_id: int) -> List[Dict[str, Any]]:
+        """
+        بازیابی تراکنش‌های چک مغایرت‌گیری نشده از بانک
+        
+        پارامترها:
+            bank_id: شناسه بانک
+            
+        خروجی:
+            لیست تراکنش‌های چک مغایرت‌گیری نشده
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                SELECT * FROM BankTransactions 
+                WHERE is_reconciled = 0 
+                AND BankID = ? 
+                AND Transaction_Type_Bank IN ('Received Check', 'Paid Check')
+                ORDER BY Date, id
+            ''', (bank_id,))
+            
+            columns = [description[0] for description in self.cursor.description]
+            rows = self.cursor.fetchall()
+            
+            result = [dict(zip(columns, row)) for row in rows]
+            
+            logger.info(f"بازیابی {len(result)} تراکنش چک مغایرت‌گیری نشده برای بانک {bank_id}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"خطا در بازیابی تراکنش‌های چک مغایرت‌گیری نشده: {str(e)}")
+            return []
+        finally:
+            self.disconnect()
+    
+    def get_unreconciled_pos_deposits(self, bank_id: int) -> List[Dict[str, Any]]:
+        """
+        بازیابی تراکنش‌های واریز پوز مغایرت‌گیری نشده از بانک
+        
+        پارامترها:
+            bank_id: شناسه بانک
+            
+        خروجی:
+            لیست تراکنش‌های واریز پوز مغایرت‌گیری نشده
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                SELECT * FROM BankTransactions 
+                WHERE is_reconciled = 0 
+                AND BankID = ? 
+                AND Transaction_Type_Bank = 'POS Deposit'
+                ORDER BY Date, id
+            ''', (bank_id,))
+            
+            columns = [description[0] for description in self.cursor.description]
+            rows = self.cursor.fetchall()
+            
+            result = [dict(zip(columns, row)) for row in rows]
+            
+            logger.info(f"بازیابی {len(result)} تراکنش واریز پوز مغایرت‌گیری نشده برای بانک {bank_id}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"خطا در بازیابی تراکنش‌های واریز پوز مغایرت‌گیری نشده: {str(e)}")
+            return []
+        finally:
+            self.disconnect()
+    
+    def get_total_bank_transactions(self, bank_id: int) -> int:
+        """
+        دریافت تعداد کل تراکنش‌های بانکی
+        
+        پارامترها:
+            bank_id: شناسه بانک
+            
+        خروجی:
+            تعداد کل تراکنش‌های بانکی
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                SELECT COUNT(*) FROM BankTransactions WHERE BankID = ?
+            ''', (bank_id,))
+            
+            result = self.cursor.fetchone()
+            return result[0] if result else 0
+            
+        except Exception as e:
+            logger.error(f"خطا در دریافت تعداد کل تراکنش‌های بانکی: {str(e)}")
+            return 0
+        finally:
+            self.disconnect()
+    
+    def get_reconciled_bank_transactions_count(self, bank_id: int) -> int:
+        """
+        دریافت تعداد تراکنش‌های بانکی مغایرت‌گیری شده
+        
+        پارامترها:
+            bank_id: شناسه بانک
+            
+        خروجی:
+            تعداد تراکنش‌های بانکی مغایرت‌گیری شده
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                SELECT COUNT(*) FROM BankTransactions 
+                WHERE BankID = ? AND is_reconciled = 1
+            ''', (bank_id,))
+            
+            result = self.cursor.fetchone()
+            return result[0] if result else 0
+            
+        except Exception as e:
+            logger.error(f"خطا در دریافت تعداد تراکنش‌های بانکی مغایرت‌گیری شده: {str(e)}")
+            return 0
+        finally:
+            self.disconnect()
+    
+    def calculate_pos_sum_for_date(self, terminal_id: str, date: str, bank_id: int) -> float:
+        """
+        محاسبه مجموع تراکنش‌های پوز برای تاریخ مشخص
+        
+        پارامترها:
+            terminal_id: شناسه ترمینال
+            date: تاریخ (فرمت YYYY/MM/DD)
+            bank_id: شناسه بانک
+            
+        خروجی:
+            مجموع مبالغ تراکنش‌های پوز
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                SELECT SUM(Transaction_Amount) FROM PosTransactions 
+                WHERE Terminal_ID = ? 
+                AND Transaction_Date = ? 
+                AND BankID = ?
+            ''', (terminal_id, date, bank_id))
+            
+            result = self.cursor.fetchone()
+            return result[0] if result[0] is not None else 0.0
+            
+        except Exception as e:
+            logger.error(f"خطا در محاسبه مجموع پوز: {str(e)}")
+            return 0.0
+        finally:
+            self.disconnect()
+    
+    def get_pos_transactions_for_date(self, terminal_id: str, date: str, bank_id: int) -> List[Dict[str, Any]]:
+        """
+        دریافت تراکنش‌های پوز برای تاریخ مشخص
+        
+        پارامترها:
+            terminal_id: شناسه ترمینال
+            date: تاریخ (فرمت YYYY/MM/DD)
+            bank_id: شناسه بانک
+            
+        خروجی:
+            لیست تراکنش‌های پوز
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                SELECT * FROM PosTransactions 
+                WHERE Terminal_ID = ? 
+                AND Transaction_Date = ? 
+                AND BankID = ? 
+                AND is_reconciled = 0
+                ORDER BY id
+            ''', (terminal_id, date, bank_id))
+            
+            columns = [desc[0] for desc in self.cursor.description]
+            result = [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"خطا در دریافت تراکنش‌های پوز برای تاریخ: {str(e)}")
+            return []
+        finally:
+            self.disconnect()
+    
+    def reconcile_all_pos_for_date(self, terminal_id: str, date: str, bank_id: int) -> bool:
+        """
+        علامت‌گذاری همه تراکنش‌های پوز برای تاریخ مشخص به عنوان مغایرت‌گیری شده
+        
+        پارامترها:
+            terminal_id: شناسه ترمینال
+            date: تاریخ (فرمت YYYY/MM/DD)
+            bank_id: شناسه بانک
+            
+        خروجی:
+            True در صورت موفقیت
+        """
+        try:
+            self.connect()
+            
+            self.cursor.execute('''
+                UPDATE PosTransactions 
+                SET is_reconciled = 1 
+                WHERE Terminal_ID = ? 
+                AND Transaction_Date = ? 
+                AND BankID = ?
+            ''', (terminal_id, date, bank_id))
+            
+            self.connection.commit()
+            
+            logger.info(f"همه تراکنش‌های پوز برای تاریخ {date} علامت‌گذاری شدند")
+            return True
+            
+        except Exception as e:
+            logger.error(f"خطا در علامت‌گذاری تراکنش‌های پوز: {str(e)}")
+            return False
         finally:
             self.disconnect()
     

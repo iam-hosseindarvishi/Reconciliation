@@ -30,12 +30,13 @@ def create_reconciliation_engine() -> ReconciliationEngine:
     return ReconciliationEngine(db_manager)
 
 # متدهای کمکی برای سازگاری با کد موجود
-def start_reconciliation(selected_bank_id: int) -> Dict[str, Any]:
+def start_reconciliation(selected_bank_id: int, selected_reconciliation_types: list = None) -> Dict[str, Any]:
     """
     شروع فرآیند مغایرت‌گیری برای بانک انتخاب شده
     
     پارامترها:
         selected_bank_id: شناسه بانک انتخاب شده
+        selected_reconciliation_types: لیست انواع مغایرت‌گیری انتخاب شده
         
     خروجی:
         دیکشنری حاوی نتایج مغایرت‌گیری
@@ -47,7 +48,30 @@ def start_reconciliation(selected_bank_id: int) -> Dict[str, Any]:
     engine = ReconciliationEngine(db_manager)
     
     # شروع فرآیند مغایرت‌گیری
-    return engine.start_reconciliation(selected_bank_id)
+    if selected_reconciliation_types and 'All' not in selected_reconciliation_types:
+        return engine.start_reconciliation_selective(selected_bank_id, selected_reconciliation_types)
+    else:
+        return engine.start_reconciliation(selected_bank_id)
+
+def start_reconciliation_selective(selected_bank_id: int, selected_types: list) -> Dict[str, Any]:
+    """
+    شروع فرآیند مغایرت‌گیری انتخابی برای بانک و انواع مشخص
+    
+    پارامترها:
+        selected_bank_id: شناسه بانک انتخاب شده
+        selected_types: لیست انواع مغایرت‌گیری انتخاب شده
+        
+    خروجی:
+        دیکشنری حاوی نتایج مغایرت‌گیری
+    """
+    logger.info(f"شروع فرآیند مغایرت‌گیری انتخابی برای بانک {selected_bank_id} با انواع: {selected_types}")
+    
+    # ایجاد موتور مغایرت‌گیری
+    db_manager = DatabaseManager()
+    engine = ReconciliationEngine(db_manager)
+    
+    # شروع فرآیند مغایرت‌گیری انتخابی
+    return engine.start_reconciliation_selective(selected_bank_id, selected_types)
 
 def get_unreconciled_bank_transactions(selected_bank_id: Optional[int] = None):
     """
