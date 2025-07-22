@@ -18,7 +18,7 @@ from .paid_transfer import PaidTransferReconciler
 from .received_check import ReceivedCheckReconciler
 from .paid_check import PaidCheckReconciler
 from .utils import validate_persian_date, safe_parse_persian_date
-from modules.utils import date_utils
+from modules.utils import get_current_persian_date, convert_bank_date_to_accounting_format
 
 # ایجاد شیء لاگر
 logger = get_logger(__name__)
@@ -508,7 +508,7 @@ class ReconciliationEngine:
             target_amount, target_acc_entry_type = self._determine_transfer_target_details(bank_record)
             
             # نرمال‌سازی تاریخ بانکی
-            normalized_date = date_utils.convert_bank_date_to_accounting_format(bank_record['Date'])
+            normalized_date = convert_bank_date_to_accounting_format(bank_record['Date'])
             
             # جستجوی اولیه در ورودی‌های حسابداری
             found_acc_records = self._search_accounting_entries_for_transfer(
@@ -616,7 +616,7 @@ class ReconciliationEngine:
                 accounting_entry_id=matching_acc_record['id'],
                 pos_transaction_id=None,
                 reconciliation_type="Match",
-                reconciliation_date=date_utils.get_current_persian_date(),
+                reconciliation_date=get_current_persian_date(),
                 notes="حواله / فیش: تطابق یکتا بر اساس تاریخ و مبلغ."
             )
             
@@ -697,7 +697,7 @@ class ReconciliationEngine:
                 accounting_entry_id=final_matching_acc_record['id'],
                 pos_transaction_id=None,
                 reconciliation_type="Match",
-                reconciliation_date=date_utils.get_current_persian_date(),
+                reconciliation_date=get_current_persian_date(),
                 notes="حواله / فیش: تطابق چندگانه حل شده با شماره پیگیری."
             )
             
@@ -757,7 +757,7 @@ class ReconciliationEngine:
                 accounting_entry_id=selected_acc_id,
                 pos_transaction_id=None,
                 reconciliation_type="Manual Match",
-                reconciliation_date=date_utils.get_current_persian_date(),
+                reconciliation_date=get_current_persian_date(),
                 notes=f"مغایرت‌گیری دستی {reconciliation_type}"
             )
             

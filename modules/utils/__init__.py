@@ -2,6 +2,10 @@
 import re
 from typing import Optional, Union, Tuple
 from datetime import datetime
+from modules.logger import get_logger
+
+# ایجاد شیء لاگر
+logger = get_logger(__name__)
 
 def gregorian_to_jalali(gy: int, gm: int, gd: int) -> Tuple[int, int, int]:
     """
@@ -133,4 +137,43 @@ def convert_short_jalali_to_standard(date_str: str) -> Optional[str]:
         # logger.warning(f"خطا در تبدیل فرمت تاریخ شمسی: {str(e)}, تاریخ: {date_str}")
         return None
 
-__all__ = ['convert_short_jalali_to_standard', 'format_currency', 'convert_gregorian_to_jalali_str', 'gregorian_to_jalali']
+def get_current_persian_date() -> str:
+    """
+    دریافت تاریخ فارسی فعلی در فرمت YYYY-MM-DD HH:MM:SS
+    
+    خروجی:
+        تاریخ فارسی فعلی
+    """
+    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+
+def convert_bank_date_to_accounting_format(date_str: str) -> str:
+    """
+    تبدیل فرمت تاریخ بانکی به فرمت حسابداری
+    
+    پارامترها:
+        date_str: رشته تاریخ بانکی
+        
+    خروجی:
+        رشته تاریخ با فرمت حسابداری
+    """
+    try:
+        if not date_str:
+            return ""
+            
+        # تبدیل فرمت‌های مختلف تاریخ
+        if '/' in date_str:
+            # تبدیل از YYYY/MM/DD به YYYYMMDD
+            parts = date_str.split('/')
+            if len(parts) == 3:
+                year, month, day = parts
+                month = month.zfill(2)
+                day = day.zfill(2)
+                return f"{year}{month}{day}"
+        return date_str
+    except Exception as e:
+        logger.warning(f"خطا در تبدیل فرمت تاریخ بانکی: {str(e)}, تاریخ: {date_str}")
+        return date_str
+
+
+__all__ = ['convert_short_jalali_to_standard', 'format_currency', 'convert_gregorian_to_jalali_str', 'gregorian_to_jalali', 'get_current_persian_date', 'convert_bank_date_to_accounting_format']

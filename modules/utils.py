@@ -92,6 +92,30 @@ def get_current_persian_date() -> str:
     return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
+def convert_bank_date_to_accounting_format(date_str: str) -> str:
+    """
+    تبدیل فرمت تاریخ بانکی به فرمت حسابداری
+    
+    پارامترها:
+        date_str: رشته تاریخ بانکی
+        
+    خروجی:
+        رشته تاریخ با فرمت حسابداری
+    """
+    try:
+        if not date_str:
+            return ""
+            
+        # تبدیل فرمت‌های مختلف تاریخ
+        if '/' in date_str:
+            return convert_date_format(date_str, 'YYYY/MM/DD', 'YYYYMMDD')
+        else:
+            return date_str
+    except Exception as e:
+        logger.warning(f"خطا در تبدیل فرمت تاریخ بانکی: {str(e)}, تاریخ: {date_str}")
+        return date_str
+
+
 def jalali_to_gregorian(jy: int, jm: int, jd: int) -> Tuple[int, int, int]:
     """
     تبدیل تاریخ جلالی به میلادی
