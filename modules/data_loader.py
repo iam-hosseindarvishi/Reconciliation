@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 
 from modules.logger import get_logger
 from modules.database_manager import DatabaseManager
+from modules.utils import convert_short_jalali_to_standard
 
 # ایجاد شیء لاگر
 logger = get_logger(__name__)
@@ -235,32 +236,89 @@ class DataLoader:
             logger.info(f"بارگذاری فایل حسابداری: {file_path}")
             # خواندن فایل اکسل حسابداری با engine مناسب
             engine = 'xlrd' if file_path.endswith('.xls') else 'openpyxl'
-            df = pd.read_excel(file_path, engine=engine)
+            
+            # چاپ اطلاعات فایل اکسل برای دیباگ
+            logger.info(f"استفاده از موتور {engine} برای خواندن فایل اکسل")
+            
+            # خواندن فایل اکسل
+            try:
+                df = pd.read_excel(file_path, engine=engine)
+                logger.info(f"فایل اکسل با موفقیت خوانده شد. تعداد سطرها: {len(df)}")
+            except Exception as excel_error:
+                logger.error(f"خطا در خواندن فایل اکسل: {str(excel_error)}")
+                raise
+            
+            # چاپ ستون‌های فایل اکسل
             logger.info(f"ستون‌های فایل حسابداری: {df.columns.tolist()}")
             
-
+            # بررسی وجود ستون‌های مورد نیاز
+            required_columns = ['نوع', 'شماره', 'مبلغ', 'توضیحات', 'نام مشتري', 'تاريخ سررسيد', 'تاريخ تحويل', 'تاريخ وصول']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                logger.warning(f"ستون‌های زیر در فایل اکسل وجود ندارند: {missing_columns}")
+                logger.warning(f"ستون‌های موجود در فایل: {df.columns.tolist()}")
             
             # نگاشت نام ستون‌ها
             column_mapping = {
                 'نوع': 'Entry_Type_Acc',
                 'شماره': 'Account_Reference_Suffix',
-                'Debit': 'Debit',
-                'Credit': 'Credit',
-                'تاريخ سررسيد': 'Description_Notes_Acc',
-                'TotalRemainAmnt': 'Total_Remain_Amnt',
-                'totmergedpersonsName': 'Person_Name',
-                'chqSTdate': 'Check_Date',
-                'chqSTdate_1': 'Due_Date',
+                'مبلغ': 'Price',
+                'توضیحات': 'Description_Notes_Acc',
+                # 'TotalRemainAmnt': 'Total_Remain_Amnt',
+                'نام مشتري': 'Person_Name',
+                'تاريخ سررسيد': 'Due_Date',
+                'تاريخ تحويل':"Delivery_Date",
+                'تاريخ وصول': 'Date_Of_Receipt',
                 # 'کد نوع چک': 'Cheque_Status_Description'
             }
             
-            # تغییر نام ستون‌ها
-            df = df.rename(columns=column_mapping)
+            # تغییر نام ستون‌ها - فقط برای ستون‌هایی که در فایل وجود دارند
+            existing_columns = {k: v for k, v in column_mapping.items() if k in df.columns}
+            if not existing_columns:
+                logger.error("هیچ یک از ستون‌های مورد نیاز در فایل اکسل وجود ندارند!")
+                # ایجاد یک دیتافریم خالی با ستون‌های مورد نیاز
+                empty_df = pd.DataFrame(columns=list(column_mapping.values()))
+                return empty_df
+                
+            df = df.rename(columns=existing_columns)
+            logger.info(f"ستون‌های دیتافریم پس از تغییر نام: {df.columns.tolist()}")
+            
+            # اضافه کردن ستون‌های مورد نیاز که در فایل وجود ندارند
+            for col_name in column_mapping.values():
+                if col_name not in df.columns:
+                    df[col_name] = None
+                    logger.info(f"ستون {col_name} به دیتافریم اضافه شد.")
+            
+            # چاپ تعداد سطرها و ستون‌ها
+            logger.info(f"تعداد سطرها: {len(df)}, تعداد ستون‌ها: {len(df.columns)}")
+            logger.info(f"ستون‌های نهایی دیتافریم: {df.columns.tolist()}")
+            
+            # چاپ چند سطر اول دیتافریم برای دیباگ
+            if not df.empty:
+                logger.info(f"نمونه داده‌ها:\n{df.head(3).to_string()}")
+            else:
+                logger.warning("دیتافریم خالی است!")
             
             # استخراج پسوند کارت از توضیحات
             df['Extracted_Card_Suffix_Acc'] = df['Description_Notes_Acc'].apply(
                 lambda x: self._extract_card_suffix(x) if isinstance(x, str) else None
             )
+            
+            # تبدیل فرمت تاریخ‌های شمسی از YY/MM/DD به YYYY/MM/DD
+            if 'Due_Date' in df.columns:
+                df['Due_Date'] = df['Due_Date'].apply(
+                    lambda x: convert_short_jalali_to_standard(str(x)) if pd.notna(x) else None
+                )
+            
+            if 'Delivery_Date' in df.columns:
+                df['Delivery_Date'] = df['Delivery_Date'].apply(
+                    lambda x: convert_short_jalali_to_standard(str(x)) if pd.notna(x) else None
+                )
+                
+            if 'Date_Of_Receipt' in df.columns:
+                df['Date_Of_Receipt'] = df['Date_Of_Receipt'].apply(
+                    lambda x: convert_short_jalali_to_standard(str(x)) if pd.notna(x) else None
+                )
             
             # افزودن ستون وضعیت مغایرت‌گیری
             df['is_reconciled'] = False

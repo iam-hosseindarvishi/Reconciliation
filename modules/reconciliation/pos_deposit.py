@@ -8,7 +8,7 @@
 
 from typing import List, Dict, Any, Optional, Tuple
 from modules.logger import get_logger
-from modules.database import DatabaseManager
+from modules.database_manager import DatabaseManager
 from datetime import datetime
 
 # ایجاد شیء لاگر

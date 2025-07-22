@@ -41,7 +41,7 @@ class ReconciliationTab(QWidget):
         """
         super().__init__(parent)
         self.db_manager = DatabaseManager()
-        self.reconciliation_engine = ReconciliationEngine()
+        self.reconciliation_engine = ReconciliationEngine(self.db_manager)
         
         # راه‌اندازی رابط کاربری
         self.init_ui()

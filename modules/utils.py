@@ -346,6 +346,50 @@ def find_close_matches(value: float, values_list: List[float], tolerance: float 
     return matches
 
 
+def convert_short_jalali_to_standard(date_str: str) -> Optional[str]:
+    """
+    تبدیل فرمت تاریخ شمسی از YY/MM/DD به YYYY/MM/DD
+    
+    پارامترها:
+        date_str: رشته تاریخ شمسی با فرمت YY/MM/DD
+        
+    خروجی:
+        رشته تاریخ با فرمت YYYY/MM/DD یا None در صورت خطا
+    """
+    try:
+        if not date_str or not isinstance(date_str, str):
+            return None
+            
+        # حذف فاصله‌های احتمالی
+        date_str = date_str.strip()
+        
+        # بررسی الگوی YY/MM/DD
+        pattern = r'^(\d{2})/(\d{1,2})/(\d{1,2})$'
+        match = re.match(pattern, date_str)
+        
+        if not match:
+            return date_str  # اگر الگو مطابقت نداشت، همان رشته را برگردان
+            
+        yy, mm, dd = match.groups()
+        
+        # تبدیل به YYYY/MM/DD
+        # برای سال‌های کمتر از 1400، قرن 14 را اضافه می‌کنیم
+        # برای سال‌های بیشتر از 1400، قرن 13 را اضافه می‌کنیم
+        if int(yy) < 40:  # فرض می‌کنیم سال‌های 00 تا 39 مربوط به 1400 تا 1439 هستند
+            yyyy = f"14{yy}"
+        else:  # فرض می‌کنیم سال‌های 40 تا 99 مربوط به 1340 تا 1399 هستند
+            yyyy = f"13{yy}"
+            
+        # اطمینان از دو رقمی بودن ماه و روز
+        mm = mm.zfill(2)
+        dd = dd.zfill(2)
+        
+        return f"{yyyy}/{mm}/{dd}"
+    except Exception as e:
+        logger.warning(f"خطا در تبدیل فرمت تاریخ شمسی: {str(e)}, تاریخ: {date_str}")
+        return None
+
+
 def get_date_range(date_str: str, days_before: int = 0, days_after: int = 0, 
                   date_format: str = '%Y/%m/%d') -> List[str]:
     """

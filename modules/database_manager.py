@@ -141,12 +141,12 @@ class DatabaseManager:
                     BankID INTEGER NOT NULL,
                     Entry_Type_Acc TEXT,
                     Account_Reference_Suffix TEXT UNIQUE,
-                    Debit REAL,
-                    Credit REAL,
+                    Price REAL,
+                    Description_Notes_Acc TEXT,
                     Due_Date TEXT,
                     Person_Name TEXT,
-                    Check_Date TEXT,
-                    Description_Notes_Acc TEXT,
+                    Delivery_Date TEXT,
+                    Date_Of_Receipt TEXT Null,
                     Extracted_Card_Suffix_Acc TEXT,
                     is_reconciled BOOLEAN DEFAULT 0,
                     FOREIGN KEY (BankID) REFERENCES Banks(id)
@@ -360,24 +360,23 @@ class DatabaseManager:
                         except (ValueError, TypeError, OverflowError):
                             return None
                     
-                    debit = safe_convert_to_float(row.get('Debit'))
-                    credit = safe_convert_to_float(row.get('Credit'))
+                    price = safe_convert_to_float(row.get('Price'))
                     
                     self.cursor.execute('''
                         INSERT OR IGNORE INTO AccountingEntries (
-                            BankID, Entry_Type_Acc, Account_Reference_Suffix, Debit,
-                            Credit, Due_Date, Person_Name, Check_Date,
+                            BankID, Entry_Type_Acc, Account_Reference_Suffix, Price,
+                            Due_Date, Person_Name, Delivery_Date, Date_Of_Receipt,
                             Description_Notes_Acc, Extracted_Card_Suffix_Acc, is_reconciled
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         bank_id,
                         row.get('Entry_Type_Acc'),
                         str(row.get('Account_Reference_Suffix')) if row.get('Account_Reference_Suffix') is not None else None,
-                        debit,
-                        credit,
+                        price,
                         row.get('Due_Date'),
                         row.get('Person_Name'),
-                        row.get('Check_Date'),
+                        row.get('Delivery_Date'),
+                        row.get('Date_Of_Receipt'),
                         row.get('Description_Notes_Acc'),
                         row.get('Extracted_Card_Suffix_Acc'),
                         False

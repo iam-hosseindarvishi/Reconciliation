@@ -44,7 +44,7 @@ class MainWindow(QMainWindow):
         self.data_loader = DataLoader()
         
         # تنظیم موتور مغایرت‌گیری
-        self.reconciliation_engine = ReconciliationEngine()
+        self.reconciliation_engine = ReconciliationEngine(self.db_manager)
         
         # تنظیم تولیدکننده گزارش
         self.report_generator = ReportGenerator()

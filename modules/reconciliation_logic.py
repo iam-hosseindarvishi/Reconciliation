@@ -26,7 +26,8 @@ def create_reconciliation_engine() -> ReconciliationEngine:
     خروجی:
         نمونه از موتور مغایرت‌گیری
     """
-    return ReconciliationEngine()
+    db_manager = DatabaseManager()
+    return ReconciliationEngine(db_manager)
 
 # متدهای کمکی برای سازگاری با کد موجود
 def start_reconciliation(selected_bank_id: int) -> Dict[str, Any]:
@@ -42,7 +43,8 @@ def start_reconciliation(selected_bank_id: int) -> Dict[str, Any]:
     logger.info(f"شروع فرآیند مغایرت‌گیری برای بانک با شناسه {selected_bank_id}...")
     
     # ایجاد موتور مغایرت‌گیری
-    engine = ReconciliationEngine()
+    db_manager = DatabaseManager()
+    engine = ReconciliationEngine(db_manager)
     
     # شروع فرآیند مغایرت‌گیری
     return engine.start_reconciliation(selected_bank_id)
