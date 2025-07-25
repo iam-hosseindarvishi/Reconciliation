@@ -60,10 +60,10 @@ class ImportWorker(QThread):
                 self.progress_updated.emit(10, "در حال بارگذاری داده‌های بانک...")
                 self.log_message.emit(f"بارگذاری داده‌های بانک از فایل {os.path.basename(self.bank_file)}", "blue")
                 
-                bank_data = self.data_loader.load_bank_file(self.bank_file)
+                bank_data = self.data_loader.load_bank_file(self.bank_file, self.bank_id_for_bank)
                 if not bank_data.empty:
                     self.progress_updated.emit(30, "در حال ذخیره داده‌های بانک در پایگاه داده...")
-                    self.db_manager.insert_bank_transactions(bank_data, self.bank_id_for_bank)
+                    self.db_manager.insert_bank_transactions(bank_data)
                     self.log_message.emit(f"{len(bank_data)} رکورد بانکی با موفقیت بارگذاری شد.", "green")
                 else:
                     self.log_message.emit("خطا در بارگذاری داده‌های بانک.", "red")
@@ -73,10 +73,10 @@ class ImportWorker(QThread):
                 self.progress_updated.emit(40, "در حال بارگذاری داده‌های پوز...")
                 self.log_message.emit(f"بارگذاری داده‌های پوز از پوشه {os.path.basename(self.pos_folder)}", "blue")
                 
-                pos_data = self.data_loader.load_pos_files(self.pos_folder)
+                pos_data = self.data_loader.load_pos_files(self.pos_folder, self.bank_id_for_pos)
                 if not pos_data.empty:
                     self.progress_updated.emit(60, "در حال ذخیره داده‌های پوز در پایگاه داده...")
-                    self.db_manager.insert_pos_transactions(pos_data, self.bank_id_for_pos)
+                    self.db_manager.insert_pos_transactions(pos_data)
                     self.log_message.emit(f"{len(pos_data)} رکورد پوز با موفقیت بارگذاری شد.", "green")
                 else:
                     self.log_message.emit("خطا در بارگذاری داده‌های پوز.", "red")
@@ -86,10 +86,10 @@ class ImportWorker(QThread):
                 self.progress_updated.emit(70, "در حال بارگذاری داده‌های حسابداری...")
                 self.log_message.emit(f"بارگذاری داده‌های حسابداری از فایل {os.path.basename(self.accounting_file)}", "blue")
                 
-                accounting_data = self.data_loader.load_accounting_file(self.accounting_file)
+                accounting_data = self.data_loader.load_accounting_file(self.accounting_file, self.bank_id_for_accounting)
                 if not accounting_data.empty:
                     self.progress_updated.emit(90, "در حال ذخیره داده‌های حسابداری در پایگاه داده...")
-                    self.db_manager.insert_accounting_entries(accounting_data, self.bank_id_for_accounting)
+                    self.db_manager.insert_accounting_entries(accounting_data)
                     self.log_message.emit(f"{len(accounting_data)} رکورد حسابداری با موفقیت بارگذاری شد.", "green")
                 else:
                     self.log_message.emit("خطا در بارگذاری داده‌های حسابداری.", "red")
