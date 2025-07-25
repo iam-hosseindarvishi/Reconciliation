@@ -171,6 +171,27 @@ def jalali_to_gregorian(jy: int, jm: int, jd: int) -> Tuple[int, int, int]:
     return gy, gm, gd
 
 
+def get_previous_date(date_str: str) -> str:
+    """
+    دریافت تاریخ یک روز قبل با فرمت YYYYMMDD
+
+    پارامترها:
+        date_str: رشته تاریخ با فرمت YYYYMMDD
+
+    خروجی:
+        رشته تاریخ یک روز قبل با فرمت YYYYMMDD
+    """
+    try:
+        # تبدیل رشته به شیء تاریخ
+        current_date = datetime.strptime(date_str, '%Y%m%d')
+        # کم کردن یک روز
+        previous_date = current_date - timedelta(days=1)
+        # تبدیل به رشته با فرمت مورد نظر
+        return previous_date.strftime('%Y%m%d')
+    except (ValueError, TypeError):
+        # در صورت بروز خطا، تاریخ اصلی را باز می‌گرداند
+        return date_str
+
 def gregorian_to_jalali(gy: int, gm: int, gd: int) -> Tuple[int, int, int]:
     """
     تبدیل تاریخ میلادی به جلالی

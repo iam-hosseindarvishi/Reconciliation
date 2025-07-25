@@ -240,3 +240,31 @@ class DatabaseManager:
             VALUES (?, ?, ?, ?, ?, ?)
         '''
         self.execute_update(query, (bank_transaction_id, accounting_entry_id, pos_transaction_id, reconciliation_type, reconciliation_date, notes))
+
+    def get_record_by_id(self, table_name: str, record_id: int) -> Optional[Dict[str, Any]]:
+        """یک رکورد را از جدول مشخص شده بر اساس شناسه آن بازیابی می‌کند."""
+        query = f'SELECT * FROM {table_name} WHERE id = ?'
+        with self as db:
+            results = db.execute_query(query, (record_id,))
+        return results[0] if results else None
+
+    def get_bank_transaction_by_id(self, transaction_id: int) -> Optional[Dict[str, Any]]:
+        """یک تراکنش بانکی را بر اساس شناسه آن بازیابی می‌کند."""
+        return self.get_record_by_id('BankTransactions', transaction_id)
+
+    def get_accounting_entry_by_id(self, entry_id: int) -> Optional[Dict[str, Any]]:
+        """یک رکورد حسابداری را بر اساس شناسه آن بازیابی می‌کند."""
+        return self.get_record_by_id('AccountingEntries', entry_id)
+
+    def calculate_pos_sum_for_date(self, selected_bank_id: int, terminal_id: str, date: str) -> float:
+        """مجموع مبالغ تراکنش‌های پوز برای یک ترمینال و تاریخ مشخص را محاسبه می‌کند."""
+        query = "SELECT SUM(Amount) FROM PosTransactions WHERE BankID = ? AND Terminal_ID = ? AND Transaction_Date = ?"
+        with self as db:
+            result = db.execute_query(query, (selected_bank_id, terminal_id, date))
+        return result[0]['SUM(Amount)'] if result and result[0]['SUM(Amount)'] is not None else 0.0
+
+    def reconcile_all_pos_for_date(self, selected_bank_id: int, terminal_id: str, date: str) -> None:
+        """تمام تراکنش‌های پوز برای یک ترمینال و تاریخ مشخص را مغایرت‌گیری می‌کند."""
+        query = "UPDATE PosTransactions SET is_reconciled = 1 WHERE BankID = ? AND Terminal_ID = ? AND Transaction_Date = ?"
+        with self as db:
+            db.execute_update(query, (selected_bank_id, terminal_id, date))

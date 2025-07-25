@@ -169,33 +169,87 @@ class ReconciliationEngine:
         except Exception as e:
             logger.error(f"خطا در مغایرت‌گیری پوز برای رکورد بانکی {bank_record.get('id', 'N/A')}: {e}")
             self._finalize_discrepancy(bank_record.get('id'), None, None, 'pos_error', f"خطا در پردازش: {e}")
+
+    def handle_aggregate_confirmation(self, bank_record_id: int, aggregate_entry_id: int, terminal_id: str, bank_date_normalized: str, selected_bank_id: int, confirmed: bool) -> None:
+        """مدیریت پاسخ کاربر (تایید یا عدم تایید) برای مغایرت‌گیری سرجمع پوز."""
+        try:
+            bank_record = self.db_manager.get_bank_transaction_by_id(bank_record_id)
+            aggregate_entry = self.db_manager.get_accounting_entry_by_id(aggregate_entry_id)
+
+            if not bank_record or not aggregate_entry:
+                logger.error(f"Record not found for agg confirmation. Bank: {bank_record_id}, Acc: {aggregate_entry_id}")
+                return
+
+            if confirmed:
+                self._process_aggregate_pos_reconciliation(bank_record, aggregate_entry, terminal_id, bank_date_normalized, selected_bank_id, skip_ui_confirmation=True)
+            else:
+                self._process_detailed_pos_reconciliation(bank_record, terminal_id, bank_date_normalized, selected_bank_id)
+        except Exception as e:
+            logger.error(f"Error in handle_aggregate_confirmation: {e}")
+
+    def _process_aggregate_pos_reconciliation(self, bank_record: Dict[str, Any], aggregate_entry: Dict[str, Any], terminal_id: str, bank_date_normalized: str, selected_bank_id: int, skip_ui_confirmation: bool = False) -> None:
+        """پردازش منطق مغایرت‌گیری سرجمع پوز."""
+        try:
+            # This part is now mainly for direct calls, UI confirmation is handled by the caller
+            if not skip_ui_confirmation and self.ui_callback_aggregate_confirmation:
+                 # This path should ideally not be taken if UI flow is correct
+                self.ui_callback_aggregate_confirmation(bank_record['id'], aggregate_entry['id'], terminal_id, bank_date_normalized, selected_bank_id)
+                return
+
+            pos_date_one_day_prior = utils.get_previous_date(bank_date_normalized)
+            total_pos_amount = self.db_manager.calculate_pos_sum_for_date(selected_bank_id, terminal_id, pos_date_one_day_prior)
+
+            if abs(total_pos_amount - aggregate_entry['Price']) < 0.01:
+                self.db_manager.reconcile_all_pos_for_date(selected_bank_id, terminal_id, pos_date_one_day_prior)
+                # self.db_manager.update_accounting_entry_reconciled_status(aggregate_entry['id'], 1) # This is now handled by finalize
+                self._finalize_reconciliation(bank_record['id'], aggregate_entry['id'], None, "Match - POS Aggregate", "پوز سرجمع: تطابق موفق.")
+            else:
+                self._finalize_discrepancy(bank_record['id'], aggregate_entry['id'], None, "Discrepancy - POS Aggregate", "پوز سرجمع: عدم تطابق مبالغ.")
+        except Exception as e:
+            logger.error(f"Error in _process_aggregate_pos_reconciliation: {e}")
+
+    def _process_detailed_pos_reconciliation(self, bank_record: Dict[str, Any], terminal_id: str, bank_date_normalized: str, selected_bank_id: int) -> None:
+        """پردازش مغایرت‌گیری جزئی پوز. این متد زمانی فراخوانی می‌شود که کاربر مغایرت سرجمع را رد می‌کند."""
+        try:
+            pos_date_one_day_prior = utils.get_previous_date(bank_date_normalized)
+            pos_transactions_for_day = self.db_manager.get_pos_transactions_by_terminal_and_date(selected_bank_id, terminal_id, pos_date_one_day_prior)
+
+            if not pos_transactions_for_day:
+                self._finalize_discrepancy(bank_record['id'], None, None, "Discrepancy - POS Detail", "پوز جزئی: تراکنش یافت نشد.")
+                return
+
+            bank_record_reconciled = False
+            for pos_record in pos_transactions_for_day:
+                norm_pos_date = self._get_normalized_date(pos_record.get('Transaction_Date'))
+                suffix_6 = pos_record.get('POS_Tracking_Number', '')[-6:]
+                suffix_5 = pos_record.get('POS_Tracking_Number', '')[-5:]
+                
+                found_acc = self.db_manager.get_matching_accounting_entries_for_pos_detail(
+                    selected_bank_id, norm_pos_date, pos_record.get('Amount_POS'), suffix_6, suffix_5
+                )
+
+                if len(found_acc) == 1:
+                    bank_id_to_rec = bank_record['id'] if not bank_record_reconciled else None
+                    self._finalize_reconciliation(bank_id_to_rec, found_acc[0]['id'], pos_record['id'], "Match - POS Detail", "پوز جزئی: تطابق موفق.")
+                    bank_record_reconciled = True
+                elif len(found_acc) > 1:
+                    if self.ui_callback_manual_reconciliation_needed:
+                        self.ui_callback_manual_reconciliation_needed(bank_record, found_acc, pos_record, 'pos_detail')
+                else:
+                    self._finalize_discrepancy(None, None, pos_record['id'], "Discrepancy - POS Detail", "پوز جزئی: ورودی حسابداری یافت نشد.")
             
-        else:
-            logger.warning(f"نوع تراکنش ناشناخته: {transaction_type}")
-            # علامت‌گذاری به عنوان پردازش شده با یادداشت
-            self._mark_bank_record_reconciled(
-                bank_record.get('id'), 
-                f"نوع تراکنش ناشناخته: {transaction_type}"
-            )
-            return True
-    
+            if not bank_record_reconciled:
+                self._finalize_discrepancy(bank_record['id'], None, None, "Discrepancy - POS Detail", "پوز جزئی: هیچ یک از جزئیات با واریز بانکی منطبق نشد.")
+
+        except Exception as e:
+            logger.error(f"Error in _process_detailed_pos_reconciliation: {e}")
+
     def _reconcile_transfers(self, bank_record: Dict[str, Any], selected_bank_id: int) -> bool:
-        """
-        مغایرت‌گیری حواله‌ها/رسیدها
-        
-        پارامترها:
-            bank_record: رکورد تراکنش بانکی
-            selected_bank_id: شناسه بانک انتخاب شده
-            
-        خروجی:
-            موفقیت عملیات
-        """
         transaction_type = bank_record.get('Transaction_Type_Bank', '')
         transaction_id = bank_record.get('id')
-        
+
         logger.info(f"🔄 مغایرت‌گیری حواله {transaction_id} - نوع: {transaction_type}")
-        
-        # تعیین مبلغ هدف و نوع ورودی حسابداری
+
         if transaction_type == 'Received Transfer':
             target_amount = bank_record.get('Deposit_Amount')
             target_acc_entry_type = 'حواله/فيش دريافتني'
