@@ -1,149 +1,129 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """
-ماژول منطق مغایرت‌گیری اصلی
-این ماژول مسئول هماهنگی و مدیریت فرآیند مغایرت‌گیری است.
+ماژول واسط برای منطق مغایرت‌گیری، جهت اتصال به رابط کاربری.
+
+این ماژول به عنوان یک لایه واسط (wrapper) عمل می‌کند تا فراخوانی‌های UI به موتور اصلی مغایرت‌گیری 
+و مدیر پایگاه داده را تسهیل کند. همچنین، مکانیزم‌های callback برای تعاملات کاربر (مانند مغایرت دستی)
+را مدیریت می‌کند.
 """
 
-from typing import Dict, List, Optional, Any, Callable
+import logging
+from typing import Optional, Callable, List, Dict, Any
 
-from modules.database_manager import DatabaseManager
-from modules.logger import get_logger
-from modules.reconciliation import ReconciliationEngine
+from .database_manager import DatabaseManager
+from .reconciliation import ReconciliationEngine
 
-# ایجاد شیء لاگر
-logger = get_logger(__name__)
+# راه‌اندازی لاگر
+logger = logging.getLogger(__name__)
 
+# ----------------------------------------------------------------------------
+# تعریف Callback های UI
+# این callbackها توسط UI تنظیم می‌شوند تا موتور مغایرت‌گیری بتواند با کاربر تعامل کند.
+# ----------------------------------------------------------------------------
 
-# برای سازگاری با کد موجود، کلاس ReconciliationEngine را از ماژول reconciliation وارد می‌کنیم
-# تمام عملکردهای مغایرت‌گیری به ماژول‌های جداگانه منتقل شده‌اند
+_ui_manual_reconciliation_callback: Optional[Callable] = None
+"""Callback برای نمایش دیالوگ مغایرت دستی به کاربر."""
 
-def create_reconciliation_engine() -> ReconciliationEngine:
+_ui_aggregate_confirmation_callback: Optional[Callable] = None
+"""Callback برای تأیید مغایرت تجمعی از کاربر."""
+
+def set_ui_manual_reconciliation_callback(callback: Callable):
+    """تابع عمومی برای تنظیم callback مغایرت دستی از UI."""
+    global _ui_manual_reconciliation_callback
+    _ui_manual_reconciliation_callback = callback
+    logger.info("Callback مغایرت دستی UI با موفقیت تنظیم شد.")
+
+def set_ui_aggregate_confirmation_callback(callback: Callable):
+    """تابع عمومی برای تنظیم callback تأیید تجمعی از UI."""
+    global _ui_aggregate_confirmation_callback
+    _ui_aggregate_confirmation_callback = callback
+    logger.info("Callback تأیید تجمعی UI با موفقیت تنظیم شد.")
+
+# ----------------------------------------------------------------------------
+# مدیریت نمونه موتور مغایرت‌گیری (Singleton)
+# ----------------------------------------------------------------------------
+
+_reconciliation_engine_instance: Optional[ReconciliationEngine] = None
+"""نمونه Singleton از موتور مغایرت‌گیری."""
+
+def _get_reconciliation_engine_instance() -> ReconciliationEngine:
     """
-    ایجاد موتور مغایرت‌گیری
-        
-    خروجی:
-        نمونه از موتور مغایرت‌گیری
+    یک نمونه Singleton از ReconciliationEngine را ارائه می‌دهد.
+    اگر نمونه وجود نداشته باشد، آن را با وابستگی‌های لازم ایجاد می‌کند.
     """
+    global _reconciliation_engine_instance
+    if _reconciliation_engine_instance is None:
+        logger.debug("ایجاد نمونه جدید از ReconciliationEngine...")
+        db_manager = DatabaseManager()
+        _reconciliation_engine_instance = ReconciliationEngine(
+            db_manager=db_manager,
+            manual_reconciliation_callback=_ui_manual_reconciliation_callback,
+            aggregate_confirmation_callback=_ui_aggregate_confirmation_callback
+        )
+        logger.info("نمونه ReconciliationEngine با موفقیت ایجاد شد.")
+    return _reconciliation_engine_instance
+
+# ----------------------------------------------------------------------------
+# توابع عمومی مغایرت‌گیری (برای فراخوانی از UI)
+# ----------------------------------------------------------------------------
+
+def start_reconciliation(selected_bank_id: int, selected_reconciliation_types: Optional[List[str]] = None) -> Dict[str, Any]:
+    """
+    نقطه ورود عمومی برای شروع فرآیند مغایرت‌گیری از UI.
+
+    Args:
+        selected_bank_id (int): شناسه بانک انتخاب شده.
+        selected_reconciliation_types (Optional[List[str]]): لیست انواع مغایرت برای اجرا.
+
+    Returns:
+        Dict[str, Any]: نتیجه فرآیند مغایرت.
+    """
+    logger.info(f"شروع فرآیند مغایرت برای بانک ID: {selected_bank_id} و انواع: {selected_reconciliation_types}")
+    try:
+        engine = _get_reconciliation_engine_instance()
+        result = engine.start_reconciliation(selected_bank_id, selected_reconciliation_types)
+        logger.info("فرآیند مغایرت با موفقیت به پایان رسید.")
+        return result
+    except Exception as e:
+        logger.error(f"خطا در حین فرآیند مغایرت: {e}", exc_info=True)
+        return {"status": "error", "message": str(e)}
+
+# ----------------------------------------------------------------------------
+# توابع کمکی عمومی (برای فراخوانی از UI)
+# این توابع تماس‌ها را به متدهای ReconciliationEngine یا DatabaseManager ارسال می‌کنند.
+# ----------------------------------------------------------------------------
+
+def handle_manual_selection(*args, **kwargs):
+    """تماس را به متد handle_manual_selection در موتور مغایرت‌گیری ارسال می‌کند."""
+    engine = _get_reconciliation_engine_instance()
+    return engine.handle_manual_selection(*args, **kwargs)
+
+def handle_aggregate_confirmation(*args, **kwargs):
+    """تماس را به متد handle_aggregate_confirmation در موتور مغایرت‌گیری ارسال می‌کند."""
+    engine = _get_reconciliation_engine_instance()
+    return engine.handle_aggregate_confirmation(*args, **kwargs)
+
+def get_unreconciled_bank_transactions(bank_id: int):
+    """تراکنش‌های بانکی مغایرت‌نشده را از پایگاه داده بازیابی می‌کند."""
     db_manager = DatabaseManager()
-    return ReconciliationEngine(db_manager)
+    return db_manager.get_unreconciled_bank_transactions(bank_id)
 
-# متدهای کمکی برای سازگاری با کد موجود
-def start_reconciliation(selected_bank_id: int, selected_reconciliation_types: list = None) -> Dict[str, Any]:
-    """
-    شروع فرآیند مغایرت‌گیری برای بانک انتخاب شده
-    
-    پارامترها:
-        selected_bank_id: شناسه بانک انتخاب شده
-        selected_reconciliation_types: لیست انواع مغایرت‌گیری انتخاب شده
-        
-    خروجی:
-        دیکشنری حاوی نتایج مغایرت‌گیری
-    """
-    logger.info(f"شروع فرآیند مغایرت‌گیری برای بانک با شناسه {selected_bank_id}...")
-    
-    # ایجاد موتور مغایرت‌گیری
+def get_unreconciled_pos_transactions():
+    """تراکنش‌های پوز مغایرت‌نشده را از پایگاه داده بازیابی می‌کند."""
     db_manager = DatabaseManager()
-    engine = ReconciliationEngine(db_manager)
-    
-    # شروع فرآیند مغایرت‌گیری
-    if selected_reconciliation_types and 'All' not in selected_reconciliation_types:
-        return engine.start_reconciliation_selective(selected_bank_id, selected_reconciliation_types)
-    else:
-        return engine.start_reconciliation(selected_bank_id)
+    return db_manager.get_unreconciled_pos_transactions()
 
-def start_reconciliation_selective(selected_bank_id: int, selected_types: list) -> Dict[str, Any]:
-    """
-    شروع فرآیند مغایرت‌گیری انتخابی برای بانک و انواع مشخص
-    
-    پارامترها:
-        selected_bank_id: شناسه بانک انتخاب شده
-        selected_types: لیست انواع مغایرت‌گیری انتخاب شده
-        
-    خروجی:
-        دیکشنری حاوی نتایج مغایرت‌گیری
-    """
-    logger.info(f"شروع فرآیند مغایرت‌گیری انتخابی برای بانک {selected_bank_id} با انواع: {selected_types}")
-    
-    # ایجاد موتور مغایرت‌گیری
+def get_unreconciled_accounting_entries():
+    """اسناد حسابداری مغایرت‌نشده را از پایگاه داده بازیابی می‌کند."""
     db_manager = DatabaseManager()
-    engine = ReconciliationEngine(db_manager)
-    
-    # شروع فرآیند مغایرت‌گیری انتخابی
-    return engine.start_reconciliation_selective(selected_bank_id, selected_types)
+    return db_manager.get_unreconciled_accounting_entries()
 
-def get_unreconciled_bank_transactions(selected_bank_id: Optional[int] = None):
-    """
-    دریافت تراکنش‌های بانکی مغایرت‌گیری نشده
-    
-    پارامترها:
-        selected_bank_id: شناسه بانک (اختیاری)
-        
-    خروجی:
-        لیست تراکنش‌های بانکی
-    """
+def manual_reconcile(*args, **kwargs):
+    """مغایرت دستی را از طریق مدیر پایگاه داده انجام می‌دهد."""
     db_manager = DatabaseManager()
-    if selected_bank_id:
-        return db_manager.get_unreconciled_bank_transactions(selected_bank_id)
-    else:
-        return db_manager.get_unreconciled_bank_transactions()
+    return db_manager.manual_reconcile(*args, **kwargs)
 
-def get_unreconciled_pos_transactions(selected_bank_id: int):
-    """
-    دریافت تراکنش‌های پوز مغایرت‌گیری نشده
-    
-    پارامترها:
-        selected_bank_id: شناسه بانک
-        
-    خروجی:
-        لیست تراکنش‌های پوز
-    """
-    engine = ReconciliationEngine()
-    return engine.get_unreconciled_pos_transactions(selected_bank_id)
-
-def get_unreconciled_accounting_entries(selected_bank_id: Optional[int] = None):
-    """
-    دریافت ورودی‌های حسابداری مغایرت‌گیری نشده
-    
-    پارامترها:
-        selected_bank_id: شناسه بانک (اختیاری)
-        
-    خروجی:
-        لیست ورودی‌های حسابداری
-    """
+def get_reconciliation_statistics(bank_id: int):
+    """آمار مغایرت را برای یک بانک خاص بازیابی می‌کند."""
     db_manager = DatabaseManager()
-    if selected_bank_id:
-        return db_manager.get_unreconciled_accounting_entries(selected_bank_id)
-    else:
-        return db_manager.get_unreconciled_accounting_entries()
-
-def manual_reconcile(bank_id: int, pos_id: Optional[int] = None, 
-                    accounting_id: Optional[int] = None, notes: str = None) -> bool:
-    """
-    انجام مغایرت‌گیری دستی
-    
-    پارامترها:
-        bank_id: شناسه رکورد بانک
-        pos_id: شناسه رکورد پوز (اختیاری)
-        accounting_id: شناسه رکورد حسابداری (اختیاری)
-        notes: یادداشت‌ها (اختیاری)
-        
-    خروجی:
-        موفقیت عملیات
-    """
-    engine = ReconciliationEngine()
-    return engine.manual_reconcile(bank_id, pos_id, accounting_id, notes)
-
-def get_reconciliation_statistics(selected_bank_id: int):
-    """
-    دریافت آمار مغایرت‌گیری
-    
-    پارامترها:
-        selected_bank_id: شناسه بانک
-        
-    خروجی:
-        دیکشنری حاوی آمار
-    """
-    engine = ReconciliationEngine()
-    return engine.get_reconciliation_statistics(selected_bank_id)
+    return db_manager.get_reconciliation_statistics(bank_id)

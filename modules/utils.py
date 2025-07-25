@@ -20,15 +20,9 @@ logger = get_logger(__name__)
 
 def convert_date_format(date_str: str, from_format: str, to_format: str) -> str:
     """
-    تبدیل فرمت تاریخ با پشتیبانی از فرمت‌های مختلف
-    
-    پارامترها:
-        date_str: رشته تاریخ ورودی
-        from_format: فرمت ورودی ('YYYY/MM/DD' یا 'YYYYMMDD')
-        to_format: فرمت خروجی ('YYYY/MM/DD' یا 'YYYYMMDD')
-        
-    خروجی:
-        رشته تاریخ با فرمت جدید
+    تابع کمکی برای تبدیل فرمت تاریخ.
+    این تابع تبدیل بین فرمت‌های 'YYYY/MM/DD' و 'YYYYMMDD' را انجام می‌دهد
+    و همچنین قادر به تبدیل 'YY/MM/DD' به '14YYMMDD' است.
     """
     try:
         if not date_str:
@@ -36,46 +30,24 @@ def convert_date_format(date_str: str, from_format: str, to_format: str) -> str:
             
         date_str = date_str.strip()
         
-        # تبدیل از YYYY/MM/DD به YYYYMMDD
-        if from_format == 'YYYY/MM/DD' and to_format == 'YYYYMMDD':
-            if '/' in date_str:
-                parts = date_str.split('/')
-                if len(parts) == 3:
-                    year, month, day = parts
-                    # اطمینان از اینکه ماه و روز دو رقمی هستند
-                    month = month.zfill(2)
-                    day = day.zfill(2)
-                    return f"{year}{month}{day}"
+        # مدیریت تبدیل YY/MM/DD به 14YYMMDD
+        if from_format == 'YY/MM/DD' and to_format == 'YYYYMMDD':
+            parts = date_str.split('/')
+            if len(parts) == 3:
+                year, month, day = parts
+                if len(year) == 2:
+                    return f"14{year.zfill(2)}{month.zfill(2)}{day.zfill(2)}"
+        
+        # مدیریت تبدیل YYYY/MM/DD به YYYYMMDD
+        if '/' in date_str and to_format == 'YYYYMMDD':
             return date_str.replace('/', '')
-            
-        # تبدیل از YYYYMMDD به YYYY/MM/DD
-        elif from_format == 'YYYYMMDD' and to_format == 'YYYY/MM/DD':
-            if len(date_str) == 8 and date_str.isdigit():
-                year = date_str[:4]
-                month = date_str[4:6]
-                day = date_str[6:8]
-                return f"{year}/{month}/{day}"
-            return date_str
-            
-        # پشتیبانی از فرمت YY/MM/DD -> 14YYMMDD
-        elif from_format == 'YY/MM/DD' and to_format == 'YYYYMMDD':
-            if '/' in date_str:
-                parts = date_str.split('/')
-                if len(parts) == 3:
-                    year, month, day = parts
-                    # اضافه کردن 14 به ابتدای سال دو رقمی
-                    full_year = f"14{year.zfill(2)}"
-                    month = month.zfill(2)
-                    day = day.zfill(2)
-                    return f"{full_year}{month}{day}"
-                    
-        # اگر فرمت‌ها یکسان باشند
-        if from_format == to_format:
-            return date_str
-            
-        # تلاش برای تبدیل با استفاده از datetime
-        date_obj = datetime.strptime(date_str, from_format)
-        return date_obj.strftime(to_format)
+        
+        # مدیریت تبدیل YYYYMMDD به YYYY/MM/DD
+        if len(date_str) == 8 and date_str.isdigit() and to_format == 'YYYY/MM/DD':
+            return f"{date_str[:4]}/{date_str[4:6]}/{date_str[6:8]}"
+
+        # اگر هیچ یک از شروط بالا برقرار نبود، تاریخ اصلی را برگردان
+        return date_str
         
     except Exception as e:
         logger.warning(f"خطا در تبدیل فرمت تاریخ: {str(e)}, تاریخ: {date_str}")
@@ -84,12 +56,17 @@ def convert_date_format(date_str: str, from_format: str, to_format: str) -> str:
 
 def get_current_persian_date() -> str:
     """
-    دریافت تاریخ فارسی فعلی در فرمت YYYY-MM-DD HH:MM:SS
-    
-    خروجی:
-        تاریخ فارسی فعلی
+    برگرداندن تاریخ شمسی جاری در فرمت YYYY/MM/DD.
     """
-    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # این تابع از کتابخانه جلالی برای تبدیل تاریخ استفاده می‌کند
+    # فرض بر این است که jdatetime نصب است.
+    try:
+        import jdatetime
+        return jdatetime.date.today().strftime('%Y/%m/%d')
+    except ImportError:
+        logger.error("کتابخانه `jdatetime` نصب نشده است. لطفاً آن را با `pip install jdatetime` نصب کنید.")
+        # بازگشت به تاریخ میلادی به عنوان جایگزین
+        return datetime.now().strftime('%Y/%m/%d')
 
 
 def convert_bank_date_to_accounting_format(date_str: str) -> str:
@@ -173,24 +150,18 @@ def jalali_to_gregorian(jy: int, jm: int, jd: int) -> Tuple[int, int, int]:
 
 def get_previous_date(date_str: str) -> str:
     """
-    دریافت تاریخ یک روز قبل با فرمت YYYYMMDD
-
-    پارامترها:
-        date_str: رشته تاریخ با فرمت YYYYMMDD
-
-    خروجی:
-        رشته تاریخ یک روز قبل با فرمت YYYYMMDD
+    محاسبه تاریخ یک روز قبل از تاریخ ورودی (در فرمت YYYYMMDD).
     """
     try:
-        # تبدیل رشته به شیء تاریخ
-        current_date = datetime.strptime(date_str, '%Y%m%d')
+        # تبدیل رشته ورودی به شیء تاریخ
+        dt_object = datetime.strptime(date_str, '%Y%m%d')
         # کم کردن یک روز
-        previous_date = current_date - timedelta(days=1)
-        # تبدیل به رشته با فرمت مورد نظر
-        return previous_date.strftime('%Y%m%d')
-    except (ValueError, TypeError):
-        # در صورت بروز خطا، تاریخ اصلی را باز می‌گرداند
-        return date_str
+        previous_day = dt_object - timedelta(days=1)
+        # بازگرداندن تاریخ جدید به فرمت رشته
+        return previous_day.strftime('%Y%m%d')
+    except ValueError:
+        logger.error(f"فرمت تاریخ نامعتبر است: {date_str}. باید 'YYYYMMDD' باشد.")
+        return date_str # در صورت خطا، رشته اصلی بازگردانده می‌شود
 
 def gregorian_to_jalali(gy: int, gm: int, gd: int) -> Tuple[int, int, int]:
     """

@@ -18,7 +18,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # واردسازی ماژول‌های برنامه
 from modules.database_manager import DatabaseManager
 from modules.data_loader import DataLoader
-from modules.reconciliation_logic import ReconciliationEngine
+from modules import reconciliation_logic
+from ui.dialogs.manual_reconciliation_dialog import ManualReconciliationDialog
 from modules.report_generator import ReportGenerator
 from modules.logger import get_logger
 from ui.tabs import DataImportTab, ReconciliationTab, ReportTab, BankManagementTab
@@ -43,8 +44,7 @@ class MainWindow(QMainWindow):
         # تنظیم بارگذار داده
         self.data_loader = DataLoader()
         
-        # تنظیم موتور مغایرت‌گیری
-        self.reconciliation_engine = ReconciliationEngine(self.db_manager)
+
         
         # تنظیم تولیدکننده گزارش
         self.report_generator = ReportGenerator()
@@ -54,6 +54,9 @@ class MainWindow(QMainWindow):
         
         # راه‌اندازی رابط کاربری
         self.setup_ui()
+
+        # تنظیم callback های UI
+        self.setup_callbacks()
         
         # بارگذاری تنظیمات ذخیره شده
         self.load_settings()
@@ -97,6 +100,31 @@ class MainWindow(QMainWindow):
         
         # اتصال سیگنال‌ها
         self.connect_signals()
+
+    def setup_callbacks(self):
+        """
+        تنظیم callback ها برای تعامل UI با موتور مغایرت‌گیری.
+        """
+        reconciliation_logic.set_ui_manual_reconciliation_callback(self.show_manual_reconciliation_modal)
+        # reconciliation_logic.set_ui_aggregate_confirmation_callback(self.show_aggregate_confirmation_modal)
+        logger.info("Callback های UI با موفقیت تنظیم شدند.")
+
+    def show_manual_reconciliation_modal(self, bank_record, acc_records, pos_records, reconciliation_type):
+        """
+        دیالوگ مغایرت دستی را نمایش می‌دهد و نتیجه را به موتور بازمی‌گرداند.
+        """
+        dialog = ManualReconciliationDialog(bank_record, acc_records, pos_records, reconciliation_type, self)
+        if dialog.exec():
+            selected_ids = dialog.get_selected_ids()
+            reconciliation_logic.handle_manual_selection(bank_record['id'], selected_ids)
+
+    # def show_aggregate_confirmation_modal(self, bank_record, aggregate_entry, terminal_id, bank_date_normalized, selected_bank_id):
+    #     """
+    #     دیالوگ تأیید مغایرت تجمعی را نمایش می‌دهد.
+    #     """
+    #     # پیاده‌سازی دیالوگ تأیید تجمعی در اینجا
+    #     pass
+
     
     def connect_signals(self):
         """

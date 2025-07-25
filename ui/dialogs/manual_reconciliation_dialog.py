@@ -10,7 +10,8 @@ from PySide6.QtWidgets import (
     QTableView, QHeaderView, QGroupBox, QDialogButtonBox, QMessageBox
 )
 
-from modules.reconciliation_logic import ReconciliationEngine
+from modules import reconciliation_logic
+from modules.database_manager import DatabaseManager
 from modules.logger import get_logger
 from modules.utils import format_currency
 from ui.widgets import DataTableModel
@@ -24,21 +25,21 @@ class ManualReconciliationDialog(QDialog):
     دیالوگ مغایرت‌گیری دستی
     """
     
-    def __init__(self, reconciliation_engine: ReconciliationEngine, record_type: str, record_id: int, parent=None):
+    def __init__(self, reconciliation_logic_module, record_type: str, record_id: int, parent=None):
         """
         مقداردهی اولیه کلاس ManualReconciliationDialog
         
         پارامترها:
-            reconciliation_engine: نمونه‌ای از کلاس ReconciliationEngine
+            reconciliation_logic_module: ماژول واسط منطق مغایرت‌گیری
             record_type: نوع رکورد (bank, pos, accounting)
             record_id: شناسه رکورد
             parent: ویجت والد
         """
         super().__init__(parent)
-        self.reconciliation_engine = reconciliation_engine
+        self.reconciliation_logic = reconciliation_logic_module
         self.record_type = record_type
         self.record_id = record_id
-        self.db_manager = reconciliation_engine.db_manager
+        self.db_manager = DatabaseManager()
         
         self.setWindowTitle("مغایرت‌گیری دستی")
         self.setMinimumWidth(600)
@@ -126,7 +127,7 @@ class ManualReconciliationDialog(QDialog):
                     )
             
             elif self.record_type == "accounting":
-                record = self.reconciliation_engine.db_manager.get_accounting_entry_by_id(self.record_id)
+                record = self.db_manager.get_accounting_entry_by_id(self.record_id)
                 if record:
                     amount = record.get("Debit") or record.get("Credit") or 0
                     amount_str = format_currency(amount)
@@ -210,7 +211,7 @@ class ManualReconciliationDialog(QDialog):
                 match_id = self.records_table.model()._data[selected_row].get("id")
             
             # انجام مغایرت‌گیری دستی
-            result = self.reconciliation_engine.manual_reconcile(
+            result = self.reconciliation_logic.manual_reconcile(
                 self.record_type, self.record_id, match_type, match_id
             )
             

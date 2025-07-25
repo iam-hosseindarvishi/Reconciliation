@@ -14,7 +14,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction
 
 from modules.database_manager import DatabaseManager
-from modules.reconciliation_logic import ReconciliationEngine
+from modules import reconciliation_logic
 from modules.logger import get_logger
 from ui.widgets import LogTextEdit, DataTableModel
 from ui.workers import ReconciliationWorker
@@ -42,7 +42,7 @@ class ReconciliationTab(QWidget):
         """
         super().__init__(parent)
         self.db_manager = DatabaseManager()
-        self.reconciliation_engine = ReconciliationEngine(self.db_manager)
+
         
         # راه‌اندازی رابط کاربری
         self.init_ui()
@@ -336,43 +336,28 @@ class ReconciliationTab(QWidget):
     
     def start_reconciliation(self):
         """
-        شروع مغایرت‌گیری
+        شروع فرآیند مغایرت‌گیری با استفاده از reconciliation_logic.
         """
-        # دریافت بانک انتخاب شده
         selected_bank_id = self.bank_combo.currentData()
         if selected_bank_id is None:
-            QMessageBox.warning(self, "هشدار", "لطفاً یک بانک انتخاب کنید.")
+            QMessageBox.warning(self, "هشدار", "لطفاً یک بانک را انتخاب کنید.")
             return
-        
-        # دریافت انواع مغایرت‌گیری انتخاب شده
+
         selected_types = self.get_selected_reconciliation_types()
         if not selected_types:
-            QMessageBox.warning(self, "هشدار", "لطفاً حداقل یک نوع مغایرت‌گیری انتخاب کنید.")
+            QMessageBox.warning(self, "هشدار", "حداقل یک نوع مغایرت را انتخاب کنید.")
             return
-        
-        logger.info(f"شروع مغایرت‌گیری برای بانک {self.bank_combo.currentText()} با انواع: {selected_types}")
-        
-        # غیرفعال کردن دکمه شروع
+
         self.start_button.setEnabled(False)
-        
-        # تنظیم نوار پیشرفت
-        self.progress_bar.setValue(0)
-        self.status_label.setText("در حال انجام مغایرت‌گیری...")
-        
-        # ایجاد و راه‌اندازی ReconciliationWorker با پارامترهای جدید
-        self.reconciliation_worker = ReconciliationWorker(
-            self.reconciliation_engine, 
-            selected_bank_id, 
-            selected_types
-        )
-        
-        # اتصال سیگنال‌ها
-        self.reconciliation_worker.progress_updated.connect(self.update_progress)
-        self.reconciliation_worker.reconciliation_completed.connect(self.on_reconciliation_completed)
-        self.reconciliation_worker.log_message.connect(self.log_text.append_log)
-        
-        # شروع ReconciliationWorker
-        self.reconciliation_worker.start()
+        self.status_label.setText("در حال مغایرت‌گیری...")
+        self.progress_bar.setRange(0, 0)  # حالت نامشخص
+
+        # استفاده از ReconciliationWorker برای اجرای فرآیند در یک نخ جداگانه
+        self.worker = ReconciliationWorker(reconciliation_logic.start_reconciliation, selected_bank_id, selected_types)
+        self.worker.finished.connect(self.on_reconciliation_finished)
+        self.worker.error.connect(self.on_reconciliation_error)
+        self.worker.progress.connect(self.update_progress)
+        self.worker.start()
     
     def update_progress(self, progress, status_text):
         """
@@ -466,7 +451,7 @@ class ReconciliationTab(QWidget):
                 return
             
             # ایجاد و نمایش دیالوگ
-            dialog = ManualReconciliationDialog(self.reconciliation_engine, record_type, record_id, self)
+            dialog = ManualReconciliationDialog(reconciliation_logic, record_type, record_id, self)
             result = dialog.exec_()
             
             # به‌روزرسانی جداول در صورت موفقیت

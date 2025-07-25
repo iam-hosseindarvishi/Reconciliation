@@ -7,6 +7,35 @@ from modules import utils # برای توابع کمکی تاریخ
 logger = get_logger(__name__)
 
 class ReconciliationEngine:
+    def start_reconciliation(self, selected_bank_id: int, selected_reconciliation_types: Optional[List[str]] = None) -> None:
+        """شروع فرآیند مغایرت‌گیری کامل یا انتخابی برای یک بانک مشخص."""
+        logger.info(f"شروع فرآیند مغایرت‌گیری برای بانک با شناسه {selected_bank_id}. انواع انتخابی: {selected_reconciliation_types or 'همه'}")
+        try:
+            bank_transactions = self.db_manager.get_unreconciled_bank_transactions(selected_bank_id, selected_reconciliation_types)
+            logger.info(f"تعداد تراکنش‌های بانکی مغایرت‌گیری نشده برای پردازش: {len(bank_transactions)}")
+            for bank_record in bank_transactions:
+                self._process_bank_record(bank_record, selected_bank_id)
+            logger.info(f"پایان فرآیند مغایرت‌گیری برای بانک {selected_bank_id}.")
+        except Exception as e:
+            logger.error(f"خطا در فرآیند مغایرت‌گیری برای بانک {selected_bank_id}: {e}", exc_info=True)
+
+    def _process_bank_record(self, bank_record: Dict[str, Any], selected_bank_id: int) -> None:
+        """پردازش یک رکورد بانکی بر اساس نوع تراکنش آن."""
+        transaction_type = bank_record.get('Transaction_Type_Bank', 'Other')
+        logger.info(f"پردازش تراکنش بانک ID: {bank_record['id']} - نوع: {transaction_type}")
+        try:
+            if transaction_type in ["Received Transfer", "Paid Transfer"]:
+                self._reconcile_transfers(bank_record, selected_bank_id)
+            elif transaction_type in ["Received Check", "Paid Check"]:
+                self._reconcile_checks(bank_record, selected_bank_id)
+            elif transaction_type == "POS Deposit":
+                self._reconcile_pos_deposits(bank_record, selected_bank_id)
+            else:
+                self._finalize_discrepancy(bank_record['id'], None, None, "Discrepancy - Unknown Type", f"نوع تراکنش بانکی ناشناخته: {transaction_type}")
+        except Exception as e:
+            logger.error(f"خطا در پردازش تراکنش بانک ID {bank_record['id']}: {e}", exc_info=True)
+            self._finalize_discrepancy(bank_record['id'], None, None, "Discrepancy - Processing Error", f"خطا در فرآیند مغایرت‌گیری: {e}")
+
     def __init__(self, db_manager: DatabaseManager, ui_callback_manual_reconciliation_needed: Callable = None, ui_callback_aggregate_confirmation: Callable = None):
         self.db_manager = db_manager
         self.ui_callback_manual_reconciliation_needed = ui_callback_manual_reconciliation_needed
