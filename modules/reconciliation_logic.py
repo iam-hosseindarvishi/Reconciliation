@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 # ----------------------------------------------------------------------------
 # تعریف Callback های UI
-# این callbackها توسط UI تنظیم می‌شوند تا موتور مغایرت‌گیری بتواند با کاربر تعامل کند.
 # ----------------------------------------------------------------------------
 
 _ui_manual_reconciliation_callback: Optional[Callable] = None
@@ -48,19 +47,19 @@ _reconciliation_engine_instance: Optional[ReconciliationEngine] = None
 
 def _get_reconciliation_engine_instance() -> ReconciliationEngine:
     """
-    یک نمونه Singleton از ReconciliationEngine را ارائه می‌دهد.
-    اگر نمونه وجود نداشته باشد، آن را با وابستگی‌های لازم ایجاد می‌کند.
+    یک نمونه تکی از ReconciliationEngine را فراهم می‌کند (الگوی Singleton).
+    
+    اگر نمونه وجود نداشته باشد، یک نمونه جدید با callbackهای UI ایجاد می‌کند.
     """
     global _reconciliation_engine_instance
     if _reconciliation_engine_instance is None:
-        logger.debug("ایجاد نمونه جدید از ReconciliationEngine...")
+        logger.info("ایجاد نمونه جدید از ReconciliationEngine...")
         db_manager = DatabaseManager()
         _reconciliation_engine_instance = ReconciliationEngine(
             db_manager=db_manager,
-            manual_reconciliation_callback=_ui_manual_reconciliation_callback,
-            aggregate_confirmation_callback=_ui_aggregate_confirmation_callback
+            ui_callback_manual_reconciliation_needed=_ui_manual_reconciliation_callback,
+            ui_callback_aggregate_confirmation=_ui_aggregate_confirmation_callback
         )
-        logger.info("نمونه ReconciliationEngine با موفقیت ایجاد شد.")
     return _reconciliation_engine_instance
 
 # ----------------------------------------------------------------------------
@@ -69,28 +68,25 @@ def _get_reconciliation_engine_instance() -> ReconciliationEngine:
 
 def start_reconciliation(selected_bank_id: int, selected_reconciliation_types: Optional[List[str]] = None) -> Dict[str, Any]:
     """
-    نقطه ورود عمومی برای شروع فرآیند مغایرت‌گیری از UI.
-
-    Args:
-        selected_bank_id (int): شناسه بانک انتخاب شده.
-        selected_reconciliation_types (Optional[List[str]]): لیست انواع مغایرت برای اجرا.
-
-    Returns:
-        Dict[str, Any]: نتیجه فرآیند مغایرت.
+    نقطه ورود عمومی برای UI جهت شروع فرآیند مغایرت‌گیری.
     """
-    logger.info(f"شروع فرآیند مغایرت برای بانک ID: {selected_bank_id} و انواع: {selected_reconciliation_types}")
+    logger.info(f"شروع فرآیند مغایرت‌گیری از طریق UI برای بانک ID: {selected_bank_id} و انواع: {selected_reconciliation_types}")
+    engine = _get_reconciliation_engine_instance()
+    
     try:
-        engine = _get_reconciliation_engine_instance()
-        result = engine.start_reconciliation(selected_bank_id, selected_reconciliation_types)
-        logger.info("فرآیند مغایرت با موفقیت به پایان رسید.")
-        return result
+        # منطق انتخاب بین مغایرت کلی و انتخابی
+        if not selected_reconciliation_types or 'All' in selected_reconciliation_types:
+            results = engine.start_reconciliation(selected_bank_id)
+        else:
+            results = engine.start_reconciliation_selective(selected_bank_id, selected_reconciliation_types)
+        logger.info("فرآیند مغایرت‌گیری با موفقیت به پایان رسید.")
+        return results
     except Exception as e:
-        logger.error(f"خطا در حین فرآیند مغایرت: {e}", exc_info=True)
-        return {"status": "error", "message": str(e)}
+        logger.error(f"خطای بحرانی در حین فرآیند مغایرت‌گیری: {e}", exc_info=True)
+        return {"error": str(e)}
 
 # ----------------------------------------------------------------------------
 # توابع کمکی عمومی (برای فراخوانی از UI)
-# این توابع تماس‌ها را به متدهای ReconciliationEngine یا DatabaseManager ارسال می‌کنند.
 # ----------------------------------------------------------------------------
 
 def handle_manual_selection(*args, **kwargs):
@@ -103,27 +99,27 @@ def handle_aggregate_confirmation(*args, **kwargs):
     engine = _get_reconciliation_engine_instance()
     return engine.handle_aggregate_confirmation(*args, **kwargs)
 
-def get_unreconciled_bank_transactions(bank_id: int):
-    """تراکنش‌های بانکی مغایرت‌نشده را از پایگاه داده بازیابی می‌کند."""
-    db_manager = DatabaseManager()
-    return db_manager.get_unreconciled_bank_transactions(bank_id)
+def get_unreconciled_bank_transactions(*args, **kwargs):
+    """فراخوانی برای دریافت تراکنش‌های بانکی مغایرت نشده."""
+    engine = _get_reconciliation_engine_instance()
+    return engine.db_manager.get_unreconciled_bank_transactions(*args, **kwargs)
 
-def get_unreconciled_pos_transactions():
-    """تراکنش‌های پوز مغایرت‌نشده را از پایگاه داده بازیابی می‌کند."""
-    db_manager = DatabaseManager()
-    return db_manager.get_unreconciled_pos_transactions()
+def get_unreconciled_pos_transactions(*args, **kwargs):
+    """فراخوانی برای دریافت تراکنش‌های پوز مغایرت نشده."""
+    engine = _get_reconciliation_engine_instance()
+    return engine.db_manager.get_unreconciled_pos_transactions(*args, **kwargs)
 
-def get_unreconciled_accounting_entries():
-    """اسناد حسابداری مغایرت‌نشده را از پایگاه داده بازیابی می‌کند."""
-    db_manager = DatabaseManager()
-    return db_manager.get_unreconciled_accounting_entries()
+def get_unreconciled_accounting_entries(*args, **kwargs):
+    """فراخوانی برای دریافت رکوردهای حسابداری مغایرت نشده."""
+    engine = _get_reconciliation_engine_instance()
+    return engine.db_manager.get_unreconciled_accounting_entries(*args, **kwargs)
 
 def manual_reconcile(*args, **kwargs):
-    """مغایرت دستی را از طریق مدیر پایگاه داده انجام می‌دهد."""
-    db_manager = DatabaseManager()
-    return db_manager.manual_reconcile(*args, **kwargs)
+    """فراخوانی برای انجام مغایرت دستی."""
+    engine = _get_reconciliation_engine_instance()
+    return engine.manual_reconcile(*args, **kwargs)
 
-def get_reconciliation_statistics(bank_id: int):
-    """آمار مغایرت را برای یک بانک خاص بازیابی می‌کند."""
-    db_manager = DatabaseManager()
-    return db_manager.get_reconciliation_statistics(bank_id)
+def get_reconciliation_statistics(*args, **kwargs):
+    """فراخوانی برای دریافت آمار مغایرت."""
+    engine = _get_reconciliation_engine_instance()
+    return engine.db_manager.get_reconciliation_statistics(*args, **kwargs)

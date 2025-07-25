@@ -148,10 +148,48 @@ def jalali_to_gregorian(jy: int, jm: int, jd: int) -> Tuple[int, int, int]:
     return gy, gm, gd
 
 
+def get_last_day_of_previous_month(date_str_yyyymmdd: str) -> str:
+    """
+    محاسبه آخرین روز ماه شمسی قبل از تاریخ ورودی.
+
+    Args:
+        date_str_yyyymmdd (str): تاریخ در فرمت YYYYMMDD (e.g., '14040501').
+
+    Returns:
+        str: آخرین روز ماه قبل در فرمت YYYYMMDD.
+    """
+    try:
+        import jdatetime
+
+        year = int(date_str_yyyymmdd[:4])
+        month = int(date_str_yyyymmdd[4:6])
+
+        # محاسبه سال و ماه قبلی
+        if month == 1:
+            prev_month = 12
+            prev_year = year - 1
+        else:
+            prev_month = month - 1
+            prev_year = year
+
+        # دریافت آخرین روز ماه قبلی
+        # jdatetime.date سازنده به طور خودکار روزهای ماه و سال کبیسه را مدیریت می‌کند
+        last_day = jdatetime.date(prev_year, prev_month, 1).month_days
+        
+        return f"{prev_year}{prev_month:02d}{last_day:02d}"
+
+    except (ValueError, ImportError) as e:
+        logger.error(f"خطا در محاسبه آخرین روز ماه قبل برای تاریخ '{date_str_yyyymmdd}': {e}", exc_info=True)
+        # در صورت خطا، یک روز از تاریخ میلادی معادل کم می‌کنیم به عنوان جایگزین
+        dt_object = datetime.strptime(date_str_yyyymmdd, '%Y%m%d')
+        previous_day = dt_object - timedelta(days=1)
+        return previous_day.strftime('%Y%m%d')
+
 def get_previous_date(date_str: str) -> str:
     """
     محاسبه تاریخ یک روز قبل از تاریخ ورودی (در فرمت YYYYMMDD).
     """
+
     try:
         # تبدیل رشته ورودی به شیء تاریخ
         dt_object = datetime.strptime(date_str, '%Y%m%d')

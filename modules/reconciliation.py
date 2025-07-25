@@ -164,9 +164,15 @@ class ReconciliationEngine:
                 # The rest of the logic is handled in the callback `handle_aggregate_confirmation`
                 return # Stop further processing for this record, wait for UI callback
 
+            # Determine POS Transaction Date (Crucial Update)
+            bank_day = int(norm_bank_date[-2:])
+            pos_search_date = utils.get_previous_date(norm_bank_date) # Default to previous day
+
+            if bank_day == 1:
+                pos_search_date = utils.get_last_day_of_previous_month(norm_bank_date)
+
             # Detailed POS Reconciliation
-            pos_date_one_day_prior = utils.get_previous_date(norm_bank_date)
-            pos_transactions_for_day = self.db_manager.get_pos_transactions_by_terminal_and_date(selected_bank_id, terminal_id, pos_date_one_day_prior)
+            pos_transactions_for_day = self.db_manager.get_pos_transactions_by_terminal_and_date(selected_bank_id, terminal_id, pos_search_date)
 
             # Flag to check if the main bank record has been reconciled
             bank_record_reconciled = False
