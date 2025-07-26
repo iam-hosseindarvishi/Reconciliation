@@ -108,6 +108,9 @@ class MainWindow(QMainWindow):
         # اتصال سیگنال‌های بین تب‌ها
         self.data_import_tab.import_completed.connect(self.on_import_completed)
         self.reconciliation_tab.reconciliation_completed.connect(self.on_reconciliation_completed)
+        
+        # اتصال سیگنال افزودن بانک به بروزرسانی لیست بانک‌ها در تب ورود داده
+        self.bank_management_tab.bank_added.connect(self.data_import_tab.load_banks)
     
     def on_tab_changed(self, index):
         """
