@@ -22,11 +22,14 @@ class ReconciliationEngine:
     این کلاس تمام عملیات مغایرت‌گیری را هماهنگ می‌کند
     """
     
-    def __init__(self):
+    def __init__(self, db_manager: DatabaseManager):
         """
         سازنده کلاس
+        
+        پارامترها:
+            db_manager: نمونه‌ای از کلاس DatabaseManager
         """
-        self.db_manager = DatabaseManager()
+        self.db_manager = db_manager
         
         # Callback برای مغایرت‌گیری دستی
         self.ui_callback_manual_reconciliation_needed = None
