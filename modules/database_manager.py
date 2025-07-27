@@ -429,6 +429,35 @@ class DatabaseManager:
             raise
         finally:
             self.disconnect()
+
+    def find_matching_accounting_entries(self, bank_id: int, date: str, amount: float, entry_type: str) -> List[Dict[str, Any]]:
+        """
+        Finds matching and unreconciled accounting entries.
+
+        Args:
+            bank_id: The ID of the bank.
+            date: The date of the transaction.
+            amount: The amount of the transaction.
+            entry_type: The type of the accounting entry.
+
+        Returns:
+            A list of dictionaries containing the matching accounting entries.
+        """
+        try:
+            self.connect()
+            query = '''
+                SELECT *
+                FROM AccountingEntries
+                WHERE BankID = ? AND Date_Of_Receipt = ? AND Price = ? AND Entry_Type_Acc = ? AND is_reconciled = 0
+            '''
+            self.cursor.execute(query, (bank_id, date, amount, entry_type))
+            columns = [desc[0] for desc in self.cursor.description]
+            return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Error finding matching accounting entries: {e}")
+            return []
+        finally:
+            self.disconnect()
     
     def get_unreconciled_pos_transactions(self, bank_id: int = None) -> List[Dict[str, Any]]:
         """
@@ -564,6 +593,19 @@ class DatabaseManager:
             موفقیت عملیات
         """
         return self.update_reconciliation_status('AccountingEntries', entry_id, is_reconciled)
+
+    def update_pos_transaction_reconciled_status(self, pos_id: int, is_reconciled: bool) -> bool:
+        """
+        به‌روزرسانی وضعیت مغایرت‌گیری تراکنش پوز
+        
+        پارامترها:
+            pos_id: شناسه تراکنش پوز
+            is_reconciled: وضعیت مغایرت‌گیری
+            
+        خروجی:
+            موفقیت عملیات
+        """
+        return self.update_reconciliation_status('PosTransactions', pos_id, is_reconciled)
     
     def insert_reconciliation_result(self, bank_transaction_id: Optional[int] = None, 
                                    accounting_entry_id: Optional[int] = None,
