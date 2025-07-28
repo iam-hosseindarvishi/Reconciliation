@@ -168,6 +168,17 @@ class DatabaseManager:
                     FOREIGN KEY (accounting_entry_id) REFERENCES AccountingEntries(id)
                 )
             ''')
+
+            # ایجاد جدول ترمینال‌ها
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS Terminals (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Terminal_ID TEXT UNIQUE NOT NULL,
+                    BankID INTEGER NOT NULL,
+                    Terminal_Name TEXT,
+                    FOREIGN KEY (BankID) REFERENCES Banks(id)
+                )
+            ''')
             
             self.connection.commit()
             logger.info("جداول پایگاه داده با موفقیت ایجاد شدند.")
@@ -288,7 +299,15 @@ class DatabaseManager:
                             return None
                     
                     transaction_amount = safe_convert_to_float(row.get('Transaction_Amount'))
-                    
+
+                    # درج یا به‌روزرسانی اطلاعات ترمینال
+                    terminal_id = str(row.get('Terminal_ID')) if row.get('Terminal_ID') is not None else None
+                    if terminal_id:
+                        self.cursor.execute('''
+                            INSERT OR IGNORE INTO Terminals (Terminal_ID, BankID, Terminal_Name)
+                            VALUES (?, ?, ?)
+                        ''', (terminal_id, bank_id, row.get('Terminal_Name')))
+
                     self.cursor.execute('''
                         INSERT OR IGNORE INTO PosTransactions (
                             BankID, POS_Tracking_Number, Card_Number, Terminal_ID,
@@ -430,7 +449,7 @@ class DatabaseManager:
         finally:
             self.disconnect()
 
-    def find_matching_accounting_entries(self, bank_id: int, date: str, amount: float, entry_type: str) -> List[Dict[str, Any]]:
+    def find_matching_accounting_entries(self, bank_id: int, date: str, amount: float, entry_type: str, date_field: str = 'Date') -> List[Dict[str, Any]]:
         """
         Finds matching and unreconciled accounting entries.
 
@@ -439,16 +458,24 @@ class DatabaseManager:
             date: The date of the transaction.
             amount: The amount of the transaction.
             entry_type: The type of the accounting entry.
+            date_field: The date field to use for the query.
 
         Returns:
             A list of dictionaries containing the matching accounting entries.
         """
         try:
             self.connect()
-            query = '''
+            
+            # Validate date_field to prevent SQL injection
+            allowed_date_fields = ['Date', 'Date_Of_Receipt', 'Due_Date']
+            if date_field not in allowed_date_fields:
+                logger.error(f"Invalid date field specified: {date_field}")
+                return []
+
+            query = f'''
                 SELECT *
                 FROM AccountingEntries
-                WHERE BankID = ? AND Date_Of_Receipt = ? AND Price = ? AND Entry_Type_Acc = ? AND is_reconciled = 0
+                WHERE BankID = ? AND {date_field} = ? AND Price = ? AND Entry_Type_Acc = ? AND is_reconciled = 0
             '''
             self.cursor.execute(query, (bank_id, date, amount, entry_type))
             columns = [desc[0] for desc in self.cursor.description]
@@ -1383,7 +1410,33 @@ class DatabaseManager:
         """
         return self.get_pos_transactions_for_terminal(bank_id, terminal_id, date)
     
-    def get_unreconciled_check_transactions(self, bank_id: int) -> List[Dict[str, Any]]:
+    def get_terminal_by_id(self, terminal_id: str) -> Optional[Dict[str, Any]]:
+        """
+        دریافت اطلاعات ترمینال بر اساس شناسه ترمینال
+
+        پارامترها:
+            terminal_id: شناسه ترمینال
+
+        خروجی:
+            دیکشنری حاوی اطلاعات ترمینال یا None در صورت عدم وجود
+        """
+        try:
+            if not self.connection:
+                self.connect()
+
+            self.cursor.execute("SELECT * FROM Terminals WHERE Terminal_ID = ?", (terminal_id,))
+            row = self.cursor.fetchone()
+
+            if row:
+                columns = [description[0] for description in self.cursor.description]
+                return dict(zip(columns, row))
+            return None
+
+        except Exception as e:
+            logger.error(f"خطا در دریافت اطلاعات ترمینال {terminal_id}: {str(e)}")
+            return None
+
+    def get_unreconciled_bank_transactions(self, bank_id: int) -> List[Dict[str, Any]]:
         """
         بازیابی تراکنش‌های چک مغایرت‌گیری نشده از بانک
         

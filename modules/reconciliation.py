@@ -72,7 +72,8 @@ class ReconciliationEngine:
                 
                 if success:
                     successful_matches += 1
-                    logger.info(f"✅ Transaction {transaction_id} processed successfully")
+                    self.db_manager.update_reconciliation_status('BankTransactions', transaction_id, True)
+                    logger.info(f"✅ Transaction {transaction_id} processed and marked as reconciled successfully")
                 else:
                     logger.warning(f"⚠️ Transaction {transaction_id} not processed")
                     
@@ -80,8 +81,7 @@ class ReconciliationEngine:
                 
             except Exception as e:
                 logger.error(f"❌ Error processing transaction {transaction_id}: {str(e)}")
-                # Mark as processed even in case of error
-                self._mark_bank_record_reconciled(transaction_id, f"Error in processing: {str(e)}")
+                # Do not mark as reconciled in case of error, just log and continue
                 processed_count += 1
                 continue
         
@@ -134,13 +134,14 @@ class ReconciliationEngine:
                 success = self._process_transaction_by_type(bank_record, transaction_type, selected_bank_id)
                 if success:
                     successful_matches += 1
-                    logger.info(f"✅ Transaction {transaction_id} processed successfully")
+                    self.db_manager.update_reconciliation_status('BankTransactions', transaction_id, True)
+                    logger.info(f"✅ Transaction {transaction_id} processed and marked as reconciled successfully")
                 else:
                     logger.warning(f"⚠️ Transaction {transaction_id} not processed")
                 processed_count += 1
             except Exception as e:
                 logger.error(f"❌ Error processing transaction {transaction_id}: {str(e)}")
-                self._mark_bank_record_reconciled(transaction_id, f"Error in processing: {str(e)}")
+                # Do not mark as reconciled in case of error, just log and continue
                 processed_count += 1
                 continue
 
@@ -167,28 +168,24 @@ class ReconciliationEngine:
         Returns:
             Success of the operation
         """
-        transaction_type = transaction_type.strip()
+        transaction_type = transaction_type.strip().lower()
         
-        if transaction_type in ["Received Transfer", "Paid Transfer"]:
+        if transaction_type in ["received transfer", "paid transfer"]:
             # Transfers/Receipts
             return self._reconcile_transfers(bank_record, selected_bank_id)
             
-        elif transaction_type in ["Received Check", "Paid Check"]:
+        elif transaction_type in ["received check", "paid check"]:
             # Checks
             return self._reconcile_checks(bank_record, selected_bank_id)
             
-        elif transaction_type == "Pos Deposit":
+        elif transaction_type == "pos deposit":
             # POS Deposits
             return self._reconcile_pos_deposits(bank_record, selected_bank_id)
             
         else:
             logger.warning(f"Unknown transaction type: {transaction_type}")
-            # Mark as processed with a note
-            self._mark_bank_record_reconciled(
-                bank_record.get('id'), 
-                f"Unknown transaction type: {transaction_type}"
-            )
-            return True
+            # Do not mark as reconciled, just log and return False
+            return False
     
     def _reconcile_transfers(self, bank_record: Dict[str, Any], selected_bank_id: int) -> bool:
         """
@@ -527,7 +524,7 @@ class ReconciliationEngine:
     def _search_accounting_entries_for_transfer(self, bank_id: int, date: str, amount: float, entry_type: str) -> List[Dict[str, Any]]:
         """Search for matching accounting entries for a transfer."""
         logger.debug(f"Searching for transfer in accounting: bank_id={bank_id}, date={date}, amount={amount}, type={entry_type}")
-        return self.db_manager.find_matching_accounting_entries(bank_id, date, amount, entry_type)
+        return self.db_manager.find_matching_accounting_entries(bank_id, date, amount, entry_type, date_field='Due_Date')
 
     def _filter_by_tracking_number(self, bank_record: Dict[str, Any], acc_records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Filter accounting records by tracking number."""

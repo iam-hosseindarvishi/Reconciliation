@@ -112,7 +112,7 @@ class ReportTab(QWidget):
             self.log_text.append_log(f"در حال بارگذاری گزارش: {report_type}", "blue")
             
             if report_type == "مغایرت‌های بانک":
-                data = self.db_manager.get_unreconciled_bank_transactions()
+                data = self.db_manager.get_unreconciled_bank_transactions(None)
                 headers = ["تاریخ", "مبلغ واریز", "مبلغ برداشت", "توضیحات", "نوع تراکنش", "شناسه پیگیری"]
             
             elif report_type == "مغایرت‌های پوز":
