@@ -97,64 +97,7 @@ class ReconciliationEngine:
         logger.info(f"📈 Final reconciliation results: {result}")
         return result
 
-    def start_reconciliation_selective(self, selected_bank_id: int, selected_types: list) -> Dict[str, Any]:
-        """
-        Start selective reconciliation process
-        
-        Parameters:
-            selected_bank_id: ID of the selected bank
-            selected_types: List of reconciliation types to execute
-            
-        Returns:
-            Reconciliation results
-        """
-        logger.info(f"🚀 Starting selective reconciliation for bank {selected_bank_id} with types: {selected_types}")
-        
-        bank_transactions = self.db_manager.get_unreconciled_bank_transactions(selected_bank_id)
-        logger.info(f"📊 Number of unreconciled bank transactions: {len(bank_transactions)}")
 
-        if not bank_transactions:
-            logger.info("No unreconciled bank transactions found")
-            return {"message": "No unreconciled bank transactions found"}
-
-        processed_count = 0
-        successful_matches = 0
-
-        for bank_record in bank_transactions:
-            transaction_type = bank_record.get('Transaction_Type_Bank', '').strip()
-            transaction_id = bank_record.get('id')
-
-            if transaction_type not in selected_types:
-                logger.debug(f"Ignoring transaction {transaction_id} of type {transaction_type} as it's not in selected types.")
-                continue
-
-            logger.info(f"🔄 Processing transaction {transaction_id} - Type: {transaction_type}")
-
-            try:
-                success = self._process_transaction_by_type(bank_record, transaction_type, selected_bank_id)
-                if success:
-                    successful_matches += 1
-                    self.db_manager.update_reconciliation_status('BankTransactions', transaction_id, True)
-                    logger.info(f"✅ Transaction {transaction_id} processed and marked as reconciled successfully")
-                else:
-                    logger.warning(f"⚠️ Transaction {transaction_id} not processed")
-                processed_count += 1
-            except Exception as e:
-                logger.error(f"❌ Error processing transaction {transaction_id}: {str(e)}")
-                # Do not mark as reconciled in case of error, just log and continue
-                processed_count += 1
-                continue
-
-        result = {
-            "total_transactions": len(bank_transactions),
-            "processed_count": processed_count,
-            "successful_matches": successful_matches,
-            "failed_count": processed_count - successful_matches,
-            "message": f"Selective processing complete. {successful_matches} out of {processed_count} transactions were successfully reconciled."
-        }
-
-        logger.info(f"📈 Final selective reconciliation results: {result}")
-        return result
     
     def _process_transaction_by_type(self, bank_record: Dict[str, Any], transaction_type: str, selected_bank_id: int) -> bool:
         """

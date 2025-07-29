@@ -62,30 +62,7 @@ class ReconciliationTab(QWidget):
         self.bank_combo.currentIndexChanged.connect(self.on_bank_selection_changed)
         settings_layout.addRow(QLabel("انتخاب بانک:"), self.bank_combo)
         
-        # انتخاب نوع مغایرت‌گیری
-        reconciliation_types_group = QGroupBox("انتخاب نوع مغایرت‌گیری:")
-        reconciliation_types_layout = QVBoxLayout()
-        
-        # چک‌باکس همه گزینه‌ها
-        self.all_types_checkbox = QCheckBox("همه گزینه‌ها")
-        self.all_types_checkbox.stateChanged.connect(self.on_all_types_changed)
-        reconciliation_types_layout.addWidget(self.all_types_checkbox)
-        
-        # چک‌باکس‌های انواع مغایرت‌گیری
-        self.transfer_checkbox = QCheckBox("حواله / فیش")
-        self.transfer_checkbox.stateChanged.connect(self.on_individual_type_changed)
-        reconciliation_types_layout.addWidget(self.transfer_checkbox)
-        
-        self.pos_checkbox = QCheckBox("پوزها")
-        self.pos_checkbox.stateChanged.connect(self.on_individual_type_changed)
-        reconciliation_types_layout.addWidget(self.pos_checkbox)
-        
-        self.check_checkbox = QCheckBox("چک‌ها")
-        self.check_checkbox.stateChanged.connect(self.on_individual_type_changed)
-        reconciliation_types_layout.addWidget(self.check_checkbox)
-        
-        reconciliation_types_group.setLayout(reconciliation_types_layout)
-        settings_layout.addRow(reconciliation_types_group)
+
         
         settings_group.setLayout(settings_layout)
         layout.addWidget(settings_group)
@@ -155,8 +132,7 @@ class ReconciliationTab(QWidget):
         # پر کردن کمبوباکس بانک‌ها
         self.populate_banks()
         
-        # تنظیم پیش‌فرض چک‌باکس‌ها
-        self.all_types_checkbox.setChecked(True)
+
     
     def populate_banks(self):
         """
@@ -192,63 +168,9 @@ class ReconciliationTab(QWidget):
             # به‌روزرسانی داده‌ها بر اساس بانک انتخاب شده
             self.load_existing_data()
     
-    def on_all_types_changed(self, state):
-        """
-        تغییر وضعیت چک‌باکس "همه گزینه‌ها"
-        """
-        if state == 2:  # Checked
-            # فعال کردن همه چک‌باکس‌ها و غیرفعال کردن آن‌ها
-            self.transfer_checkbox.setChecked(True)
-            self.pos_checkbox.setChecked(True)
-            self.check_checkbox.setChecked(True)
-            
-            self.transfer_checkbox.setEnabled(False)
-            self.pos_checkbox.setEnabled(False)
-            self.check_checkbox.setEnabled(False)
-        else:  # Unchecked
-            # فعال کردن چک‌باکس‌های فردی
-            self.transfer_checkbox.setEnabled(True)
-            self.pos_checkbox.setEnabled(True)
-            self.check_checkbox.setEnabled(True)
+
     
-    def on_individual_type_changed(self):
-        """
-        تغییر وضعیت چک‌باکس‌های فردی
-        """
-        # بررسی اینکه آیا همه چک‌باکس‌های فردی انتخاب شده‌اند
-        all_checked = (self.transfer_checkbox.isChecked() and 
-                      self.pos_checkbox.isChecked() and 
-                      self.check_checkbox.isChecked())
-        
-        # اگر همه انتخاب شده‌اند، چک‌باکس "همه گزینه‌ها" را فعال کن
-        if all_checked:
-            self.all_types_checkbox.setChecked(True)
-        else:
-            # اگر حداقل یکی انتخاب نشده، چک‌باکس "همه گزینه‌ها" را غیرفعال کن
-            self.all_types_checkbox.setChecked(False)
-    
-    def get_selected_reconciliation_types(self):
-        """
-        دریافت انواع مغایرت‌گیری انتخاب شده
-        
-        خروجی:
-            لیست انواع مغایرت‌گیری انتخاب شده
-        """
-        selected_types = []
-        
-        if self.all_types_checkbox.isChecked():
-            return ['All']
-        
-        if self.transfer_checkbox.isChecked():
-            selected_types.append('Transfer')
-        
-        if self.pos_checkbox.isChecked():
-            selected_types.append('POS')
-        
-        if self.check_checkbox.isChecked():
-            selected_types.append('Check')
-        
-        return selected_types
+
     
     def load_existing_data(self):
         """
@@ -340,17 +262,11 @@ class ReconciliationTab(QWidget):
         """
         # دریافت بانک انتخاب شده
         selected_bank_id = self.bank_combo.currentData()
-        if selected_bank_id is None:
+        if selected_bank_id is None or selected_bank_id == -1:
             QMessageBox.warning(self, "هشدار", "لطفاً یک بانک انتخاب کنید.")
             return
         
-        # دریافت انواع مغایرت‌گیری انتخاب شده
-        selected_types = self.get_selected_reconciliation_types()
-        if not selected_types:
-            QMessageBox.warning(self, "هشدار", "لطفاً حداقل یک نوع مغایرت‌گیری انتخاب کنید.")
-            return
-        
-        logger.info(f"شروع مغایرت‌گیری برای بانک {self.bank_combo.currentText()} با انواع: {selected_types}")
+        logger.info(f"شروع مغایرت‌گیری برای بانک {self.bank_combo.currentText()}")
         
         # غیرفعال کردن دکمه شروع
         self.start_button.setEnabled(False)
@@ -362,8 +278,7 @@ class ReconciliationTab(QWidget):
         # ایجاد و راه‌اندازی ReconciliationWorker با پارامترهای جدید
         self.reconciliation_worker = ReconciliationWorker(
             self.reconciliation_engine, 
-            selected_bank_id, 
-            selected_types
+            selected_bank_id
         )
         
         # اتصال سیگنال‌ها

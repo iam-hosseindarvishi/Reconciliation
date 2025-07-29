@@ -24,19 +24,17 @@ class ReconciliationWorker(QThread):
     reconciliation_completed = Signal(bool, str)
     log_message = Signal(str, str)
     
-    def __init__(self, reconciliation_engine: ReconciliationEngine, selected_bank_id: int = None, selected_types: list = None):
+    def __init__(self, reconciliation_engine: ReconciliationEngine, selected_bank_id: int = None):
         """
         مقداردهی اولیه کلاس ReconciliationWorker
         
         پارامترها:
             reconciliation_engine: نمونه‌ای از کلاس ReconciliationEngine
             selected_bank_id: شناسه بانک انتخاب شده
-            selected_types: لیست انواع مغایرت‌گیری انتخاب شده
         """
         super().__init__()
         self.reconciliation_engine = reconciliation_engine
         self.selected_bank_id = selected_bank_id if selected_bank_id != -1 else None
-        self.selected_types = selected_types or ['All']
     
     def run(self):
         """
@@ -49,21 +47,12 @@ class ReconciliationWorker(QThread):
             
             # استفاده از بانک و انواع مغایرت‌گیری انتخاب شده
             bank_text = "همه بانک‌ها" if self.selected_bank_id is None else f"بانک {self.selected_bank_id}"
-            types_text = ", ".join(self.selected_types)
             
-            self.log_message.emit(f"انجام مغایرت‌گیری برای {bank_text} - انواع: {types_text}", "blue")
+            self.log_message.emit(f"انجام مغایرت‌گیری برای {bank_text}", "blue")
             self.progress_updated.emit(50, "در حال انجام مغایرت‌گیری...")
             
-            # انجام مغایرت‌گیری بر اساس انواع انتخاب شده
-            if 'All' in self.selected_types:
-                # انجام همه انواع مغایرت‌گیری
-                results = self.reconciliation_engine.start_reconciliation(self.selected_bank_id or 1)
-            else:
-                # انجام مغایرت‌گیری انتخابی
-                results = self.reconciliation_engine.start_reconciliation_selective(
-                    self.selected_bank_id or 1, 
-                    self.selected_types
-                )
+            # انجام مغایرت‌گیری
+            results = self.reconciliation_engine.start_reconciliation(self.selected_bank_id or 1)
             
             # نمایش نتایج
             total_processed = results.get('total_processed', 0)
