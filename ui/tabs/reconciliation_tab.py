@@ -184,7 +184,8 @@ class ReconciliationTab(QWidget):
             if selected_bank_id and selected_bank_id != -1:
                 bank_unreconciled = self.db_manager.get_unreconciled_bank_transactions(selected_bank_id)
             else:
-                bank_unreconciled = []
+                # اگر "همه بانک‌ها" انتخاب شده باشد، تمام تراکنش‌های مغایرت‌گیری نشده را دریافت کن
+                bank_unreconciled = self.db_manager.get_unreconciled_bank_transactions()
             if bank_unreconciled:
                 # تعریف سربرگ‌های فارسی (با ترتیبی که می‌خواهید نمایش دهید)
                 headers = [
