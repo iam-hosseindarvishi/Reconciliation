@@ -1436,7 +1436,7 @@ class DatabaseManager:
             logger.error(f"خطا در دریافت اطلاعات ترمینال {terminal_id}: {str(e)}")
             return None
 
-    def get_unreconciled_bank_transactions(self, bank_id: int) -> List[Dict[str, Any]]:
+    def get_unreconciled_check_transactions(self, bank_id: int) -> List[Dict[str, Any]]:
         """
         بازیابی تراکنش‌های چک مغایرت‌گیری نشده از بانک
         

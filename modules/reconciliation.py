@@ -348,8 +348,12 @@ class ReconciliationEngine:
             return False
             
         # Initial search in accounting entries (based on Date_Of_Receipt)
-        found_acc_records = self._search_accounting_entries_for_check(
-            selected_bank_id, normalized_bank_date, target_amount, target_acc_entry_type
+        # Search for unreconciled check transactions
+        check_transactions = self.db_manager.get_unreconciled_check_transactions(selected_bank_id)
+
+        # Filter accounting entries based on check transactions
+        found_acc_records = self._filter_accounting_entries_for_check(
+            check_transactions, selected_bank_id, normalized_date, target_amount, target_acc_entry_type
         )
         
         # Filter by check number
@@ -534,10 +538,30 @@ class ReconciliationEngine:
         logger.debug(f"Filtering by tracking number: {bank_tracking_no}")
         return [rec for rec in acc_records if str(rec.get('Tracking_No')) == str(bank_tracking_no)]
 
-    def _search_accounting_entries_for_check(self, bank_id: int, date: str, amount: float, entry_type: str) -> List[Dict[str, Any]]:
-        """Search for matching accounting entries for a check."""
-        logger.debug(f"Searching for check in accounting: bank_id={bank_id}, date={date}, amount={amount}, type={entry_type}")
-        return self.db_manager.find_matching_accounting_entries(bank_id, date, amount, entry_type, date_field='Date_Of_Receipt')
+    def _filter_accounting_entries_for_check(self, check_transactions: List[Dict[str, Any]], selected_bank_id: int, normalized_date: str, amount: float, entry_type: str) -> List[Dict[str, Any]]:
+        """
+        Filter accounting entries based on check transactions.
+
+        Parameters:
+            check_transactions: List of unreconciled check transactions.
+            normalized_date: Normalized date (YYYYMMDD).
+            amount: Amount to search for.
+            entry_type: Type of accounting entry.
+
+        Returns:
+            List of matching accounting entries.
+        """
+        matching_entries = []
+        for record in check_transactions:
+            # Normalize date for comparison
+            record_date = utils.convert_date_format(record.get('Date_Of_Receipt', ''), 'YYYY/MM/DD', 'YYYYMMDD')
+            
+            if (record_date == normalized_date and
+                record.get('Price') == amount and
+                record.get('Entry_Type_Acc') == entry_type):
+                matching_entries.append(record)
+                
+        return matching_entries
 
     def _filter_by_check_number(self, bank_record: Dict[str, Any], acc_records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Filter accounting records by check number."""

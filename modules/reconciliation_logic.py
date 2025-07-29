@@ -73,7 +73,7 @@ def start_reconciliation_selective(selected_bank_id: int, selected_types: list) 
     # شروع فرآیند مغایرت‌گیری انتخابی
     return engine.start_reconciliation_selective(selected_bank_id, selected_types)
 
-def get_unreconciled_bank_transactions(selected_bank_id: Optional[int] = None):
+def get_unreconciled_bank_transactions(db_manager: DatabaseManager, selected_bank_id: Optional[int] = None) -> List[Dict[str, Any]]:
     """
     دریافت تراکنش‌های بانکی مغایرت‌گیری نشده
     
@@ -84,10 +84,7 @@ def get_unreconciled_bank_transactions(selected_bank_id: Optional[int] = None):
         لیست تراکنش‌های بانکی
     """
     db_manager = DatabaseManager()
-    if selected_bank_id:
-        return db_manager.get_unreconciled_bank_transactions(selected_bank_id)
-    else:
-        return db_manager.get_unreconciled_bank_transactions()
+    return db_manager.get_unreconciled_bank_transactions(selected_bank_id)
 
 def get_unreconciled_pos_transactions(selected_bank_id: int):
     """
