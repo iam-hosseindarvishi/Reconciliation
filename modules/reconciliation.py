@@ -59,7 +59,7 @@ class ReconciliationEngine:
         # Processing statistics
         processed_count = 0
         successful_matches = 0
-        
+
         # Iterative processing: Each bank transaction is processed individually
         for bank_record in bank_transactions:
             transaction_type = bank_record.get('Transaction_Type_Bank', '')
@@ -112,18 +112,18 @@ class ReconciliationEngine:
             Success of the operation
         """
         transaction_type = transaction_type.strip().lower()
-        
+      
         if transaction_type in ["received transfer", "paid transfer"]:
             # Transfers/Receipts
             return self._reconcile_transfers(bank_record, selected_bank_id)
             
-        elif transaction_type in ["received check", "paid check"]:
-            # Checks
-            return self._reconcile_checks(bank_record, selected_bank_id)
+        # elif transaction_type in ["received check", "paid check"]:
+        #     # Checks
+        #     return self._reconcile_checks(bank_record, selected_bank_id)
             
-        elif transaction_type == "pos deposit":
-            # POS Deposits
-            return self._reconcile_pos_deposits(bank_record, selected_bank_id)
+        # elif transaction_type == "pos deposit":
+        #     # POS Deposits
+        #     return self._reconcile_pos_deposits(bank_record, selected_bank_id)
             
         else:
             logger.warning(f"Unknown transaction type: {transaction_type}")
@@ -149,10 +149,10 @@ class ReconciliationEngine:
         # Determine target amount and accounting entry type
         if transaction_type == 'Received Transfer':
             target_amount = bank_record.get('Deposit_Amount')
-            target_acc_entry_type = 'Received Transfer/Voucher'
+            target_acc_entry_type = 'حواله/فيش دريافتني'
         elif transaction_type == 'Paid Transfer':
             target_amount = bank_record.get('Withdrawal_Amount')
-            target_acc_entry_type = 'Paid Transfer/Voucher'
+            target_acc_entry_type = 'حواله/فيش پرداختني'
         else:
             logger.warning(f"⚠️ Unknown transfer transaction type: {transaction_type}")
             return False
@@ -178,7 +178,7 @@ class ReconciliationEngine:
                 "Transfer/Receipt: Transaction date is not convertible"
             )
             return False
-            
+        
         # Initial search in accounting entries
         found_acc_records = self._search_accounting_entries_for_transfer(
             selected_bank_id, normalized_bank_date, target_amount, target_acc_entry_type
@@ -475,7 +475,7 @@ class ReconciliationEngine:
 
     def _filter_by_tracking_number(self, bank_record: Dict[str, Any], acc_records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Filter accounting records by tracking number."""
-        bank_tracking_no = bank_record.get('Extracted_Tracking_No')
+        bank_tracking_no = bank_record.get('Extracted_Switch_Tracking_ID')
         if not bank_tracking_no:
             return []
         logger.debug(f"Filtering by tracking number: {bank_tracking_no}")
