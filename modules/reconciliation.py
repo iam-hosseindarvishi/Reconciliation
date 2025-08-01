@@ -117,9 +117,9 @@ class ReconciliationEngine:
             # Transfers/Receipts
             return self._reconcile_transfers(bank_record, selected_bank_id)
             
-        # elif transaction_type in ["received check", "paid check"]:
-        #     # Checks
-        #     return self._reconcile_checks(bank_record, selected_bank_id)
+        elif transaction_type in ["received check", "paid check"]:
+            # Checks
+            return self._reconcile_checks(bank_record, selected_bank_id)
             
         # elif transaction_type == "pos deposit":
         #     # POS Deposits
@@ -256,14 +256,13 @@ class ReconciliationEngine:
         transaction_id = bank_record.get('id')
         
         logger.info(f"🔄 Reconciling check {transaction_id} - Type: {transaction_type}")
-        
         # Determine target amount and accounting entry type
         if transaction_type == 'Received Check':
             target_amount = bank_record.get('Deposit_Amount')
-            target_acc_entry_type = 'Received Check'
+            target_acc_entry_type = 'چک دريافتني'
         elif transaction_type == 'Paid Check':
             target_amount = bank_record.get('Withdrawal_Amount')
-            target_acc_entry_type = 'Paid Check'
+            target_acc_entry_type = 'چک پرداختني'
         else:
             logger.warning(f"⚠️ Unknown check transaction type: {transaction_type}")
             return False
@@ -280,7 +279,7 @@ class ReconciliationEngine:
         # Normalize bank date
         bank_date = bank_record.get('Date', '')
         normalized_bank_date = utils.convert_date_format(bank_date, 'YYYY/MM/DD', 'YYYYMMDD')
-        
+      
         if not normalized_bank_date:
             logger.warning(f"⚠️ Check transaction date for {transaction_id} is not convertible: {bank_date}")
             self._finalize_discrepancy(
@@ -291,16 +290,24 @@ class ReconciliationEngine:
             return False
             
         # Initial search in accounting entries (based on Date_Of_Receipt)
-        # Search for unreconciled check transactions
-        check_transactions = self.db_manager.get_unreconciled_check_transactions(selected_bank_id)
 
         # Filter accounting entries based on check transactions
-        found_acc_records = self._filter_accounting_entries_for_check(
-            check_transactions, selected_bank_id, normalized_date, target_amount, target_acc_entry_type
+        found_acc_records=self.db_manager.find_matching_accounting_entries(
+            selected_bank_id,
+            normalized_bank_date,
+            target_amount,
+            target_acc_entry_type,
+            date_field="Due_Date"
         )
+
         
+        if len(found_acc_records) == 1:
+            
+              # Unique match
+            filtered_records = found_acc_records[0]
+          
         # Filter by check number
-        if found_acc_records:
+        elif len(found_acc_records) > 1:
             filtered_records = self._filter_by_check_number(bank_record, found_acc_records)
         else:
             filtered_records = []
@@ -481,7 +488,7 @@ class ReconciliationEngine:
         logger.debug(f"Filtering by tracking number: {bank_tracking_no}")
         return [rec for rec in acc_records if str(rec.get('Tracking_No')) == str(bank_tracking_no)]
 
-    def _filter_accounting_entries_for_check(self, check_transactions: List[Dict[str, Any]], selected_bank_id: int, normalized_date: str, amount: float, entry_type: str) -> List[Dict[str, Any]]:
+    def _filter_accounting_entries_for_check(self, bank_record: Dict[str, Any], selected_bank_id: int, normalized_date: str, amount: float, entry_type: str) -> List[Dict[str, Any]]:
         """
         Filter accounting entries based on check transactions.
 
@@ -495,24 +502,24 @@ class ReconciliationEngine:
             List of matching accounting entries.
         """
         matching_entries = []
-        for record in check_transactions:
-            # Normalize date for comparison
-            record_date = utils.convert_date_format(record.get('Date_Of_Receipt', ''), 'YYYY/MM/DD', 'YYYYMMDD')
+        # for record in check_transactions:
+        #     # Normalize date for comparison
+        #     record_date = utils.convert_date_format(record.get('Date', ''), 'YYYY/MM/DD', 'YYYYMMDD')
             
-            if (record_date == normalized_date and
-                record.get('Price') == amount and
-                record.get('Entry_Type_Acc') == entry_type):
-                matching_entries.append(record)
+        if (record_date == normalized_date and
+            record.get('Price') == amount and
+            record.get('Entry_Type_Acc') == entry_type):
+            matching_entries.append(record)
                 
         return matching_entries
 
     def _filter_by_check_number(self, bank_record: Dict[str, Any], acc_records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Filter accounting records by check number."""
-        bank_check_no = bank_record.get('Extracted_Check_No')
-        if not bank_check_no:
+        bank_description = bank_record.get('Description_Bank')
+        if not bank_description:
             return []
         logger.debug(f"Filtering by check number: {bank_check_no}")
-        return [rec for rec in acc_records if str(rec.get('Check_No')) == str(bank_check_no)]
+        return [rec for rec in acc_records if str(rec.get('id')) in bank_description]
 
     def _search_pos_transactions(self, terminal_id: str, date: str, amount: float) -> List[Dict[str, Any]]:
         """Search for matching POS transactions."""

@@ -375,21 +375,8 @@ class DataLoader:
         # 1. تشخیص واریز پوز (اولین اولویت)
         if payer_receiver == "مرکزشاپرک" and deposit_amount > 0:
             return "POS Deposit"
-
-        # 2. تشخیص انتقال (پایا، پل، واریز انتقالی)
-        transfer_keywords = ["انتقال", "حواله", "پايا", "پل","انتقالKYOS","انتقالMOB","انتقال IB", "واريز انتقالي","انتقالPAYMENT","انتقالATM"]
-        is_transfer = any(keyword in description for keyword in transfer_keywords)
-        if not is_transfer:
-            is_transfer= 'واريزتجمعي' in description and 'نام واریز کننده:' in description
-            
-        if is_transfer:
-            if deposit_amount > 0:
-                return "Received Transfer"
-            elif withdrawal_amount > 0:
-                return "Paid Transfer"
-        
-        # 3. تشخیص چک (شامل چکاوک)
-        check_keywords = ["چک", "چکاوک","وصول چكاوك","واريز انتقالي با چ","در-چک","چك انتقالي","چك"]
+        # 2. تشخیص چک (شامل چکاوک)
+        check_keywords = ["چک", "چکاوک","چکاوک","وصول چكاوك","واريز انتقالي با چ","در-چک","چك انتقالي","چك"]
         is_check = any(keyword in description for keyword in check_keywords)
         
         if is_check:
@@ -398,6 +385,19 @@ class DataLoader:
             elif withdrawal_amount > 0:
                 return "Paid Check"
 
+        # 3. تشخیص انتقال (پایا، پل، واریز انتقالی)
+        transfer_keywords = ["انتقال", "حواله", "پايا", "پل","انتقالKYOS","انتقالMOB","انتقال IB", "واريز انتقالي","انتقالPAYMENT","انتقالATM"]
+        is_transfer = any(keyword in description for keyword in transfer_keywords)
+        if not is_transfer:
+            is_transfer= 'واريزتجمعي' in description and 'نام واریز کننده:' in description
+           
+        if is_transfer:
+            if deposit_amount > 0:
+                return "Received Transfer"
+            elif withdrawal_amount > 0:
+                return "Paid Transfer"
+        
+        
         # 4. تشخیص کارمزد (Commission)
         commission_keywords=["كارمزدPOS","کارمزد"]
         if any(keyword in description for keyword in commission_keywords):
