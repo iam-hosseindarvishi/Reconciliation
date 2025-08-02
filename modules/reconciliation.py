@@ -278,38 +278,38 @@ class ReconciliationEngine:
             
         # Normalize bank date
         bank_date = bank_record.get('Date', '')
-        normalized_bank_date = utils.convert_date_format(bank_date, 'YYYY/MM/DD', 'YYYYMMDD')
+        # # normalized_bank_date = utils.convert_date_format(bank_date, 'YYYY/MM/DD', 'YYYYMMDD')
       
-        if not normalized_bank_date:
-            logger.warning(f"⚠️ Check transaction date for {transaction_id} is not convertible: {bank_date}")
-            self._finalize_discrepancy(
-                bank_record['id'], None, None, 
-                "Discrepancy - Check", 
-                "Check: Transaction date is not convertible"
-            )
-            return False
+        # if not normalized_bank_date:
+        #     logger.warning(f"⚠️ Check transaction date for {transaction_id} is not convertible: {bank_date}")
+        #     self._finalize_discrepancy(
+        #         bank_record['id'], None, None, 
+        #         "Discrepancy - Check", 
+        #         "Check: Transaction date is not convertible"
+        #     )
+        #     return False
             
         # Initial search in accounting entries (based on Date_Of_Receipt)
 
         # Filter accounting entries based on check transactions
-        found_acc_records=self._search_accounting_entries_for_transfer(
+        found_acc_records=self._search_accounting_entries_for_checks(
             selected_bank_id,
-            normalized_bank_date,
+            bank_date,
             target_amount,
             target_acc_entry_type,
         )
 
-        
+        logger.info(f"⚠️ Debugging info : found_acc_records : {(found_acc_records)}")
+
         if len(found_acc_records) == 1:
               # Unique match
-            filtered_records = found_acc_records[0]
-            print("filtered records of check :" , filtered_records)
+            filtered_records = found_acc_records
         # Filter by check number
         elif len(found_acc_records) > 1:
             filtered_records = self._filter_by_check_number(bank_record, found_acc_records)
         else:
             filtered_records = []
-        
+        logger.info(f"⚠️ Debugging info : filtered checks records :{len(filtered_records)}")
         # Process based on the number of results found
         if len(filtered_records) == 1:
             # Unique match
@@ -478,6 +478,10 @@ class ReconciliationEngine:
         """Search for matching accounting entries for a transfer."""
         logger.debug(f"Searching for transfer in accounting: bank_id={bank_id}, date={date}, amount={amount}, type={entry_type}")
         return self.db_manager.find_matching_accounting_entries(bank_id, date, amount, entry_type, date_field='Due_Date')
+    def _search_accounting_entries_for_checks(self, bank_id: int, date: str, amount: float, entry_type: str) -> List[Dict[str, Any]]:
+        """Search for matching accounting entries for a check."""
+        logger.debug(f"Searching for transfer in accounting: bank_id={bank_id}, date={date}, amount={amount}, type={entry_type}")
+        return self.db_manager.find_matching_accounting_entries(bank_id, date, amount, entry_type, date_field='Date_Of_Receipt')
 
     def _filter_by_tracking_number(self, bank_record: Dict[str, Any], acc_records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Filter accounting records by tracking number."""
