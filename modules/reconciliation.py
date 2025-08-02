@@ -292,20 +292,18 @@ class ReconciliationEngine:
         # Initial search in accounting entries (based on Date_Of_Receipt)
 
         # Filter accounting entries based on check transactions
-        found_acc_records=self.db_manager.find_matching_accounting_entries(
+        found_acc_records=self._search_accounting_entries_for_transfer(
             selected_bank_id,
             normalized_bank_date,
             target_amount,
             target_acc_entry_type,
-            date_field="Due_Date"
         )
 
         
         if len(found_acc_records) == 1:
-            
               # Unique match
             filtered_records = found_acc_records[0]
-          
+            print("filtered records of check :" , filtered_records)
         # Filter by check number
         elif len(found_acc_records) > 1:
             filtered_records = self._filter_by_check_number(bank_record, found_acc_records)
@@ -465,15 +463,16 @@ class ReconciliationEngine:
         """Finalize a discrepancy."""
         logger.warning(f"Finalizing discrepancy for bank_id={bank_id}, status={status}, notes={notes}")
         # Mark bank transaction as reconciled (with discrepancy)
-        self.db_manager.update_bank_transaction_reconciled_status(bank_id, True)
+        if 'Discrepancy' not in status :
+            self.db_manager.update_bank_transaction_reconciled_status(bank_id, True)
         # Insert result with discrepancy status
         self.db_manager.insert_reconciliation_result(bank_id, acc_id, pos_id, status, notes)
 
-    def _mark_bank_record_reconciled(self, bank_id: int, notes: str):
-        """Mark a bank record as reconciled with a specific note."""
-        logger.info(f"Marking bank record {bank_id} as reconciled. Notes: {notes}")
-        self.db_manager.update_bank_transaction_reconciled_status(bank_id, True)
-        self.db_manager.insert_reconciliation_result(bank_id, None, None, "Reconciled - System", notes)
+    # def _mark_bank_record_reconciled(self, bank_id: int, notes: str):
+    #     """Mark a bank record as reconciled with a specific note."""
+    #     logger.info(f"Marking bank record {bank_id} as reconciled. Notes: {notes}")
+    #     self.db_manager.update_bank_transaction_reconciled_status(bank_id, True)
+    #     self.db_manager.insert_reconciliation_result(bank_id, None, None, "Reconciled - System", notes)
 
     def _search_accounting_entries_for_transfer(self, bank_id: int, date: str, amount: float, entry_type: str) -> List[Dict[str, Any]]:
         """Search for matching accounting entries for a transfer."""
