@@ -478,7 +478,6 @@ class DatabaseManager:
                 WHERE BankID = ? AND {date_field} = ? AND Price = ? AND Entry_Type_Acc = ? AND is_reconciled = 0
             '''
             self.cursor.execute(query, (bank_id, date, amount, entry_type))
-            logger.info(f"⚠️ Debugging info : cursor : {bank_id,date,amount,entry_type,date_field}")
             columns = [desc[0] for desc in self.cursor.description]
 
             return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
