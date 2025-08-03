@@ -278,18 +278,7 @@ class ReconciliationEngine:
             
         # Normalize bank date
         bank_date = bank_record.get('Date', '')
-        # # normalized_bank_date = utils.convert_date_format(bank_date, 'YYYY/MM/DD', 'YYYYMMDD')
-      
-        # if not normalized_bank_date:
-        #     logger.warning(f"⚠️ Check transaction date for {transaction_id} is not convertible: {bank_date}")
-        #     self._finalize_discrepancy(
-        #         bank_record['id'], None, None, 
-        #         "Discrepancy - Check", 
-        #         "Check: Transaction date is not convertible"
-        #     )
-        #     return False
-            
-        # Initial search in accounting entries (based on Date_Of_Receipt)
+    
 
         # Filter accounting entries based on check transactions
         found_acc_records=self._search_accounting_entries_for_checks(
@@ -298,9 +287,6 @@ class ReconciliationEngine:
             target_amount,
             target_acc_entry_type,
         )
-
-        logger.info(f"⚠️ Debugging info : found_acc_records : {(found_acc_records)}")
-
         if len(found_acc_records) == 1:
               # Unique match
             filtered_records = found_acc_records
