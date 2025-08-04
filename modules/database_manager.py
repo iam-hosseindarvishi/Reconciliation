@@ -486,6 +486,36 @@ class DatabaseManager:
             return []
         finally:
             self.disconnect()
+    def find_matching_accounting_pos(self, bank_id: int, date: str, amount: float, entry_type: str) -> List[Dict[str, Any]]:
+        """
+        Finds matching and unreconciled accounting entries.
+
+        Args:
+            bank_id: The ID of the bank.
+            date: The date of the transaction.
+            amount: The amount of the transaction.
+            entry_type: The type of the accounting entry.
+            date_field: The date field to use for the query.
+
+        Returns:
+            A list of dictionaries containing the matching accounting entries.
+        """
+        try:
+            self.connect()
+            query = f'''
+                SELECT *
+                FROM AccountingEntries
+                WHERE BankID = ? AND Due_Date = ? AND Price = ? AND Entry_Type_Acc = ?  AND is_reconciled = 0
+            '''
+            self.cursor.execute(query, (bank_id, f"{date}", amount, f"{entry_type}"))
+            columns = [desc[0] for desc in self.cursor.description]
+
+            return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Error finding matching accounting entries: {e}")
+            return []
+        finally:
+            self.disconnect()
     
     def get_unreconciled_pos_transactions(self, bank_id: int = None) -> List[Dict[str, Any]]:
         """
@@ -1347,6 +1377,7 @@ class DatabaseManager:
             self.cursor.execute('''
                 SELECT * FROM PosTransactions 
                 WHERE BankID = ? 
+                AND Transaction_Type = "خريد"
                 AND Terminal_ID = ? 
                 AND Transaction_Date = ? 
                 AND is_reconciled = 0
@@ -1396,20 +1427,7 @@ class DatabaseManager:
             return None
         finally:
             self.disconnect()
-    
-    def get_pos_transactions_for_date(self, bank_id: int, terminal_id: str, date: str) -> List[Dict[str, Any]]:
-        """
-        دریافت تراکنش‌های پوز برای تاریخ مشخص
-        
-        پارامترها:
-            bank_id: شناسه بانک
-            terminal_id: شناسه ترمینال
-            date: تاریخ (فرمت YYYY/MM/DD)
-            
-        خروجی:
-            لیست تراکنش‌های پوز
-        """
-        return self.get_pos_transactions_for_terminal(bank_id, terminal_id, date)
+
     
     def get_terminal_by_id(self, terminal_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -1610,6 +1628,7 @@ class DatabaseManager:
                 SELECT * FROM PosTransactions 
                 WHERE Terminal_ID = ? 
                 AND Transaction_Date = ? 
+                AND Transaction_Type = "خريد"
                 AND BankID = ? 
                 AND is_reconciled = 0
                 ORDER BY id
@@ -1647,7 +1666,7 @@ class DatabaseManager:
                 WHERE Terminal_ID = ? 
                 AND Transaction_Date = ? 
                 AND BankID = ?
-            ''', (terminal_id, date, bank_id))
+            ''', (terminal_id, f"{date}", bank_id))
             
             self.connection.commit()
             
@@ -1660,6 +1679,42 @@ class DatabaseManager:
         finally:
             self.disconnect()
     
+    def search_from_terminal_sum_in_acc(self, terminal_id: str, date: str, bank_id: int) -> List[Dict[str, Any]]:
+        """
+        جستجوی رکورد سرجمع پوز در جدول حسابداری بر اساس شماره ترمینال و تاریخ
+
+        پارامترها:
+            terminal_id: شناسه ترمینال
+            date: تاریخ (فرمت YYYYMMDD)
+            bank_id: شناسه بانک
+
+        خروجی:
+            لیستی از رکوردهای منطبق
+        """
+        try:
+            self.connect()
+            query = '''
+                SELECT *
+                FROM AccountingEntries
+                WHERE BankID = ?
+                  AND Due_Date = ?
+                  AND Entry_Type_Acc = "پوز دريافتني"
+                  AND Description_Notes_Acc LIKE "%سرجمع%"
+                  AND is_reconciled = 0
+            '''
+            # پارامترها شامل شناسه بانک، تاریخ، نوع ورودی و الگوی توضیحات است
+            params = (bank_id, f"{date}")
+            self.cursor.execute(query, params)
+            columns = [desc[0] for desc in self.cursor.description]
+            result = [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+            logger.info(f"جستجو برای سرجمع پوز با ترمینال {terminal_id} در تاریخ {date} انجام شد. تعداد نتایج: {len(result)}")
+            return result
+        except Exception as e:
+            logger.error(f"خطا در جستجوی سرجمع پوز: {str(e)}")
+            return []
+        finally:
+            self.disconnect()
+
     def get_reconciliation_summary_data(self) -> List[Dict[str, Any]]:
         """
         دریافت آمار مغایرت‌گیری به صورت لیست برای نمایش در جدول
