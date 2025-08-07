@@ -34,7 +34,7 @@ class DataLoader:
         self.accounting_data = None
         self.db_manager = DatabaseManager()
         
-    def load_bank_data(self, file_path: str) -> List[Dict]:
+    def load_bank_data(self, file_path: str, bank_id: int) -> List[Dict]:
         """
         بارگذاری داده‌های بانک از فایل اکسل و تبدیل به لیست دیکشنری
         
@@ -44,13 +44,13 @@ class DataLoader:
         خروجی:
             لیست دیکشنری‌های حاوی داده‌های بانک
         """
-        df = self.load_bank_file(file_path)
+        df = self.load_bank_file(file_path, bank_id)
         if df is not None and not df.empty:
             # تبدیل دیتافریم به لیست دیکشنری
             return df.to_dict('records')
         return []
     
-    def load_pos_data(self, folder_path: str) -> List[Dict]:
+    def load_pos_data(self, folder_path: str, bank_id: int) -> List[Dict]:
         """
         بارگذاری داده‌های پوز از پوشه فایل‌های اکسل و تبدیل به لیست دیکشنری
         
@@ -60,29 +60,85 @@ class DataLoader:
         خروجی:
             لیست دیکشنری‌های حاوی داده‌های پوز
         """
-        df = self.load_pos_files(folder_path)
+        df = self.load_pos_files(folder_path, bank_id)
         if df is not None and not df.empty:
             # تبدیل دیتافریم به لیست دیکشنری
             return df.to_dict('records')
         return []
-    
-    def load_accounting_data(self, file_path: str) -> List[Dict]:
+
+    def load_accounting_data(self, file_path: str, bank_id: int) -> List[Dict]:
         """
         بارگذاری داده‌های حسابداری از فایل اکسل و تبدیل به لیست دیکشنری
-        
+
         پارامترها:
             file_path: مسیر فایل اکسل حسابداری
-            
+            bank_id: شناسه بانک
+
         خروجی:
             لیست دیکشنری‌های حاوی داده‌های حسابداری
         """
-        df = self.load_accounting_file(file_path)
+        df = self.load_accounting_file(file_path, bank_id)
         if df is not None and not df.empty:
             # تبدیل دیتافریم به لیست دیکشنری
             return df.to_dict('records')
         return []
+
+    def load_accounting_file(self, file_path: str, bank_id: int) -> Optional[pd.DataFrame]:
+        """
+        بارگذاری فایل اکسل حسابداری و استخراج اطلاعات مورد نیاز
+
+        پارامترها:
+            file_path: مسیر فایل اکسل حسابداری
+            bank_id: شناسه بانک
+
+        خروجی:
+            دیتافریم پانداس حاوی داده‌های پردازش شده حسابداری یا None در صورت خطا
+        """
+        try:
+            logger.info(f"بارگذاری فایل حسابداری: {file_path}")
+            engine = 'xlrd' if file_path.endswith('.xls') else 'openpyxl'
+            df = pd.read_excel(file_path, engine=engine)
+
+            column_mapping = {
+                'شرح': 'Description_Notes_Acc',
+                'بدهکار': 'Debit',
+                'بستانکار': 'Credit',
+                'تاریخ سند': 'Document_Date',
+                'تاریخ سررسید': 'Accounting_Transaction_Date',  # نام ستون اصلی
+                'کد حساب': 'Account_Code',
+                'نام حساب': 'Account_Name',
+                'شناسه سند': 'Document_ID',
+                'یادداشت': 'Notes',
+                'نوع سند': 'Document_Type',
+                'شماره چک': 'Check_Number',
+                'تاریخ دریافت': 'Date_Of_Receipt'
+            }
+            df = df.rename(columns=column_mapping)
+
+            # تبدیل تاریخ سررسید از YY/MM/DD به 14YYMMDD
+            if 'Accounting_Transaction_Date' in df.columns:
+                df['Accounting_Transaction_Date'] = df['Accounting_Transaction_Date'].apply(
+                    lambda x: convert_short_jalali_to_standard(x) if pd.notna(x) else None
+                )
+
+            # محاسبه ستون Price بر اساس بدهکار و بستانکار
+            # اگر مقدار بدهکار (Debit) وجود داشته باشد و صفر نباشد، از آن استفاده می‌شود؛ در غیر این صورت، از مقدار بستانکار (Credit) استفاده می‌شود.
+            df['Price'] = df.apply(lambda row: row['Debit'] if pd.notna(row['Debit']) and row['Debit'] != 0 else row['Credit'], axis=1)
+
+            # افزودن شناسه بانک (BankID) و وضعیت مغایرت (is_reconciled)
+            # این مقادیر برای تمام رکوردهای حسابداری برای استفاده در پایگاه داده تنظیم می‌شوند.
+            df['BankID'] = bank_id
+            df['is_reconciled'] = 0  # 0 for False
+
+            self.accounting_data = df
+            logger.info(f"فایل حسابداری با موفقیت بارگذاری شد. تعداد رکوردها: {len(df)}")
+            return df
+
+        except Exception as e:
+            logger.error(f"خطا در بارگذاری فایل حسابداری: {str(e)}")
+            return None
     
-    def load_bank_file(self, file_path: str) -> pd.DataFrame:
+    def load_bank_file(self, file_path: str, bank_id: int) -> pd.DataFrame:
         """
         بارگذاری فایل اکسل بانک و استخراج اطلاعات مورد نیاز
         
@@ -130,8 +186,9 @@ class DataLoader:
             # تعیین نوع تراکنش بانک
             df['Transaction_Type_Bank'] = df.apply(self._determine_bank_transaction_type, axis=1)
             
-            # افزودن ستون وضعیت مغایرت‌گیری
+            # افزودن ستون وضعیت مغایرت‌گیری و شناسه بانک
             df['is_reconciled'] = False
+            df['BankID'] = bank_id
             
             self.bank_data = df
             logger.info(f"فایل بانک با موفقیت بارگذاری شد. تعداد رکوردها: {len(df)}")
@@ -141,7 +198,7 @@ class DataLoader:
             logger.error(f"خطا در بارگذاری فایل بانک: {str(e)}")
             raise
     
-    def load_pos_files(self, folder_path: str) -> pd.DataFrame:
+    def load_pos_files(self, folder_path: str, bank_id: int) -> pd.DataFrame:
         """
         بارگذاری فایل‌های اکسل پوز از یک پوشه و استخراج اطلاعات مورد نیاز
         
@@ -192,6 +249,10 @@ class DataLoader:
 
                     # تغییر نام ستون‌ها
                     df = df.rename(columns=column_mapping)
+
+                    # افزودن شناسه بانک و وضعیت مغایرت‌گیری
+                    df['BankID'] = bank_id
+                    df['is_reconciled'] = False
                     
                     # اگر ستون شماره پیگیری وجود نداشت، مقدار None قرار می‌دهیم
                     if 'POS_Tracking_Number' not in df.columns:
@@ -208,8 +269,9 @@ class DataLoader:
             if all_dfs:
                 combined_df = pd.concat(all_dfs, ignore_index=True)
                 
-                # افزودن ستون وضعیت مغایرت‌گیری
+                # افزودن ستون وضعیت مغایرت‌گیری و شناسه بانک
                 combined_df['is_reconciled'] = False
+                combined_df['BankID'] = bank_id
                 
                 self.pos_data = combined_df
                 logger.info(f"فایل‌های پوز با موفقیت بارگذاری شدند. تعداد رکوردها: {len(combined_df)}")
@@ -222,7 +284,64 @@ class DataLoader:
             logger.error(f"خطا در بارگذاری فایل‌های پوز: {str(e)}")
             raise
     
-    def load_accounting_file(self, file_path: str) -> pd.DataFrame:
+    def load_accounting_file(self, file_path: str, bank_id: int) -> pd.DataFrame:
+        """
+        بارگذاری فایل اکسل حسابداری و استخراج اطلاعات مورد نیاز
+        
+        پارامترها:
+            file_path: مسیر فایل اکسل حسابداری
+            bank_id: شناسه بانک
+            
+        خروجی:
+            دیتافریم پانداس حاوی داده‌های پردازش شده حسابداری
+        """
+        try:
+            logger.info(f"بارگذاری فایل حسابداری: {file_path}")
+            # خواندن فایل اکسل حسابداری با engine مناسب
+            engine = 'xlrd' if file_path.endswith('.xls') else 'openpyxl'
+            df = pd.read_excel(file_path, engine=engine)
+            
+            # نگاشت نام ستون‌ها
+            column_mapping = {
+                'تاريخ سررسيد': 'Accounting_Transaction_Date',
+                'بدهکار': 'Debit',
+                'بستانکار': 'Credit',
+                'مبلغ': 'Price',
+                'شرح': 'Description_Notes_Acc',
+                'نوع سند': 'Document_Type',
+                'کد تفصیلی': 'Detailed_Code',
+                'مرکز هزینه': 'Cost_Center',
+                'عطف': 'Reference',
+                'تاریخ دریافت': 'Date_Of_Receipt',
+                'شماره چک': 'Check_Number'
+            }
+            
+            # تغییر نام ستون‌ها
+            df = df.rename(columns=column_mapping)
+
+            # تبدیل تاریخ سررسید
+            if 'Accounting_Transaction_Date' in df.columns:
+                df['Accounting_Transaction_Date'] = df['Accounting_Transaction_Date'].apply(
+                    lambda x: convert_short_jalali_to_standard(x) if pd.notna(x) else None
+                )
+            
+            # تعیین نوع ورودی حسابداری
+            df['Entry_Type_Acc'] = df.apply(self._determine_accounting_entry_type, axis=1)
+
+            # استخراج پسوند ارجاع حساب
+            df['Account_Reference_Suffix'] = df['Description_Notes_Acc'].apply(self._extract_account_reference_suffix)
+
+            # افزودن ستون وضعیت مغایرت‌گیری و شناسه بانک
+            df['is_reconciled'] = False
+            df['BankID'] = bank_id
+            
+            self.accounting_data = df
+            logger.info(f"فایل حسابداری با موفقیت بارگذاری شد. تعداد رکوردها: {len(df)}")
+            return df
+            
+        except Exception as e:
+            logger.error(f"خطا در بارگذاری فایل حسابداری: {str(e)}")
+            raise
         """
         بارگذاری فایل اکسل حسابداری و استخراج اطلاعات مورد نیاز
         
@@ -304,11 +423,12 @@ class DataLoader:
                 lambda x: self._extract_card_suffix(x) if isinstance(x, str) else None
             )
             
-            # تبدیل فرمت تاریخ‌های شمسی از YY/MM/DD به YYYY/MM/DD
+            # تبدیل فرمت تاریخ‌های شمسی از YY/MM/DD به 14YYMMDD
             if 'Due_Date' in df.columns:
-                df['Due_Date'] = df['Due_Date'].apply(
-                    lambda x: convert_short_jalali_to_standard(str(x)) if pd.notna(x) else None
+                df['Accounting_Transaction_Date'] = df['Due_Date'].apply(
+                    lambda x: '14' + ''.join(re.findall(r'\d+', str(x))) if pd.notna(x) and re.match(r'\d{2}/\d{2}/\d{2}', str(x)) else None
                 )
+                df = df.drop(columns=['Due_Date'])
             
             if 'Delivery_Date' in df.columns:
                 df['Delivery_Date'] = df['Delivery_Date'].apply(

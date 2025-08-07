@@ -10,7 +10,8 @@ from PySide6.QtWidgets import (
     QTableView, QHeaderView, QGroupBox, QDialogButtonBox, QMessageBox
 )
 
-from modules.reconciliation_logic import ReconciliationEngine
+from modules import reconciliation_logic
+from modules.database_manager import DatabaseManager
 from modules.logger import get_logger
 from modules.utils import format_currency
 from ui.widgets import DataTableModel
@@ -23,22 +24,17 @@ class ManualReconciliationDialog(QDialog):
     """
     دیالوگ مغایرت‌گیری دستی
     """
-    
-    def __init__(self, reconciliation_engine: ReconciliationEngine, record_type: str, record_id: int, parent=None):
+
+    def __init__(self, bank_record, acc_records, pos_records, reconciliation_type, parent=None):
         """
         مقداردهی اولیه کلاس ManualReconciliationDialog
-        
-        پارامترها:
-            reconciliation_engine: نمونه‌ای از کلاس ReconciliationEngine
-            record_type: نوع رکورد (bank, pos, accounting)
-            record_id: شناسه رکورد
-            parent: ویجت والد
         """
         super().__init__(parent)
-        self.reconciliation_engine = reconciliation_engine
-        self.record_type = record_type
-        self.record_id = record_id
-        self.db_manager = reconciliation_engine.db_manager
+        self.bank_record = bank_record
+        self.acc_records = acc_records
+        self.pos_records = pos_records
+        self.reconciliation_type = reconciliation_type
+        self.selected_ids = {}
         
         self.setWindowTitle("مغایرت‌گیری دستی")
         self.setMinimumWidth(600)
@@ -104,38 +100,14 @@ class ManualReconciliationDialog(QDialog):
         """
         try:
             # بارگذاری اطلاعات رکورد انتخاب شده
-            if self.record_type == "bank":
-                record = self.reconciliation_engine.db_manager.get_bank_transaction_by_id(self.record_id)
-                if record:
-                    amount = record.get("Deposit_Amount") or record.get("Withdrawal_Amount") or 0
-                    amount_str = format_currency(amount)
-                    self.record_info_label.setText(
-                        f"تاریخ: {record.get('Date', '')}, مبلغ: {amount_str}, "
-                        f"نوع: {record.get('Transaction_Type_Bank', '')}, "
-                        f"توضیحات: {record.get('Description_Bank', '')[:50]}"
-                    )
-            
-            elif self.record_type == "pos":
-                record = self.reconciliation_engine.db_manager.get_pos_transaction_by_id(self.record_id)
-                if record:
-                    amount_str = format_currency(record.get("Transaction_Amount", 0))
-                    self.record_info_label.setText(
-                        f"تاریخ: {record.get('Transaction_Date', '')}, مبلغ: {amount_str}, "
-                        f"ترمینال: {record.get('Terminal_ID', '')}, "
-                        f"کارت: {record.get('Card_Number', '')[-4:] if record.get('Card_Number') else ''}"
-                    )
-            
-            elif self.record_type == "accounting":
-                record = self.reconciliation_engine.db_manager.get_accounting_entry_by_id(self.record_id)
-                if record:
-                    amount = record.get("Debit") or record.get("Credit") or 0
-                    amount_str = format_currency(amount)
-                    self.record_info_label.setText(
-                        f"نوع: {record.get('Entry_Type_Acc', '')}, مبلغ: {amount_str}, "
-                        f"شماره: {record.get('Account_Reference_Suffix', '')}, "
-                        f"تاریخ: {record.get('Due_Date', '')}"
-                    )
-            
+            amount = self.bank_record.get("Deposit_Amount") or self.bank_record.get("Withdrawal_Amount") or 0
+            amount_str = format_currency(amount)
+            self.record_info_label.setText(
+                f"تاریخ: {self.bank_record.get('Date', '')}, مبلغ: {amount_str}, "
+                f"نوع: {self.bank_record.get('Transaction_Type_Bank', '')}, "
+                f"توضیحات: {self.bank_record.get('Description_Bank', '')[:50]}"
+            )
+
             # بارگذاری رکوردهای قابل مغایرت‌گیری
             self.on_record_type_changed()
             
@@ -153,37 +125,26 @@ class ManualReconciliationDialog(QDialog):
         try:
             selected_type = self.record_type_combo.currentText()
             
-            if selected_type == "بانک":
-                # بارگذاری رکوردهای بانکی
-                records = self.db_manager.get_unreconciled_bank_transactions()
-                headers = ["تاریخ", "مبلغ واریز", "مبلغ برداشت", "توضیحات", "نوع تراکنش", "شناسه پیگیری"]
-                
-                # تنظیم مدل داده
-                model = DataTableModel(records, headers)
-                self.records_table.setModel(model)
-            
-            elif selected_type == "پوز":
-                # بارگذاری رکوردهای پوز
-                records = self.db_manager.get_unreconciled_pos_transactions()
+            if selected_type == "پوز":
                 headers = ["تاریخ", "ساعت", "مبلغ", "شماره کارت", "شناسه ترمینال", "شماره پیگیری"]
-                
-                # تنظیم مدل داده
-                model = DataTableModel(records, headers)
+                model = DataTableModel(self.pos_records, headers)
                 self.records_table.setModel(model)
             
             elif selected_type == "حسابداری":
-                # بارگذاری رکوردهای حسابداری
-                records = self.db_manager.get_unreconciled_accounting_entries()
                 headers = ["نوع", "شماره", "بدهکار", "بستانکار", "تاریخ سررسید", "توضیحات"]
-                
-                # تنظیم مدل داده
-                model = DataTableModel(records, headers)
+                model = DataTableModel(self.acc_records, headers)
                 self.records_table.setModel(model)
             
         except Exception as e:
             logger.error(f"خطا در تغییر نوع رکورد برای مغایرت‌گیری: {str(e)}")
             QMessageBox.critical(self, "خطا", f"خطا در بارگذاری داده‌ها: {str(e)}")
     
+    def get_selected_ids(self):
+        """
+        شناسه‌های انتخاب شده را برمی‌گرداند.
+        """
+        return self.selected_ids
+
     def accept(self):
         """
         تایید مغایرت‌گیری دستی
@@ -194,9 +155,18 @@ class ManualReconciliationDialog(QDialog):
             if not selected_indexes:
                 QMessageBox.warning(self, "هشدار", "لطفاً یک رکورد را انتخاب کنید.")
                 return
-            
+
             selected_row = selected_indexes[0].row()
             selected_type = self.record_type_combo.currentText()
+
+            if selected_type == "پوز":
+                record_id = self.pos_records[selected_row]['id']
+                self.selected_ids = {'pos_id': record_id}
+            elif selected_type == "حسابداری":
+                record_id = self.acc_records[selected_row]['id']
+                self.selected_ids = {'acc_id': record_id}
+
+            super().accept()
             
             # دریافت شناسه رکورد انتخاب شده
             if selected_type == "بانک":
@@ -210,7 +180,7 @@ class ManualReconciliationDialog(QDialog):
                 match_id = self.records_table.model()._data[selected_row].get("id")
             
             # انجام مغایرت‌گیری دستی
-            result = self.reconciliation_engine.manual_reconcile(
+            result = self.reconciliation_logic.manual_reconcile(
                 self.record_type, self.record_id, match_type, match_id
             )
             
