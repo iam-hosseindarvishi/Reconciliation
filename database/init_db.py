@@ -48,11 +48,10 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             terminal_number TEXT NOT NULL,
             bank_id INTEGER NOT NULL,
-            accepter_number TEXT,
+            card_number TEXT,
             transaction_date TEXT,
             transaction_amount FLOAT,
             tracking_number TEXT,
-            reference_number TEXT,
             is_reconciled BOOLEAN DEFAULT 0,
             FOREIGN KEY (bank_id) REFERENCES Banks(id)
         )

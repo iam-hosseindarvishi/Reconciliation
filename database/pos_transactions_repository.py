@@ -5,16 +5,15 @@ def create_pos_transaction(transaction_data):
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO PosTransactions (
-            terminal_number, bank_id, accepter_number, transaction_date, transaction_amount, tracking_number, reference_number, is_reconciled
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            terminal_number, bank_id, card_number, transaction_date, transaction_amount, tracking_number, is_reconciled
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
     """, (
         transaction_data.get('terminal_number'),
         transaction_data.get('bank_id'),
-        transaction_data.get('accepter_number'),
+        transaction_data.get('card_number'),
         transaction_data.get('transaction_date'),
         transaction_data.get('transaction_amount'),
         transaction_data.get('tracking_number'),
-        transaction_data.get('reference_number'),
         transaction_data.get('is_reconciled', 0)
     ))
     conn.commit()
