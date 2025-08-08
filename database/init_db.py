@@ -61,11 +61,12 @@ def init_db():
         CREATE TABLE IF NOT EXISTS AccountingTransactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             bank_id INTEGER NOT NULL,
+            transaction_type TEXT NOT NULL,
+            -- transaction_type can be 'income', 'expense', etc.
             transaction_number TEXT,
             transaction_amount FLOAT NOT NULL,
             due_date TEXT NOT NULL,
             collection_date TEXT,
-            counterparty_bank TEXT,
             customer_name TEXT,
             is_reconciled BOOLEAN DEFAULT 0,
             FOREIGN KEY (bank_id) REFERENCES Banks(id)
