@@ -1,7 +1,7 @@
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from tkinter import StringVar, messagebox
-from database.banks_repository import add_bank, delete_bank, update_bank, get_all_banks
+from database.banks_repository import create_bank, delete_bank, update_bank, get_all_banks
 
 class BankTab(ttk.Frame):
     def __init__(self, master, *args, **kwargs):
@@ -38,7 +38,7 @@ class BankTab(ttk.Frame):
             messagebox.showwarning("خطا", "نام بانک نمی‌تواند خالی باشد.")
             return
         try:
-            add_bank(name)
+            create_bank(name)
             self.bank_name_var.set("")
             self.refresh_bank_list()
         except Exception as e:

@@ -8,6 +8,8 @@ def create_connection():
     return conn
 
 def init_db():
+    conn = create_connection()
+    cursor = conn.cursor()
     # جدول تراکنش‌های بانک
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS BankTransactions (
@@ -25,8 +27,6 @@ def init_db():
             FOREIGN KEY (bank_id) REFERENCES Banks(id)
         )
     """)
-    conn = create_connection()
-    cursor = conn.cursor()
     # جدول بانک‌ها
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Banks (

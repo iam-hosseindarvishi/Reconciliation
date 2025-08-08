@@ -29,3 +29,11 @@ def delete_bank(bank_id):
     cursor.execute("DELETE FROM Banks WHERE id = ?", (bank_id,))
     conn.commit()
     conn.close()
+
+# ویرایش نام بانک بر اساس id
+def update_bank(bank_id, new_bank_name):
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE Banks SET bank_name = ? WHERE id = ?", (new_bank_name, bank_id))
+    conn.commit()
+    conn.close()
