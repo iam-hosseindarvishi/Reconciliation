@@ -2,7 +2,7 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from tkinter import StringVar, filedialog, messagebox
 from tkinter.ttk import Combobox
-from database.bank_repository import get_all_banks
+from database.banks_repository import get_all_banks
 
 
 
