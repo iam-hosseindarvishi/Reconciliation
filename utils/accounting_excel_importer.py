@@ -26,6 +26,7 @@ def import_accounting_excel(accounting_file_path, bank_id):
                 'collection_date': persian_to_gregorian(str(row.get('تاريخ وصول', ''))),
                 'transaction_type': transaction_type,
                 'customer_name': str(row.get('نام مشتري', '')),
+                "description": str(row.get('توضیحات', '')),
                 'is_reconciled': 0
             }
             create_accounting_transaction(transaction_data)

@@ -5,8 +5,8 @@ def create_accounting_transaction(data):
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO AccountingTransactions (
-            bank_id, transaction_number, transaction_amount, due_date, collection_date, transaction_type, customer_name, is_reconciled
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            bank_id, transaction_number, transaction_amount, due_date, collection_date, transaction_type, customer_name, description, is_reconciled
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         data.get('bank_id'),
         data.get('transaction_number'),
@@ -15,9 +15,12 @@ def create_accounting_transaction(data):
         data.get('collection_date'),
         data.get('transaction_type'),
         data.get('customer_name'),
+        data.get('description', ''),
         data.get('is_reconciled', 0)
     ))
-def get_transactions_by_transaction_type(bank_id, transaction_type):
+    conn.commit()
+    conn.close()
+def get_transactions_by_type(bank_id, transaction_type):
     conn = create_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM AccountingTransactions WHERE bank_id = ? AND transaction_type = ?", (bank_id, transaction_type))
@@ -35,8 +38,7 @@ def get_transactions_by_date_and_type(bank_id, start_date, end_date, transaction
     result = cursor.fetchall()
     conn.close()
     return result
-    conn.commit()
-    conn.close()
+
 
 def get_transactions_by_bank(bank_id):
     conn = create_connection()
