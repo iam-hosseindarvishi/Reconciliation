@@ -2,8 +2,13 @@ import pandas as pd
 from utils.constants import MELLAT_TRANSACTION_TYPES
 from utils.pos_excel_importer import persian_to_gregorian
 from database.bank_transaction_repository import create_bank_transaction
+from utils.logger_config import setup_logger
+
+# راه‌اندازی لاگر
+logger = setup_logger('utils.mellat_bank_processor')
 
 def process_mellat_bank_file(mellat_file_path, bank_id):
+    """پردازش فایل اکسل بانک ملت با مدیریت خطا و لاگینگ"""
     """
     پردازش فایل اکسل بانک ملت و ذخیره تراکنش‌ها در دیتابیس
     """
