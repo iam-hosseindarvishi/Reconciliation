@@ -95,7 +95,7 @@ def main():
         try:
             # افزودن تب مدیریت بانک‌ها
             logger.info("در حال بارگذاری تب مدیریت بانک‌ها...")
-            bank_tab = BankTab(notebook)
+            bank_tab = BankTab(notebook, on_bank_change_callback=data_entry_tab.load_banks_to_combobox)
             notebook.add(bank_tab, text="مدیریت بانک‌ها")
             logger.info("تب مدیریت بانک‌ها با موفقیت بارگذاری شد")
         except Exception as e:

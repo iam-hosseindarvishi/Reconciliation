@@ -1,5 +1,6 @@
 import os
 import logging
+import threading
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from tkinter import StringVar, filedialog, font
@@ -39,6 +40,9 @@ class DataEntryTab(ttk.Frame):
         self.create_widgets()
         self.load_banks_to_combobox()
         
+        # ذخیره مقدار انتخاب شده قبلی
+        self.previous_bank_selection = None
+        
     def setup_logging(self):
         """راه‌اندازی سیستم لاگینگ"""
         os.makedirs(DATA_DIR, exist_ok=True)
@@ -49,17 +53,23 @@ class DataEntryTab(ttk.Frame):
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         
         # لاگر برای فایل خطاها
-        error_handler = logging.FileHandler(os.path.join(DATA_DIR, 'error.txt'))
+        error_handler = logging.FileHandler(os.path.join(DATA_DIR, 'error.txt'), encoding='utf-8')
         error_handler.setLevel(logging.ERROR)
         error_handler.setFormatter(formatter)
         
         # لاگر برای فایل لاگ عمومی
-        file_handler = logging.FileHandler(os.path.join(DATA_DIR, 'Log.txt'))
+        file_handler = logging.FileHandler(os.path.join(DATA_DIR, 'Log.txt'), encoding='utf-8')
         file_handler.setLevel(logging.INFO)
         file_handler.setFormatter(formatter)
         
+        # لاگر برای کنسول با پشتیبانی از UTF-8
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(formatter)
+        
         self.logger.addHandler(error_handler)
         self.logger.addHandler(file_handler)
+        self.logger.addHandler(console_handler)
         # UI handler will be added after creating log_text widget
 
     def create_widgets(self):
@@ -131,35 +141,43 @@ class DataEntryTab(ttk.Frame):
 
         # === فریم وضعیت و نوارهای پیشرفت ===
         progress_frame = ttk.LabelFrame(self, text="پیشرفت عملیات", style='Header.TLabelframe')
-        progress_frame.pack(fill="x", pady=5)
+        progress_frame.pack(fill="x", pady=5, padx=10)
         
         # نوار پیشرفت کلی
         ttk.Label(progress_frame, text="پیشرفت کلی:", anchor="w", style='Default.TLabel').pack(fill="x", padx=5)
+        
+        overall_progress_container = ttk.Frame(progress_frame)
+        overall_progress_container.pack(fill="x", padx=10, pady=(0, 10))
+        
         self.overall_progressbar = ttk.Progressbar(
-            progress_frame, 
+            overall_progress_container, 
             mode="determinate",
             maximum=100,
             bootstyle="success-striped"
         )
-        self.overall_progressbar.pack(fill="x", padx=5, pady=(0, 5))
+        self.overall_progressbar.pack(fill="x", ipady=10)  # از ipady برای افزایش ارتفاع استفاده می‌کنیم
         
         # نوار پیشرفت جزئی
         ttk.Label(progress_frame, text="پیشرفت جزئی:", anchor="w", style='Default.TLabel').pack(fill="x", padx=5)
+        
+        detailed_progress_container = ttk.Frame(progress_frame)
+        detailed_progress_container.pack(fill="x", padx=10, pady=(0, 10))
+        
         self.detailed_progressbar = ttk.Progressbar(
-            progress_frame,
+            detailed_progress_container,
             mode="determinate",
             maximum=100,
             bootstyle="info-striped"
         )
-        self.detailed_progressbar.pack(fill="x", padx=5, pady=(0, 5))
+        self.detailed_progressbar.pack(fill="x", ipady=10)  # از ipady برای افزایش ارتفاع استفاده می‌کنیم
         
         # === کادر لاگ ===
         log_frame = ttk.LabelFrame(self, text="گزارش عملیات", style='Header.TLabelframe')
-        log_frame.pack(fill="both", expand=True, pady=5)
+        log_frame.pack(fill="both", expand=True, pady=5, padx=10)
         
         # برای ScrolledText می‌توانیم مستقیماً از font استفاده کنیم
-        self.log_text = ScrolledText(log_frame, height=10, font=self.log_font)
-        self.log_text.pack(fill="both", expand=True, padx=5, pady=5)
+        self.log_text = ScrolledText(log_frame, height=15, font=self.log_font)  # افزایش ارتفاع
+        self.log_text.pack(fill="both", expand=True, padx=10, pady=10)
         
         # اضافه کردن UI handler به logger
         ui_handler = UIHandler(self.log_text)
@@ -184,10 +202,18 @@ class DataEntryTab(ttk.Frame):
     def load_banks_to_combobox(self):
         """بارگذاری لیست بانک‌ها در کامبوباکس"""
         try:
+            # ذخیره انتخاب فعلی
+            current_selection = self.selected_bank_var.get()
+            
             banks = get_all_banks()
             self.banks_dict = {bank[1]: bank[0] for bank in banks}  # نام بانک: شناسه
             self.bank_combobox['values'] = list(self.banks_dict.keys())
-            if self.banks_dict:
+            
+            # اگر انتخاب قبلی وجود داشته و هنوز در لیست هست، آن را حفظ کن
+            if current_selection and current_selection in self.banks_dict:
+                self.selected_bank_var.set(current_selection)
+            # در غیر این صورت، اولین مورد را انتخاب کن اگر لیست خالی نیست
+            elif self.banks_dict:
                 self.bank_combobox.current(0)
         except Exception as e:
             self.logger.error(f"خطا در بارگذاری لیست بانک‌ها: {str(e)}")
@@ -198,73 +224,116 @@ class DataEntryTab(ttk.Frame):
             self.logger.error("لطفاً یک بانک انتخاب کنید")
             return False
             
-        if not self.pos_folder_var.get():
-            self.logger.error("لطفاً پوشه فایل‌های پوز را انتخاب کنید")
-            return False
-            
-        if not self.accounting_file_var.get():
-            self.logger.error("لطفاً فایل حسابداری را انتخاب کنید")
-            return False
-            
-        if not self.bank_file_var.get():
-            self.logger.error("لطفاً فایل بانک را انتخاب کنید")
+        # حداقل یکی از فایل‌ها باید انتخاب شده باشد
+        has_pos = bool(self.pos_folder_var.get())
+        has_accounting = bool(self.accounting_file_var.get())
+        has_bank = bool(self.bank_file_var.get())
+        
+        if not (has_pos or has_accounting or has_bank):
+            self.logger.error("لطفاً حداقل یکی از موارد زیر را انتخاب کنید:\n- پوشه فایل‌های پوز\n- فایل حسابداری\n- فایل بانک")
             return False
             
         return True
+
+    def process_thread(self):
+        """اجرای فرآیند پردازش در thread جداگانه"""
+        try:
+            bank_name = self.selected_bank_var.get()
+            bank_id = self.banks_dict[bank_name]
+            
+            # تعیین تعداد مراحل بر اساس ورودی‌های انتخاب شده
+            has_pos = bool(self.pos_folder_var.get())
+            has_accounting = bool(self.accounting_file_var.get())
+            has_bank = bool(self.bank_file_var.get())
+            
+            total_steps = sum([has_pos, has_accounting, has_bank])
+            current_step = 0
+
+            self.logger.info(f"شروع پردازش برای بانک {bank_name}")
+
+            # پردازش فایل‌های پوز
+            if has_pos:
+                try:
+                    self.logger.info("شروع پردازش فایل‌های پوز...")
+                    self.update_progress_bars((current_step / total_steps) * 100, 0)
+                    pos_result = process_pos_files(self.pos_folder_var.get(), bank_id)
+                    self.logger.info(f"پردازش پوز: {pos_result['files_processed']} فایل پردازش شد")
+                    current_step += 1
+                    self.update_progress_bars((current_step / total_steps) * 100, 100)
+                except Exception as e:
+                    self.logger.error(f"خطا در پردازش فایل‌های پوز: {str(e)}")
+
+            # پردازش فایل حسابداری
+            if has_accounting:
+                try:
+                    self.logger.info("شروع پردازش فایل حسابداری...")
+                    self.update_progress_bars((current_step / total_steps) * 100, 0)
+                    acc_result = import_accounting_excel(self.accounting_file_var.get(), bank_id)
+                    self.logger.info(f"پردازش حسابداری: {acc_result['transactions_saved']} تراکنش ذخیره شد")
+                    current_step += 1
+                    self.update_progress_bars((current_step / total_steps) * 100, 100)
+                except Exception as e:
+                    self.logger.error(f"خطا در پردازش فایل حسابداری: {str(e)}")
+
+            # پردازش فایل بانک
+            if has_bank:
+                try:
+                    self.logger.info("شروع پردازش فایل بانک...")
+                    self.update_progress_bars((current_step / total_steps) * 100, 0)
+                    bank_result = process_mellat_bank_file(self.bank_file_var.get(), bank_id)
+                    self.logger.info(f"پردازش بانک: {bank_result['processed']} تراکنش پردازش شد")
+                    current_step += 1
+                    self.update_progress_bars(100, 100)
+                except Exception as e:
+                    self.logger.error(f"خطا در پردازش فایل بانک: {str(e)}")
+
+            self.update_status("عملیات پردازش به پایان رسید")
+            self.logger.info("عملیات پردازش به پایان رسید")
+
+        except Exception as e:
+            self.logger.error(f"خطای کلی در فرآیند پردازش: {str(e)}")
+            self.update_status("خطا در پردازش")
+    
+    def update_progress_bars(self, overall_value, detailed_value):
+        """به‌روزرسانی نوارهای پیشرفت در thread اصلی"""
+        self.after(0, lambda: self.overall_progressbar.configure(value=overall_value))
+        self.after(0, lambda: self.detailed_progressbar.configure(value=detailed_value))
+
+    def update_status(self, status):
+        """به‌روزرسانی وضعیت در thread اصلی"""
+        self.after(0, lambda: self.status_var.set(status))
 
     def start_process(self):
         """شروع فرآیند پردازش"""
         if not self.validate_inputs():
             return
 
-        try:
-            bank_name = self.selected_bank_var.get()
-            bank_id = self.banks_dict[bank_name]
-            total_steps = 3
-            current_step = 0
+        # غیرفعال کردن دکمه‌ها
+        for widget in self.winfo_children():
+            if isinstance(widget, ttk.Button):
+                widget.configure(state='disabled')
 
-            self.logger.info(f"شروع پردازش برای بانک {bank_name}")
-            self.status_var.set("در حال پردازش...")
+        # تنظیم وضعیت اولیه
+        self.status_var.set("در حال پردازش...")
+        self.overall_progressbar['value'] = 0
+        self.detailed_progressbar['value'] = 0
 
-            # پردازش فایل‌های پوز
-            try:
-                self.logger.info("شروع پردازش فایل‌های پوز...")
-                self.detailed_progressbar['value'] = 0
-                pos_result = process_pos_files(self.pos_folder_var.get(), bank_id)
-                self.logger.info(f"پردازش پوز: {pos_result['processed']} فایل پردازش شد")
-                current_step += 1
-                self.overall_progressbar['value'] = (current_step / total_steps) * 100
-            except Exception as e:
-                self.logger.error(f"خطا در پردازش فایل‌های پوز: {str(e)}")
+        # شروع thread جدید
+        process_thread = threading.Thread(target=self.process_thread)
+        process_thread.daemon = True  # thread با بسته شدن برنامه متوقف می‌شود
+        process_thread.start()
 
-            # پردازش فایل حسابداری
-            try:
-                self.logger.info("شروع پردازش فایل حسابداری...")
-                self.detailed_progressbar['value'] = 0
-                acc_result = import_accounting_excel(self.accounting_file_var.get(), bank_id)
-                self.logger.info(f"پردازش حسابداری: {acc_result['transactions_saved']} تراکنش ذخیره شد")
-                current_step += 1
-                self.overall_progressbar['value'] = (current_step / total_steps) * 100
-            except Exception as e:
-                self.logger.error(f"خطا در پردازش فایل حسابداری: {str(e)}")
+        # چک کردن وضعیت thread و فعال کردن مجدد دکمه‌ها
+        def check_thread():
+            if process_thread.is_alive():
+                self.after(100, check_thread)
+            else:
+                # فعال کردن مجدد دکمه‌ها
+                for widget in self.winfo_children():
+                    if isinstance(widget, ttk.Button):
+                        widget.configure(state='normal')
 
-            # پردازش فایل بانک
-            try:
-                self.logger.info("شروع پردازش فایل بانک...")
-                self.detailed_progressbar['value'] = 0
-                bank_result = process_mellat_bank_file(self.bank_file_var.get(), bank_id)
-                self.logger.info(f"پردازش بانک: {bank_result['processed']} تراکنش پردازش شد")
-                current_step += 1
-                self.overall_progressbar['value'] = (current_step / total_steps) * 100
-            except Exception as e:
-                self.logger.error(f"خطا در پردازش فایل بانک: {str(e)}")
-
-            self.status_var.set("عملیات پردازش به پایان رسید")
-            self.logger.info("عملیات پردازش به پایان رسید")
-
-        except Exception as e:
-            self.logger.error(f"خطای کلی در فرآیند پردازش: {str(e)}")
-            self.status_var.set("خطا در پردازش")
+        self.after(100, check_thread)
 
     def clear_entries(self):
         """پاک کردن تمام ورودی‌ها"""

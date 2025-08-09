@@ -5,14 +5,6 @@ from utils.logger_config import setup_logger
 
 # راه‌اندازی لاگر برای ثبت عملیات دیتابیس
 logger = setup_logger('database.init_db')
-from utils.logger_config import setup_logger
-
-# راه‌اندازی لاگر
-logger = setup_logger('database.init_db')
-from utils.logger_config import setup_logger
-
-# راه‌اندازی لاگر
-logger = setup_logger('database')
 
 def create_connection():
     """ایجاد اتصال به دیتابیس"""
@@ -32,29 +24,29 @@ def init_db():
         cursor = conn.cursor()
         logger.info("شروع ایجاد جداول دیتابیس")
 
-        tables = {
-            'BankTransactions': """
-                CREATE TABLE IF NOT EXISTS BankTransactions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    bank_id INTEGER NOT NULL,
-                    transaction_date TEXT,
-                    transaction_time TEXT,
-                    amount FLOAT NOT NULL,
-                    description TEXT,
-                    reference_number TEXT,
-                    extracted_terminal_id TEXT,
-                    extracted_tracking_number TEXT,
-                    transaction_type TEXT,
-                    is_reconciled BOOLEAN DEFAULT 0,
-                    FOREIGN KEY (bank_id) REFERENCES Banks(id)
-                )
-            """,
-        }
+      
         # جدول بانک‌ها
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS Banks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 bank_name TEXT NOT NULL UNIQUE
+            )
+        """)
+          # جدول تراکنش‌های بانکی
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS BankTransactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bank_id INTEGER NOT NULL,
+                transaction_date TEXT,
+                transaction_time TEXT,
+                amount FLOAT NOT NULL,
+                description TEXT,
+                reference_number TEXT,
+                extracted_terminal_id TEXT,
+                extracted_tracking_number TEXT,
+                transaction_type TEXT,
+                is_reconciled BOOLEAN DEFAULT 0,
+                FOREIGN KEY (bank_id) REFERENCES Banks(id)
             )
         """)
         # جدول ترمینال‌ها

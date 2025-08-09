@@ -5,7 +5,7 @@ from database.banks_repository import create_bank, delete_bank, update_bank, get
 from utils.logger_config import setup_logger
 
 class BankTab(ttk.Frame):
-    def __init__(self, master, *args, **kwargs):
+    def __init__(self, master, on_bank_change_callback=None, *args, **kwargs):
         """راه‌اندازی تب مدیریت بانک‌ها"""
         super().__init__(master, *args, **kwargs)
         
@@ -14,6 +14,7 @@ class BankTab(ttk.Frame):
         
         self.bank_name_var = StringVar()
         self.selected_bank_id = None
+        self.on_bank_change_callback = on_bank_change_callback  # کالبک برای اطلاع‌رسانی تغییرات
         
         try:
             self.create_widgets()
@@ -81,6 +82,10 @@ class BankTab(ttk.Frame):
             self.bank_name_var.set("")
             self.refresh_bank_list()
             
+            # فراخوانی کالبک برای اطلاع‌رسانی تغییر
+            if self.on_bank_change_callback:
+                self.on_bank_change_callback()
+            
             messagebox.showinfo("موفقیت", "بانک جدید با موفقیت اضافه شد")
             
         except Exception as e:
@@ -126,6 +131,10 @@ class BankTab(ttk.Frame):
             self.selected_bank_id = None
             self.refresh_bank_list()
             
+            # فراخوانی کالبک برای اطلاع‌رسانی تغییر
+            if self.on_bank_change_callback:
+                self.on_bank_change_callback()
+            
             messagebox.showinfo("موفقیت", "اطلاعات بانک با موفقیت به‌روزرسانی شد")
             
         except Exception as e:
@@ -155,6 +164,10 @@ class BankTab(ttk.Frame):
             self.bank_name_var.set("")
             self.selected_bank_id = None
             self.refresh_bank_list()
+            
+            # فراخوانی کالبک برای اطلاع‌رسانی تغییر
+            if self.on_bank_change_callback:
+                self.on_bank_change_callback()
             
             messagebox.showinfo("موفقیت", "بانک با موفقیت حذف شد")
             
