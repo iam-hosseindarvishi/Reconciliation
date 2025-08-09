@@ -254,9 +254,10 @@ class DataEntryTab(ttk.Frame):
             # پردازش فایل‌های پوز
             if has_pos:
                 try:
-                    self.logger.info("شروع پردازش فایل‌های پوز...")
+                    pos_folder_path = self.pos_folder_var.get()
+                    self.logger.info(f"شروع پردازش فایل‌های پوز با مسیر: {pos_folder_path}")
                     self.update_progress_bars((current_step / total_steps) * 100, 0)
-                    pos_result = process_pos_files(self.pos_folder_var.get(), bank_id)
+                    pos_result = process_pos_files(pos_folder_path, bank_id)
                     self.logger.info(f"پردازش پوز: {pos_result['files_processed']} فایل پردازش شد")
                     current_step += 1
                     self.update_progress_bars((current_step / total_steps) * 100, 100)

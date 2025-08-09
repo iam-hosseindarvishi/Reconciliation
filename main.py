@@ -34,6 +34,37 @@ except locale.Error:
 # راه‌اندازی لاگر
 logger = setup_logger('main')
 
+def test_pos_processing():
+    """
+    تابع آزمایشی برای بررسی پردازش فایل‌های پوز
+    """
+    from utils.pos_excel_importer import process_pos_files
+    from database.banks_repository import get_all_banks
+    
+    logger.info("شروع تست پردازش فایل‌های پوز...")
+    
+    # دریافت اولین بانک موجود
+    banks = get_all_banks()
+    if not banks:
+        logger.error("هیچ بانکی در سیستم ثبت نشده است")
+        return
+    
+    bank_id = banks[0][0]  # شناسه اولین بانک
+    bank_name = banks[0][1]  # نام اولین بانک
+    logger.info(f"استفاده از بانک: {bank_name} با شناسه {bank_id}")
+    
+    # مسیر پوشه پوز
+    pos_folder_path = "E:\\Work Space\\Reconciliation\\Test\\POS"
+    logger.info(f"مسیر پوشه پوز: {pos_folder_path}")
+    
+    # فراخوانی تابع پردازش
+    try:
+        result = process_pos_files(pos_folder_path, bank_id)
+        logger.info(f"نتیجه پردازش: {result}")
+    except Exception as e:
+        logger.error(f"خطا در پردازش فایل‌های پوز: {str(e)}")
+        logger.error(traceback.format_exc())
+
 def main():
     """
     تابع اصلی برنامه با مدیریت خطا و لاگینگ
@@ -43,6 +74,9 @@ def main():
         logger.info("در حال راه‌اندازی پایگاه داده...")
         init_db()
         logger.info("پایگاه داده با موفقیت راه‌اندازی شد")
+        
+        # اجرای تابع آزمایشی
+        test_pos_processing()
 
         # ایجاد پنجره اصلی
         logger.info("در حال ایجاد رابط کاربری...")
