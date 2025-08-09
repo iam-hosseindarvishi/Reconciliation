@@ -2,14 +2,17 @@ import os
 import logging
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
-from tkinter import StringVar, filedialog
+from tkinter import StringVar, filedialog, font
 from tkinter.ttk import Combobox
 from ttkbootstrap.scrolled import ScrolledText
 from database.banks_repository import get_all_banks
 from utils.mellat_bank_processor import process_mellat_bank_file
 from utils.pos_excel_importer import process_pos_files
 from utils.accounting_excel_importer import import_accounting_excel
-from config.settings import DATA_DIR
+from config.settings import (
+    DATA_DIR, DEFAULT_FONT, DEFAULT_FONT_SIZE,
+    HEADER_FONT_SIZE, BUTTON_FONT_SIZE
+)
 
 
 
@@ -64,35 +67,49 @@ class DataEntryTab(ttk.Frame):
         PADY = 8
         ENTRY_WIDTH = 60
 
+        # تنظیم فونت‌ها
+        self.default_font = (DEFAULT_FONT, DEFAULT_FONT_SIZE, 'bold')
+        self.header_font = (DEFAULT_FONT, HEADER_FONT_SIZE, 'bold')
+        self.button_font = (DEFAULT_FONT, BUTTON_FONT_SIZE, 'bold')
+        self.log_font = (DEFAULT_FONT, DEFAULT_FONT_SIZE - 1, 'bold')  # کمی کوچکتر برای لاگ‌ها
+
+        # تنظیم استایل‌ها
+        style = ttk.Style()
+        style.configure('Header.TLabelframe', font=self.header_font)
+        style.configure('Header.TLabelframe.Label', font=self.header_font)
+        style.configure('Default.TLabel', font=self.default_font)
+        style.configure('Default.TEntry', font=self.default_font)
+        style.configure('Bold.TButton', font=self.button_font)
+
         main_frame = ttk.Frame(self)
         main_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
         # === بخش پوز ===
-        pos_frame = ttk.LabelFrame(self, text="ورود اطلاعات پوز")
+        pos_frame = ttk.LabelFrame(self, text="ورود اطلاعات پوز", style='Header.TLabelframe')
         pos_frame.pack(fill="x", pady=5)
         pos_frame.columnconfigure(1, weight=1)
-        ttk.Label(pos_frame, text="آدرس پوشه فایل‌های پوز:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
-        pos_entry = ttk.Entry(pos_frame, textvariable=self.pos_folder_var, width=ENTRY_WIDTH, state="readonly")
+        ttk.Label(pos_frame, text="آدرس پوشه فایل‌های پوز:", style='Default.TLabel').grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        pos_entry = ttk.Entry(pos_frame, textvariable=self.pos_folder_var, width=ENTRY_WIDTH, state="readonly", style='Default.TEntry')
         pos_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
-        ttk.Button(pos_frame, text="انتخاب پوشه", command=self.select_pos_folder, bootstyle=PRIMARY, width=14).grid(row=0, column=2, padx=5, pady=5)
+        ttk.Button(pos_frame, text="انتخاب پوشه", command=self.select_pos_folder, bootstyle=PRIMARY, width=14, style='Bold.TButton').grid(row=0, column=2, padx=5, pady=5)
 
         # === بخش حسابداری ===
-        acc_frame = ttk.LabelFrame(self, text="ورود اطلاعات حسابداری")
+        acc_frame = ttk.LabelFrame(self, text="ورود اطلاعات حسابداری", style='Header.TLabelframe')
         acc_frame.pack(fill="x", pady=5)
         acc_frame.columnconfigure(1, weight=1)
-        ttk.Label(acc_frame, text="فایل اکسل سیستم حسابداری:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
-        acc_entry = ttk.Entry(acc_frame, textvariable=self.accounting_file_var, width=ENTRY_WIDTH, state="readonly")
+        ttk.Label(acc_frame, text="فایل اکسل سیستم حسابداری:", style='Default.TLabel').grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        acc_entry = ttk.Entry(acc_frame, textvariable=self.accounting_file_var, width=ENTRY_WIDTH, state="readonly", style='Default.TEntry')
         acc_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
-        ttk.Button(acc_frame, text="انتخاب فایل", command=self.select_accounting_file, bootstyle=PRIMARY, width=14).grid(row=0, column=2, padx=5, pady=5)
+        ttk.Button(acc_frame, text="انتخاب فایل", command=self.select_accounting_file, bootstyle=PRIMARY, width=14, style='Bold.TButton').grid(row=0, column=2, padx=5, pady=5)
 
         # === بخش بانک ===
-        bank_frame = ttk.LabelFrame(self, text="ورود اطلاعات بانک")
+        bank_frame = ttk.LabelFrame(self, text="ورود اطلاعات بانک", style='Header.TLabelframe')
         bank_frame.pack(fill="x", pady=5)
         bank_frame.columnconfigure(1, weight=1)
-        ttk.Label(bank_frame, text="فایل اکسل بانک:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
-        bank_entry = ttk.Entry(bank_frame, textvariable=self.bank_file_var, width=ENTRY_WIDTH, state="readonly")
+        ttk.Label(bank_frame, text="فایل اکسل بانک:", style='Default.TLabel').grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        bank_entry = ttk.Entry(bank_frame, textvariable=self.bank_file_var, width=ENTRY_WIDTH, state="readonly", style='Default.TEntry')
         bank_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
-        ttk.Button(bank_frame, text="انتخاب فایل", command=self.select_bank_file, bootstyle=PRIMARY, width=14).grid(row=0, column=2, padx=5, pady=5)
+        ttk.Button(bank_frame, text="انتخاب فایل", command=self.select_bank_file, bootstyle=PRIMARY, width=14, style='Bold.TButton').grid(row=0, column=2, padx=5, pady=5)
 
         # === کنترل‌های پایین ===
         control_frame = ttk.Frame(self)
@@ -100,22 +117,24 @@ class DataEntryTab(ttk.Frame):
         control_frame.columnconfigure(1, weight=1)
 
         # === Combobox و Label بانک ===
-        ttk.Label(control_frame, text="انتخاب بانک:").grid(row=0, column=0, sticky="e", padx=5, pady=5)
+        ttk.Label(control_frame, text="انتخاب بانک:", style='Default.TLabel').grid(row=0, column=0, sticky="e", padx=5, pady=5)
+        # تنظیم فونت کامبوباکس به صورت مستقیم چون استایل ttk روی آن اثر نمی‌کند
         self.bank_combobox = Combobox(control_frame, textvariable=self.selected_bank_var, state="readonly", width=30)
+        self.bank_combobox.configure(font=self.default_font)
         self.bank_combobox.grid(row=0, column=1, sticky="w", padx=5, pady=5)
 
         # === دکمه‌های کنترل ===
         btn_frame = ttk.Frame(control_frame)
         btn_frame.grid(row=0, column=2, sticky="e", padx=5, pady=5)
-        ttk.Button(btn_frame, text="شروع فرآیند", command=self.start_process, bootstyle=SUCCESS, width=16).pack(side="left", padx=5)
-        ttk.Button(btn_frame, text="پاک کردن ورودی‌ها", command=self.clear_entries, bootstyle=DANGER, width=16).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="شروع فرآیند", command=self.start_process, bootstyle=SUCCESS, width=16, style='Bold.TButton').pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="پاک کردن ورودی‌ها", command=self.clear_entries, bootstyle=DANGER, width=16, style='Bold.TButton').pack(side="left", padx=5)
 
         # === فریم وضعیت و نوارهای پیشرفت ===
-        progress_frame = ttk.LabelFrame(self, text="پیشرفت عملیات")
+        progress_frame = ttk.LabelFrame(self, text="پیشرفت عملیات", style='Header.TLabelframe')
         progress_frame.pack(fill="x", pady=5)
         
         # نوار پیشرفت کلی
-        ttk.Label(progress_frame, text="پیشرفت کلی:", anchor="w").pack(fill="x", padx=5)
+        ttk.Label(progress_frame, text="پیشرفت کلی:", anchor="w", style='Default.TLabel').pack(fill="x", padx=5)
         self.overall_progressbar = ttk.Progressbar(
             progress_frame, 
             mode="determinate",
@@ -125,7 +144,7 @@ class DataEntryTab(ttk.Frame):
         self.overall_progressbar.pack(fill="x", padx=5, pady=(0, 5))
         
         # نوار پیشرفت جزئی
-        ttk.Label(progress_frame, text="پیشرفت جزئی:", anchor="w").pack(fill="x", padx=5)
+        ttk.Label(progress_frame, text="پیشرفت جزئی:", anchor="w", style='Default.TLabel').pack(fill="x", padx=5)
         self.detailed_progressbar = ttk.Progressbar(
             progress_frame,
             mode="determinate",
@@ -135,10 +154,11 @@ class DataEntryTab(ttk.Frame):
         self.detailed_progressbar.pack(fill="x", padx=5, pady=(0, 5))
         
         # === کادر لاگ ===
-        log_frame = ttk.LabelFrame(self, text="گزارش عملیات")
+        log_frame = ttk.LabelFrame(self, text="گزارش عملیات", style='Header.TLabelframe')
         log_frame.pack(fill="both", expand=True, pady=5)
         
-        self.log_text = ScrolledText(log_frame, height=10)
+        # برای ScrolledText می‌توانیم مستقیماً از font استفاده کنیم
+        self.log_text = ScrolledText(log_frame, height=10, font=self.log_font)
         self.log_text.pack(fill="both", expand=True, padx=5, pady=5)
         
         # اضافه کردن UI handler به logger

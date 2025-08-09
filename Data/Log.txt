@@ -1,1 +1,137 @@
 2025-08-08 23:09:56,577 - INFO - ������ ���: 0 ��ǘ�� ������ ��
+2025-08-08 23:32:08,750 - INFO - ������ ���: 0 ��ǘ�� ������ ��
+2025-08-09 20:08:48 - main - INFO - در حال راه‌اندازی پایگاه داده...
+2025-08-09 20:08:48 - database - INFO - شروع ایجاد جداول دیتابیس
+2025-08-09 20:08:48 - main - INFO - پایگاه داده با موفقیت راه‌اندازی شد
+2025-08-09 20:08:48 - main - INFO - در حال ایجاد رابط کاربری...
+2025-08-09 20:08:49 - main - INFO - در حال بارگذاری تب ورود اطلاعات...
+2025-08-09 20:08:49 - banks_repository - INFO - تعداد 2 بانک یافت شد
+2025-08-09 20:08:49 - main - INFO - تب ورود اطلاعات با موفقیت بارگذاری شد
+2025-08-09 20:08:49 - main - INFO - در حال بارگذاری تب مدیریت بانک‌ها...
+2025-08-09 20:08:49 - banks_repository - INFO - تعداد 2 بانک یافت شد
+2025-08-09 20:08:49 - ui.bank_tab - INFO - تب مدیریت بانک‌ها با موفقیت راه‌اندازی شد
+2025-08-09 20:08:49 - main - INFO - تب مدیریت بانک‌ها با موفقیت بارگذاری شد
+2025-08-09 20:08:49 - main - INFO - رابط کاربری با موفقیت راه‌اندازی شد
+2025-08-09 20:09:39 - main - INFO - در حال راه‌اندازی پایگاه داده...
+2025-08-09 20:09:39 - database - INFO - شروع ایجاد جداول دیتابیس
+2025-08-09 20:09:39 - main - INFO - پایگاه داده با موفقیت راه‌اندازی شد
+2025-08-09 20:09:39 - main - INFO - در حال ایجاد رابط کاربری...
+2025-08-09 20:09:40 - main - INFO - در حال بارگذاری تب ورود اطلاعات...
+2025-08-09 20:09:40 - banks_repository - INFO - تعداد 2 بانک یافت شد
+2025-08-09 20:09:40 - main - INFO - تب ورود اطلاعات با موفقیت بارگذاری شد
+2025-08-09 20:09:40 - main - INFO - در حال بارگذاری تب مدیریت بانک‌ها...
+2025-08-09 20:09:40 - banks_repository - INFO - تعداد 2 بانک یافت شد
+2025-08-09 20:09:40 - ui.bank_tab - INFO - تب مدیریت بانک‌ها با موفقیت راه‌اندازی شد
+2025-08-09 20:09:40 - main - INFO - تب مدیریت بانک‌ها با موفقیت بارگذاری شد
+2025-08-09 20:09:40 - main - INFO - رابط کاربری با موفقیت راه‌اندازی شد
+2025-08-09 20:12:45 - main - INFO - در حال راه‌اندازی پایگاه داده...
+2025-08-09 20:12:45 - database - INFO - شروع ایجاد جداول دیتابیس
+2025-08-09 20:12:45 - main - INFO - پایگاه داده با موفقیت راه‌اندازی شد
+2025-08-09 20:12:45 - main - INFO - در حال ایجاد رابط کاربری...
+2025-08-09 20:12:45 - main - INFO - در حال بارگذاری تب ورود اطلاعات...
+2025-08-09 20:12:45 - main - ERROR - خطا در بارگذاری تب ورود اطلاعات: unknown option "-font"
+2025-08-09 20:12:45 - main - CRITICAL - خطای بحرانی در اجرای برنامه: unknown option "-font"
+2025-08-09 20:12:45 - main - CRITICAL - جزئیات خطا:
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\main.py", line 88, in main
+    data_entry_tab = DataEntryTab(notebook)
+  File "e:\Work Space\Reconciliation\ui\data_entry_tab.py", line 39, in __init__
+    self.create_widgets()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "e:\Work Space\Reconciliation\ui\data_entry_tab.py", line 80, in create_widgets
+    pos_frame = ttk.LabelFrame(self, text="ورود اطلاعات پوز", font=self.header_font)
+                ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Work Space\Reconciliation\.venv\Lib\site-packages\ttkbootstrap\style.py", line 5187, in __init__
+    func(self, *args, **kwargs)
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Hossein\AppData\Local\Programs\Python\Python313\Lib\tkinter\ttk.py", line 758, in __init__
+    Widget.__init__(self, master, "ttk::labelframe", kw)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Hossein\AppData\Local\Programs\Python\Python313\Lib\tkinter\ttk.py", line 534, in __init__
+    tkinter.Widget.__init__(self, master, widgetname, kw=kw)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Hossein\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2774, in __init__
+    self.tk.call(
+    ~~~~~~~~~~~~^
+        (widgetName, self._w) + extra + self._options(cnf))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: unknown option "-font"
+
+2025-08-09 20:12:58 - main - INFO - در حال راه‌اندازی پایگاه داده...
+2025-08-09 20:12:58 - database - INFO - شروع ایجاد جداول دیتابیس
+2025-08-09 20:12:58 - main - INFO - پایگاه داده با موفقیت راه‌اندازی شد
+2025-08-09 20:12:58 - main - INFO - در حال ایجاد رابط کاربری...
+2025-08-09 20:12:58 - main - INFO - در حال بارگذاری تب ورود اطلاعات...
+2025-08-09 20:12:58 - main - ERROR - خطا در بارگذاری تب ورود اطلاعات: unknown option "-font"
+2025-08-09 20:12:58 - main - CRITICAL - خطای بحرانی در اجرای برنامه: unknown option "-font"
+2025-08-09 20:12:58 - main - CRITICAL - جزئیات خطا:
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\main.py", line 88, in main
+    data_entry_tab = DataEntryTab(notebook)
+  File "e:\Work Space\Reconciliation\ui\data_entry_tab.py", line 39, in __init__
+    self.create_widgets()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "e:\Work Space\Reconciliation\ui\data_entry_tab.py", line 80, in create_widgets
+    pos_frame = ttk.LabelFrame(self, text="ورود اطلاعات پوز", font=self.header_font)
+                ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Work Space\Reconciliation\.venv\Lib\site-packages\ttkbootstrap\style.py", line 5187, in __init__
+    func(self, *args, **kwargs)
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Hossein\AppData\Local\Programs\Python\Python313\Lib\tkinter\ttk.py", line 758, in __init__
+    Widget.__init__(self, master, "ttk::labelframe", kw)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Hossein\AppData\Local\Programs\Python\Python313\Lib\tkinter\ttk.py", line 534, in __init__
+    tkinter.Widget.__init__(self, master, widgetname, kw=kw)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Hossein\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2774, in __init__
+    self.tk.call(
+    ~~~~~~~~~~~~^
+        (widgetName, self._w) + extra + self._options(cnf))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: unknown option "-font"
+
+2025-08-09 20:13:18 - main - INFO - در حال راه‌اندازی پایگاه داده...
+2025-08-09 20:13:18 - database - INFO - شروع ایجاد جداول دیتابیس
+2025-08-09 20:13:18 - main - INFO - پایگاه داده با موفقیت راه‌اندازی شد
+2025-08-09 20:13:18 - main - INFO - در حال ایجاد رابط کاربری...
+2025-08-09 20:13:18 - main - INFO - در حال بارگذاری تب ورود اطلاعات...
+2025-08-09 20:13:18 - main - ERROR - خطا در بارگذاری تب ورود اطلاعات: unknown option "-font"
+2025-08-09 20:13:18 - main - CRITICAL - خطای بحرانی در اجرای برنامه: unknown option "-font"
+2025-08-09 20:13:18 - main - CRITICAL - جزئیات خطا:
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\main.py", line 88, in main
+    data_entry_tab = DataEntryTab(notebook)
+  File "e:\Work Space\Reconciliation\ui\data_entry_tab.py", line 39, in __init__
+    self.create_widgets()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "e:\Work Space\Reconciliation\ui\data_entry_tab.py", line 80, in create_widgets
+    pos_frame = ttk.LabelFrame(self, text="ورود اطلاعات پوز", font=self.header_font)
+                ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Work Space\Reconciliation\.venv\Lib\site-packages\ttkbootstrap\style.py", line 5187, in __init__
+    func(self, *args, **kwargs)
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Hossein\AppData\Local\Programs\Python\Python313\Lib\tkinter\ttk.py", line 758, in __init__
+    Widget.__init__(self, master, "ttk::labelframe", kw)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Hossein\AppData\Local\Programs\Python\Python313\Lib\tkinter\ttk.py", line 534, in __init__
+    tkinter.Widget.__init__(self, master, widgetname, kw=kw)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Hossein\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2774, in __init__
+    self.tk.call(
+    ~~~~~~~~~~~~^
+        (widgetName, self._w) + extra + self._options(cnf))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: unknown option "-font"
+
+2025-08-09 20:15:45 - main - INFO - در حال راه‌اندازی پایگاه داده...
+2025-08-09 20:15:45 - database - INFO - شروع ایجاد جداول دیتابیس
+2025-08-09 20:15:45 - main - INFO - پایگاه داده با موفقیت راه‌اندازی شد
+2025-08-09 20:15:45 - main - INFO - در حال ایجاد رابط کاربری...
+2025-08-09 20:15:45 - main - INFO - در حال بارگذاری تب ورود اطلاعات...
+2025-08-09 20:15:45 - banks_repository - INFO - تعداد 2 بانک یافت شد
+2025-08-09 20:15:45 - main - INFO - تب ورود اطلاعات با موفقیت بارگذاری شد
+2025-08-09 20:15:45 - main - INFO - در حال بارگذاری تب مدیریت بانک‌ها...
+2025-08-09 20:15:45 - banks_repository - INFO - تعداد 2 بانک یافت شد
+2025-08-09 20:15:45 - ui.bank_tab - INFO - تب مدیریت بانک‌ها با موفقیت راه‌اندازی شد
+2025-08-09 20:15:45 - main - INFO - تب مدیریت بانک‌ها با موفقیت بارگذاری شد
+2025-08-09 20:15:45 - main - INFO - رابط کاربری با موفقیت راه‌اندازی شد
