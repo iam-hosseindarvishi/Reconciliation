@@ -35,7 +35,8 @@ def process_mellat_bank_file(mellat_file_path, bank_id):
                 # محاسبه مبلغ (بدهکار یا بستانکار)
                 debit = float(row['مبلغ گردش بدهکار'] or 0)
                 credit = float(row['مبلغ گردش بستانکار'] or 0)
-                amount = credit - debit
+                amount = credit if float(row['مبلغ گردش بستانکار'] or 0) != 0 else debit
+
                 
                 # تبدیل تاریخ به میلادی
                 gregorian_date = persian_to_gregorian(str(row['تاریخ']))
@@ -75,31 +76,37 @@ def determine_transaction_type(row):
     beneficiary = str(row['واریز کننده/ ذیتفع'])
     branch = str(row['شعبه'])
     description = str(row['شرح'])
-    has_credit = pd.notna(row['مبلغ گردش بستانکار'])
-    has_debit = pd.notna(row['مبلغ گردش بدهکار'])
+    has_credit = float(row['مبلغ گردش بستانکار'] or 0) != 0
+    has_debit = float(row['مبلغ گردش بدهکار'] or 0) != 0
     
     # شرط ۱: تراکنش‌های POS از طریق شاپرک
     if ('شاپرک-پوز' in beneficiary and 
         branch == 'شاپرک' and 
         has_credit):
         return MELLAT_TRANSACTION_TYPES['RECEIVED_POS']
-    
+    # شرط حواله ها و واریز انتقالی
+    if(('حواله' in description or 'حواله همراه بانک' in description) and has_credit):
+        return MELLAT_TRANSACTION_TYPES['RECEIVED_TRANSFER']
+    if('واریز انتقالی' in description and has_credit):
+        return MELLAT_TRANSACTION_TYPES['RECEIVED_TRANSFER']
     # شرط ۲: کارمزدهای بانکی
     if ('کارمزد' in description and 
         branch == 'اداره کل مدیریت عملیات'):
         return MELLAT_TRANSACTION_TYPES['BANK_FEES']
-    
-    # شرط ۳: انتقال‌های پرداختی
-    if (branch == 'اداره حسابداری متمرکز' and has_debit):
-        return MELLAT_TRANSACTION_TYPES['PAID_TRANSFER']
-    
-    # شرط ۴: انتقال‌های دریافتی (پایا یا لحظه‌ای)
-    if (branch in ['اداره امور پایا', 'اداره امور پرداخت لحظه ای' , 'اداره حسابداری متمرکز'] and has_credit):
+    if('کارمزد پایا' in beneficiary and has_debit):
+        return MELLAT_TRANSACTION_TYPES['BANK_FEES']
+
+    # شرط ۳: انتقال‌های دریافتی (پایا یا لحظه‌ای)
+    if (branch in ['اداره امور پایا', 'اداره امور پرداخت لحظه ای'] or description in ['پایا','از اینترنت']  and has_credit):
         return MELLAT_TRANSACTION_TYPES['RECEIVED_TRANSFER']
     
-    # شرط ۵: انتقال‌های دریافتی (حسابداری متمرکز)
+    # شرط ۴: انتقال‌های دریافتی (حسابداری متمرکز)
     if (branch == 'اداره حسابداری متمرکز' and has_credit):
         return MELLAT_TRANSACTION_TYPES['RECEIVED_TRANSFER']
+    
+    # شرط ۵: انتقال‌های پرداختی
+    if (branch == 'اداره حسابداری متمرکز' and has_debit):
+        return MELLAT_TRANSACTION_TYPES['PAID_TRANSFER']
     
     # شرط ۶: تراکنش‌های POS از طریق پایا
     if (branch == 'اداره امور پایا' and 'پوز' in beneficiary):

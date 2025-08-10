@@ -9,7 +9,7 @@ TRANSACTION_TYPE_MAP = {
 
 # ثابت‌های نوع تراکنش برای بانک ملت
 MELLAT_TRANSACTION_TYPES = {
-    'RECEIVED_POS': 'Recived_Pos',
+    'RECEIVED_POS': 'Received_Pos',
     'BANK_FEES': 'Bank_Fees',
     'PAID_TRANSFER': 'Paid_Transfer',
     'RECEIVED_TRANSFER': 'Received_Transfer',
@@ -22,14 +22,4 @@ RECONCILIATION_STATUS = {
     'NOT_CHECKED': 0,  # هنوز بررسی نشده
     'MATCHED': 1,      # تطبیق داده شده
     'UNMATCHED': 2    # عدم تطبیق
-}
-
-# ثابت‌های نوع تراکنش برای بانک ملت
-MELLAT_TRANSACTION_TYPES = {
-    'RECEIVED_POS': 'Recived_Pos',
-    'BANK_FEES': 'Bank_Fees',
-    'PAID_TRANSFER': 'Paid_Transfer',
-    'RECEIVED_TRANSFER': 'Received_Transfer',
-    'POS': 'Pos',
-    'UNKNOWN': 'Unknown'
 }
