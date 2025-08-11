@@ -97,7 +97,7 @@ def determine_transaction_type(row):
         return MELLAT_TRANSACTION_TYPES['BANK_FEES']
 
     # شرط ۳: انتقال‌های دریافتی (پایا یا لحظه‌ای)
-    if (branch in ['اداره امور پایا', 'اداره امور پرداخت لحظه ای'] or description in ['پایا','از اینترنت']  and has_credit):
+    if ((branch in ['اداره امور پایا', 'اداره امور پرداخت لحظه ای'] or ['پایا','از اینترنت'] in description) and has_credit):
         return MELLAT_TRANSACTION_TYPES['RECEIVED_TRANSFER']
     
     # شرط ۴: انتقال‌های دریافتی (حسابداری متمرکز)
