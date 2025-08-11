@@ -1,1 +1,109 @@
-﻿
+﻿2025-08-11 23:20:20 - main - INFO - در حال راه‌اندازی پایگاه داده...
+2025-08-11 23:20:20 - database.init_db - INFO - شروع ایجاد جداول دیتابیس
+2025-08-11 23:20:20 - main - INFO - پایگاه داده با موفقیت راه‌اندازی شد
+2025-08-11 23:20:20 - main - INFO - شروع تست پردازش فایل‌های پوز...
+2025-08-11 23:20:20 - banks_repository - INFO - تعداد 2 بانک یافت شد
+2025-08-11 23:20:20 - main - INFO - استفاده از بانک: ملت با شناسه 1
+2025-08-11 23:20:20 - main - INFO - مسیر پوشه پوز: E:\Work Space\Reconciliation\Test\POS
+2025-08-11 23:20:20 - utils.pos_excel_importer - INFO - شروع پردازش پوز با مسیر: E:\Work Space\Reconciliation\Test\POS و شناسه بانک: 1
+2025-08-11 23:20:20 - utils.pos_excel_importer - INFO - نوع مسیر: <class 'str'>, مقدار: E:\Work Space\Reconciliation\Test\POS
+2025-08-11 23:20:20 - utils.pos_excel_importer - INFO - بررسی وجود پوشه: E:\Work Space\Reconciliation\Test\POS
+2025-08-11 23:20:20 - utils.pos_excel_importer - INFO - پوشه یافت شد: E:\Work Space\Reconciliation\Test\POS
+2025-08-11 23:20:20 - utils.pos_excel_importer - INFO - تعداد کل فایل‌ها در پوشه: 1
+2025-08-11 23:20:20 - utils.pos_excel_importer - INFO - لیست فایل‌ها: ['sample_pos_data.xlsx']
+2025-08-11 23:20:20 - utils.pos_excel_importer - INFO - تعداد 1 فایل اکسل در پوشه E:\Work Space\Reconciliation\Test\POS یافت شد
+2025-08-11 23:20:20 - utils.pos_excel_importer - INFO - لیست فایل‌های اکسل: ['sample_pos_data.xlsx']
+2025-08-11 23:20:20 - utils.pos_excel_importer - INFO - شروع پردازش فایل: sample_pos_data.xlsx با مسیر کامل: E:\Work Space\Reconciliation\Test\POS\sample_pos_data.xlsx
+2025-08-11 23:20:20 - utils.pos_excel_importer - INFO - در حال خواندن فایل اکسل: E:\Work Space\Reconciliation\Test\POS\sample_pos_data.xlsx
+2025-08-11 23:20:20 - utils.pos_excel_importer - INFO - فایل اکسل با موفقیت خوانده شد. تعداد سطرها: 5
+2025-08-11 23:20:20 - utils.pos_excel_importer - INFO - ستون‌های فایل: ['نوع تراکنش', 'شناسه شعبه مشتری', 'نام شعبه مشتری', 'تاریخ تراکنش', 'مبلغ', 'شماره کارت', 'شماره پیگیری']
+2025-08-11 23:20:20 - utils.pos_excel_importer - INFO - تعداد 0 تراکنش خرید در فایل sample_pos_data.xlsx یافت شد
+2025-08-11 23:20:20 - utils.pos_excel_importer - INFO - پردازش فایل‌های پوز به پایان رسید. تعداد فایل‌های پردازش شده: 1, تعداد تراکنش‌های ذخیره شده: 0, تعداد ترمینال‌های جدید: 0, تعداد خطاها: 0
+2025-08-11 23:20:20 - main - INFO - نتیجه پردازش: {'files_processed': 1, 'transactions_saved': 0, 'terminals_created': 0, 'errors': []}
+2025-08-11 23:20:20 - main - INFO - شروع تست پردازش فایل بانک کشاورزی...
+2025-08-11 23:20:20 - banks_repository - INFO - بانکی با نام کشاورزی یافت نشد
+2025-08-11 23:20:20 - banks_repository - INFO - بانک جدید با نام کشاورزی ایجاد شد
+2025-08-11 23:20:20 - main - INFO - بانک کشاورزی با شناسه 3 ایجاد شد
+2025-08-11 23:20:20 - main - INFO - مسیر فایل بانک کشاورزی: E:\Work Space\Reconciliation\Test\Keshavarzi\sample_keshavarzi_data.xlsx
+2025-08-11 23:20:20 - utils.keshavarzi_bank_processor - INFO - شروع پردازش فایل بانک کشاورزی: E:\Work Space\Reconciliation\Test\Keshavarzi\sample_keshavarzi_data.xlsx
+2025-08-11 23:20:20 - database.bank_transaction_repository - ERROR - خطا در ثبت تراکنش: table BankTransactions has no column named source_card_number
+2025-08-11 23:20:20 - utils.keshavarzi_bank_processor - ERROR - خطا در پردازش ردیف 1: table BankTransactions has no column named source_card_number
+2025-08-11 23:20:20 - database.bank_transaction_repository - ERROR - خطا در ثبت تراکنش: table BankTransactions has no column named source_card_number
+2025-08-11 23:20:20 - utils.keshavarzi_bank_processor - ERROR - خطا در پردازش ردیف 2: table BankTransactions has no column named source_card_number
+2025-08-11 23:20:20 - database.bank_transaction_repository - ERROR - خطا در ثبت تراکنش: table BankTransactions has no column named source_card_number
+2025-08-11 23:20:20 - utils.keshavarzi_bank_processor - ERROR - خطا در پردازش ردیف 3: table BankTransactions has no column named source_card_number
+2025-08-11 23:20:20 - database.bank_transaction_repository - ERROR - خطا در ثبت تراکنش: table BankTransactions has no column named source_card_number
+2025-08-11 23:20:20 - utils.keshavarzi_bank_processor - ERROR - خطا در پردازش ردیف 4: table BankTransactions has no column named source_card_number
+2025-08-11 23:20:20 - database.bank_transaction_repository - ERROR - خطا در ثبت تراکنش: table BankTransactions has no column named source_card_number
+2025-08-11 23:20:20 - utils.keshavarzi_bank_processor - ERROR - خطا در پردازش ردیف 5: table BankTransactions has no column named source_card_number
+2025-08-11 23:20:20 - database.bank_transaction_repository - ERROR - خطا در ثبت تراکنش: table BankTransactions has no column named source_card_number
+2025-08-11 23:20:20 - utils.keshavarzi_bank_processor - ERROR - خطا در پردازش ردیف 6: table BankTransactions has no column named source_card_number
+2025-08-11 23:20:20 - database.bank_transaction_repository - ERROR - خطا در ثبت تراکنش: table BankTransactions has no column named source_card_number
+2025-08-11 23:20:20 - utils.keshavarzi_bank_processor - ERROR - خطا در پردازش ردیف 7: table BankTransactions has no column named source_card_number
+2025-08-11 23:20:20 - utils.keshavarzi_bank_processor - INFO - پردازش فایل بانک کشاورزی به پایان رسید. 0 از 7 ردیف پردازش شد.
+2025-08-11 23:20:20 - main - INFO - نتیجه پردازش: {'total_rows': 7, 'processed': 0, 'errors': ['خطا در پردازش ردیف 1: table BankTransactions has no column named source_card_number', 'خطا در پردازش ردیف 2: table BankTransactions has no column named source_card_number', 'خطا در پردازش ردیف 3: table BankTransactions has no column named source_card_number', 'خطا در پردازش ردیف 4: table BankTransactions has no column named source_card_number', 'خطا در پردازش ردیف 5: table BankTransactions has no column named source_card_number', 'خطا در پردازش ردیف 6: table BankTransactions has no column named source_card_number', 'خطا در پردازش ردیف 7: table BankTransactions has no column named source_card_number'], 'transaction_types': {'Received_Pos': 1, 'Received_Check': 1, 'Paid_Check': 1, 'Received_Transfer': 3, 'Paid_Transfer': 1}}
+2025-08-11 23:20:20 - main - INFO - در حال ایجاد رابط کاربری...
+2025-08-11 23:20:21 - main - INFO - در حال بارگذاری تب ورود اطلاعات...
+2025-08-11 23:20:21 - banks_repository - INFO - تعداد 3 بانک یافت شد
+2025-08-11 23:20:21 - main - INFO - تب ورود اطلاعات با موفقیت بارگذاری شد
+2025-08-11 23:20:21 - main - INFO - در حال بارگذاری تب مدیریت بانک‌ها...
+2025-08-11 23:20:21 - banks_repository - INFO - تعداد 3 بانک یافت شد
+2025-08-11 23:20:21 - ui.bank_tab - INFO - تب مدیریت بانک‌ها با موفقیت راه‌اندازی شد
+2025-08-11 23:20:21 - main - INFO - تب مدیریت بانک‌ها با موفقیت بارگذاری شد
+2025-08-11 23:20:21 - main - INFO - رابط کاربری با موفقیت راه‌اندازی شد
+2025-08-11 23:26:06 - main - INFO - در حال راه‌اندازی پایگاه داده...
+2025-08-11 23:26:06 - database.init_db - INFO - شروع ایجاد جداول دیتابیس
+2025-08-11 23:26:06 - main - INFO - پایگاه داده با موفقیت راه‌اندازی شد
+2025-08-11 23:26:06 - main - INFO - شروع تست پردازش فایل‌های پوز...
+2025-08-11 23:26:06 - banks_repository - INFO - تعداد 3 بانک یافت شد
+2025-08-11 23:26:06 - main - INFO - استفاده از بانک: ملت با شناسه 1
+2025-08-11 23:26:06 - main - INFO - مسیر پوشه پوز: E:\Work Space\Reconciliation\Test\POS
+2025-08-11 23:26:06 - utils.pos_excel_importer - INFO - شروع پردازش پوز با مسیر: E:\Work Space\Reconciliation\Test\POS و شناسه بانک: 1
+2025-08-11 23:26:06 - utils.pos_excel_importer - INFO - نوع مسیر: <class 'str'>, مقدار: E:\Work Space\Reconciliation\Test\POS
+2025-08-11 23:26:06 - utils.pos_excel_importer - INFO - بررسی وجود پوشه: E:\Work Space\Reconciliation\Test\POS
+2025-08-11 23:26:06 - utils.pos_excel_importer - INFO - پوشه یافت شد: E:\Work Space\Reconciliation\Test\POS
+2025-08-11 23:26:06 - utils.pos_excel_importer - INFO - تعداد کل فایل‌ها در پوشه: 1
+2025-08-11 23:26:06 - utils.pos_excel_importer - INFO - لیست فایل‌ها: ['sample_pos_data.xlsx']
+2025-08-11 23:26:06 - utils.pos_excel_importer - INFO - تعداد 1 فایل اکسل در پوشه E:\Work Space\Reconciliation\Test\POS یافت شد
+2025-08-11 23:26:06 - utils.pos_excel_importer - INFO - لیست فایل‌های اکسل: ['sample_pos_data.xlsx']
+2025-08-11 23:26:06 - utils.pos_excel_importer - INFO - شروع پردازش فایل: sample_pos_data.xlsx با مسیر کامل: E:\Work Space\Reconciliation\Test\POS\sample_pos_data.xlsx
+2025-08-11 23:26:06 - utils.pos_excel_importer - INFO - در حال خواندن فایل اکسل: E:\Work Space\Reconciliation\Test\POS\sample_pos_data.xlsx
+2025-08-11 23:26:06 - utils.pos_excel_importer - INFO - فایل اکسل با موفقیت خوانده شد. تعداد سطرها: 5
+2025-08-11 23:26:06 - utils.pos_excel_importer - INFO - ستون‌های فایل: ['نوع تراکنش', 'شناسه شعبه مشتری', 'نام شعبه مشتری', 'تاریخ تراکنش', 'مبلغ', 'شماره کارت', 'شماره پیگیری']
+2025-08-11 23:26:06 - utils.pos_excel_importer - INFO - تعداد 0 تراکنش خرید در فایل sample_pos_data.xlsx یافت شد
+2025-08-11 23:26:06 - utils.pos_excel_importer - INFO - پردازش فایل‌های پوز به پایان رسید. تعداد فایل‌های پردازش شده: 1, تعداد تراکنش‌های ذخیره شده: 0, تعداد ترمینال‌های جدید: 0, تعداد خطاها: 0
+2025-08-11 23:26:06 - main - INFO - نتیجه پردازش: {'files_processed': 1, 'transactions_saved': 0, 'terminals_created': 0, 'errors': []}
+2025-08-11 23:26:06 - main - INFO - شروع تست پردازش فایل بانک کشاورزی...
+2025-08-11 23:26:06 - banks_repository - INFO - بانک با نام کشاورزی یافت شد
+2025-08-11 23:26:06 - main - INFO - بانک کشاورزی با شناسه 3 یافت شد
+2025-08-11 23:26:06 - main - INFO - مسیر فایل بانک کشاورزی: E:\Work Space\Reconciliation\Test\Keshavarzi\sample_keshavarzi_data.xlsx
+2025-08-11 23:26:06 - utils.keshavarzi_bank_processor - INFO - شروع پردازش فایل بانک کشاورزی: E:\Work Space\Reconciliation\Test\Keshavarzi\sample_keshavarzi_data.xlsx
+2025-08-11 23:26:06 - database.bank_transaction_repository - ERROR - خطا در ثبت تراکنش: table BankTransactions has no column named source_card_number
+2025-08-11 23:26:06 - utils.keshavarzi_bank_processor - ERROR - خطا در پردازش ردیف 1: table BankTransactions has no column named source_card_number
+2025-08-11 23:26:06 - database.bank_transaction_repository - ERROR - خطا در ثبت تراکنش: table BankTransactions has no column named source_card_number
+2025-08-11 23:26:06 - utils.keshavarzi_bank_processor - ERROR - خطا در پردازش ردیف 2: table BankTransactions has no column named source_card_number
+2025-08-11 23:26:06 - database.bank_transaction_repository - ERROR - خطا در ثبت تراکنش: table BankTransactions has no column named source_card_number
+2025-08-11 23:26:06 - utils.keshavarzi_bank_processor - ERROR - خطا در پردازش ردیف 3: table BankTransactions has no column named source_card_number
+2025-08-11 23:26:06 - database.bank_transaction_repository - ERROR - خطا در ثبت تراکنش: table BankTransactions has no column named source_card_number
+2025-08-11 23:26:06 - utils.keshavarzi_bank_processor - ERROR - خطا در پردازش ردیف 4: table BankTransactions has no column named source_card_number
+2025-08-11 23:26:06 - database.bank_transaction_repository - ERROR - خطا در ثبت تراکنش: table BankTransactions has no column named source_card_number
+2025-08-11 23:26:06 - utils.keshavarzi_bank_processor - ERROR - خطا در پردازش ردیف 5: table BankTransactions has no column named source_card_number
+2025-08-11 23:26:06 - database.bank_transaction_repository - ERROR - خطا در ثبت تراکنش: table BankTransactions has no column named source_card_number
+2025-08-11 23:26:06 - utils.keshavarzi_bank_processor - ERROR - خطا در پردازش ردیف 6: table BankTransactions has no column named source_card_number
+2025-08-11 23:26:06 - database.bank_transaction_repository - ERROR - خطا در ثبت تراکنش: table BankTransactions has no column named source_card_number
+2025-08-11 23:26:06 - utils.keshavarzi_bank_processor - ERROR - خطا در پردازش ردیف 7: table BankTransactions has no column named source_card_number
+2025-08-11 23:26:06 - utils.keshavarzi_bank_processor - INFO - پردازش فایل بانک کشاورزی به پایان رسید. 0 از 7 ردیف پردازش شد.
+2025-08-11 23:26:06 - main - INFO - نتیجه پردازش: {'total_rows': 7, 'processed': 0, 'errors': ['خطا در پردازش ردیف 1: table BankTransactions has no column named source_card_number', 'خطا در پردازش ردیف 2: table BankTransactions has no column named source_card_number', 'خطا در پردازش ردیف 3: table BankTransactions has no column named source_card_number', 'خطا در پردازش ردیف 4: table BankTransactions has no column named source_card_number', 'خطا در پردازش ردیف 5: table BankTransactions has no column named source_card_number', 'خطا در پردازش ردیف 6: table BankTransactions has no column named source_card_number', 'خطا در پردازش ردیف 7: table BankTransactions has no column named source_card_number'], 'transaction_types': {'Received_Pos': 1, 'Received_Check': 1, 'Paid_Check': 1, 'Received_Transfer': 3, 'Paid_Transfer': 1}}
+2025-08-11 23:26:06 - main - INFO - در حال ایجاد رابط کاربری...
+2025-08-11 23:26:06 - main - INFO - در حال بارگذاری تب ورود اطلاعات...
+2025-08-11 23:26:06 - banks_repository - INFO - تعداد 3 بانک یافت شد
+2025-08-11 23:26:06 - main - INFO - تب ورود اطلاعات با موفقیت بارگذاری شد
+2025-08-11 23:26:06 - main - INFO - در حال بارگذاری تب مدیریت بانک‌ها...
+2025-08-11 23:26:06 - banks_repository - INFO - تعداد 3 بانک یافت شد
+2025-08-11 23:26:06 - ui.bank_tab - INFO - تب مدیریت بانک‌ها با موفقیت راه‌اندازی شد
+2025-08-11 23:26:06 - main - INFO - تب مدیریت بانک‌ها با موفقیت بارگذاری شد
+2025-08-11 23:26:06 - main - INFO - رابط کاربری با موفقیت راه‌اندازی شد
+2025-08-11 23:26:20,552 - INFO - شروع پردازش برای بانک کشاورزي
+2025-08-11 23:26:20,561 - INFO - شروع پردازش فایل بانک...
+2025-08-11 23:26:20,974 - INFO - پردازش بانک: 0 تراکنش پردازش شد
+2025-08-11 23:26:20,994 - INFO - عملیات پردازش به پایان رسید

@@ -17,6 +17,16 @@ MELLAT_TRANSACTION_TYPES = {
     'UNKNOWN': 'Unknown'
 }
 
+# ثابت‌های نوع تراکنش برای بانک کشاورزی
+KESHAVARZI_TRANSACTION_TYPES = {
+    'RECEIVED_POS': 'Received_Pos',
+    'RECEIVED_CHECK': 'Received_Check',
+    'PAID_CHECK': 'Paid_Check',
+    'PAID_TRANSFER': 'Paid_Transfer',
+    'RECEIVED_TRANSFER': 'Received_Transfer',
+    'UNKNOWN': 'Unknown'
+}
+
 # وضعیت‌های مغایرت‌گیری
 RECONCILIATION_STATUS = {
     'NOT_CHECKED': 0,  # هنوز بررسی نشده

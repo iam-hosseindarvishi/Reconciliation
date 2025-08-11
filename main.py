@@ -65,6 +65,39 @@ def test_pos_processing():
         logger.error(f"خطا در پردازش فایل‌های پوز: {str(e)}")
         logger.error(traceback.format_exc())
 
+def test_keshavarzi_processing():
+    """
+    تابع آزمایشی برای بررسی پردازش فایل بانک کشاورزی
+    """
+    from utils.keshavarzi_bank_processor import process_keshavarzi_bank_file
+    from database.banks_repository import get_bank_by_name, create_bank
+    
+    logger.info("شروع تست پردازش فایل بانک کشاورزی...")
+    
+    # دریافت یا ایجاد بانک کشاورزی
+    bank = get_bank_by_name("کشاورزی")
+    if not bank:
+        bank_id = create_bank("کشاورزی")
+        logger.info(f"بانک کشاورزی با شناسه {bank_id} ایجاد شد")
+    else:
+        bank_id = bank[0]
+        logger.info(f"بانک کشاورزی با شناسه {bank_id} یافت شد")
+    
+    # مسیر فایل بانک کشاورزی - این مسیر باید به فایل واقعی اشاره کند
+    keshavarzi_file_path = "E:\\Work Space\\Reconciliation\\Test\\Keshavarzi\\sample_keshavarzi_data.xlsx"
+    logger.info(f"مسیر فایل بانک کشاورزی: {keshavarzi_file_path}")
+    
+    # فراخوانی تابع پردازش
+    try:
+        if os.path.exists(keshavarzi_file_path):
+            result = process_keshavarzi_bank_file(keshavarzi_file_path, bank_id)
+            logger.info(f"نتیجه پردازش: {result}")
+        else:
+            logger.error(f"فایل بانک کشاورزی در مسیر {keshavarzi_file_path} یافت نشد")
+    except Exception as e:
+        logger.error(f"خطا در پردازش فایل بانک کشاورزی: {str(e)}")
+        logger.error(traceback.format_exc())
+
 def main():
     """
     تابع اصلی برنامه با مدیریت خطا و لاگینگ
@@ -75,8 +108,9 @@ def main():
         init_db()
         logger.info("پایگاه داده با موفقیت راه‌اندازی شد")
         
-        # اجرای تابع آزمایشی
+        # اجرای توابع آزمایشی
         test_pos_processing()
+        test_keshavarzi_processing()
 
         # ایجاد پنجره اصلی
         logger.info("در حال ایجاد رابط کاربری...")
