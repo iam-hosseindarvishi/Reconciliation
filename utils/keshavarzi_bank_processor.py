@@ -1,7 +1,7 @@
 import pandas as pd
 import re
 from utils.constants import KESHAVARZI_TRANSACTION_TYPES
-from utils.pos_excel_importer import persian_to_gregorian
+from utils.helpers import persian_to_gregorian
 from database.bank_transaction_repository import create_bank_transaction
 from utils.logger_config import setup_logger
 

@@ -7,6 +7,7 @@ from tkinter import StringVar, filedialog, font
 from tkinter.ttk import Combobox
 from ttkbootstrap.scrolled import ScrolledText
 from database.banks_repository import get_all_banks
+from utils.keshavarzi_bank_processor import process_keshavarzi_bank_file
 from utils.mellat_bank_processor import process_mellat_bank_file
 from utils.pos_excel_importer import process_pos_files
 from utils.accounting_excel_importer import import_accounting_excel
@@ -281,7 +282,11 @@ class DataEntryTab(ttk.Frame):
                 try:
                     self.logger.info("شروع پردازش فایل بانک...")
                     self.update_progress_bars((current_step / total_steps) * 100, 0)
-                    bank_result = process_mellat_bank_file(self.bank_file_var.get(), bank_id)
+                    bank_result=0
+                    if(bank_name=='ملت'):
+                        bank_result = process_mellat_bank_file(self.bank_file_var.get(), bank_id)
+                    elif(bank_name=='کشاورزی'):
+                        bank_result=process_keshavarzi_bank_file(self.bank_file_var.get(),bank_id)
                     self.logger.info(f"پردازش بانک: {bank_result['processed']} تراکنش پردازش شد")
                     current_step += 1
                     self.update_progress_bars(100, 100)
