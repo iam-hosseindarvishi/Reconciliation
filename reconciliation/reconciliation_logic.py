@@ -89,6 +89,7 @@ class ReconciliationProcess:
             # به عنوان مثال، برای تراکنش‌های POS
             if 'RECEIVED_POS' in categorized_transactions:
                 self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های POS...")
+                
                 self.ui.update_detailed_progress(60)
                 self.reconcile_pos_transactions(categorized_transactions['RECEIVED_POS'])
             
