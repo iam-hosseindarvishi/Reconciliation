@@ -5,6 +5,7 @@ from database.reconciliation.reconciliation_repository import (
     get_categorized_unreconciled_transactions
 )
 from reconciliation.unknown_transactions_dialog import UnknownTransactionsDialog
+from reconciliation.mellat_reconciliation import reconcile_mellat_pos
 from utils.logger_config import setup_logger
 
 # راه‌اندازی لاگر
@@ -87,8 +88,18 @@ class ReconciliationProcess:
             # برای هر نوع تراکنش، فرآیند مغایرت‌گیری متفاوتی انجام می‌شود
             
             # به عنوان مثال، برای تراکنش‌های POS
+            # به عنوان مثال، برای تراکنش\u200cهای POS
+            # به عنوان مثال، برای تراکنش‌های POS
             if 'RECEIVED_POS' in categorized_transactions:
-                self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های POS...")
+                if self.bank_id == 1:  # ID for Mellat Bank
+                    self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های POS بانک ملت...")
+                    self.ui.update_detailed_progress(60)
+                    reconcile_mellat_pos(categorized_transactions['RECEIVED_POS'], self.ui)
+                else:
+                    self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های POS...")
+                    self.ui.update_detailed_progress(60)
+                    self.reconcile_pos_transactions(categorized_transactions['RECEIVED_POS'])
+                self.ui.update_detailed_status("در حال مغایرت\u200cگیری تراکنش\u200cهای POS...")
                 
                 self.ui.update_detailed_progress(60)
                 self.reconcile_pos_transactions(categorized_transactions['RECEIVED_POS'])

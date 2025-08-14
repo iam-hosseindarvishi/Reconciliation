@@ -1,6 +1,7 @@
 from datetime import datetime
 import jdatetime
 from utils.logger_config import setup_logger
+from datetime import timedelta
 # راه‌اندازی لاگر
 logger = setup_logger('utils.helpers')
 
@@ -59,3 +60,31 @@ def persian_to_gregorian(jalali_date_str):
     
     logger.warning(f"فرمت تاریخ نامعتبر: {jalali_date_str}")
     return ''
+
+def get_pos_date_from_bank(bank_date_str):
+    """
+    Creates POS date from bank date by subtracting one day
+    Args:
+        bank_date_str: Date string in YYYY-MM-DD format
+    Returns:
+        POS date string in YYYY-MM-DD format, empty string if error occurs
+    """
+    if not bank_date_str:
+        logger.warning("Empty bank date received")
+        return ''
+    
+    try:
+        # Convert string to datetime object
+        bank_date = datetime.strptime(bank_date_str, '%Y-%m-%d')
+        # Subtract one day
+        pos_date = bank_date.date() - timedelta(days=1)
+        # Format back to string
+        result = pos_date.strftime('%Y-%m-%d')
+        logger.debug(f"Converted bank date {bank_date_str} to POS date {result}")
+        return result
+    except ValueError as e:
+        logger.error(f"Error converting bank date {bank_date_str}: {str(e)}")
+        return ''
+    except Exception as e:
+        logger.error(f"Unexpected error converting bank date {bank_date_str}: {str(e)}")
+        return ''

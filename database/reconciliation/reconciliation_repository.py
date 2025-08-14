@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime, timedelta
 from config.settings import DB_PATH
 from utils.logger_config import setup_logger
 
@@ -23,6 +24,73 @@ def has_unreconciled_transactions(bank_id):
     finally:
         if conn:
             conn.close()
+
+def get_unreconciled_pos_transactions(bank_id):
+    """Get unreconciled POS transactions for a specific bank."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT * FROM BankTransactions
+        WHERE bank_id = ? AND transaction_type = 'RECEIVED_POS' AND is_reconciled = 0
+    """, (bank_id,))
+    transactions = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return transactions
+    
+
+def get_accounting_transactions_for_pos(pos_transaction):
+    """Get matching accounting transactions for a given POS transaction."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    transaction_date = datetime.strptime(pos_transaction['transaction_date'], '%Y-%m-%d').date()
+    previous_day = transaction_date - timedelta(days=1)
+
+    query = """
+        SELECT * FROM Accounting
+        WHERE CAST(amount AS REAL) = ? AND date = ?
+    """
+    params = (pos_transaction['amount'], previous_day.strftime('%Y-%m-%d'))
+
+    cursor.execute(query, params)
+    matches = [dict(row) for row in cursor.fetchall()]
+
+    if len(matches) > 1:
+        # Further filtering if multiple matches are found
+        if pos_transaction.get('card_number_last_four'):
+            filtered_matches = [m for m in matches if m.get('card_number_last_four') == pos_transaction.get('card_number_last_four')]
+            if filtered_matches:
+                matches = filtered_matches
+
+    if len(matches) > 1:
+        if pos_transaction.get('tracking_code'):
+            filtered_matches = [m for m in matches if m.get('tracking_code') == pos_transaction.get('tracking_code')]
+            if filtered_matches:
+                matches = filtered_matches
+
+    conn.close()
+    return matches
+
+def set_reconciliation_status(bank_transaction_id, accounting_doc_id, status):
+    """Set the reconciliation status for a bank transaction and an accounting document."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    try:
+        # Mark bank transaction as reconciled
+        cursor.execute('UPDATE BankTransactions SET is_reconciled = ? WHERE id = ?', (status, bank_transaction_id))
+        
+        # Mark accounting document as reconciled
+        cursor.execute('UPDATE Accounting SET is_reconciled = ? WHERE id = ?', (status, accounting_doc_id))
+        
+        conn.commit()
+        logger.info(f"Set reconciliation status to {status} for bank transaction {bank_transaction_id} and accounting doc {accounting_doc_id}")
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error setting reconciliation status: {e}")
+    finally:
+        conn.close()
 
 def has_unknown_transactions(bank_id):
     """بررسی وجود تراکنش‌های نامشخص برای یک بانک"""
@@ -86,8 +154,8 @@ def update_transaction_type(transaction_id, new_type):
         if conn:
             conn.close()
 
-def get_categorized_unreconciled_transactions(bank_id):
-    """دریافت تراکنش‌های مغایرت‌گیری نشده به صورت دسته‌بندی شده و مرتب"""
+def get_unreconciled_pos_transactions(bank_id):
+    """دریافت تراکنش‌های POS مغایرت‌گیری نشده برای یک بانک"""
     conn = None
     try:
         conn = sqlite3.connect(DB_PATH)

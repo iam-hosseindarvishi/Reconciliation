@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from database.init_db import create_connection
 from utils.logger_config import setup_logger
 
@@ -76,6 +77,30 @@ def get_transactions_by_date_and_type(bank_id, start_date, end_date, transaction
     finally:
         if conn:
             conn.close()
+
+def get_transactions_by_date_amount_type(bank_id, transaction_date, amount, transaction_type):
+    """Get transactions by date, amount and transaction type"""
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM AccountingTransactions 
+            WHERE bank_id = ? 
+            AND due_date = ?
+            AND transaction_amount = ?
+            AND transaction_type = ?
+        """, (bank_id, transaction_date, amount, transaction_type))
+        result = cursor.fetchall()
+        logger.info(f"Found {len(result)} transactions of type {transaction_type} with amount {amount} on date {transaction_date}")
+        return result
+    except Exception as e:
+        logger.error(f"Error getting transactions by date, amount and type: {str(e)}")
+        raise
+    finally:
+        if conn:
+            conn.close()
+
 
 def get_transactions_by_bank(bank_id):
     """دریافت تمام تراکنش‌های یک بانک"""
@@ -159,6 +184,40 @@ def update_reconciliation_status(transaction_id, status):
     finally:
         if conn:
             conn.close()
+
+def get_accounting_transactions_for_pos(pos_transaction):
+    """Get accounting transactions that could match a given POS transaction."""
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+
+        # Search for transactions from the previous day with the same amount
+        query = """
+            SELECT *
+            FROM AccountingTransactions
+            WHERE due_date = ?  
+              AND transaction_amount = ? 
+              AND is_reconciled = 0
+        """
+        
+        params = [
+            (datetime.strptime(pos_transaction['transaction_date'], '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d'),
+            pos_transaction['amount']
+        ]
+
+        cursor.execute(query, params)
+        matches = cursor.fetchall()
+        logger.info(f"{len(matches)} potential matches found for POS transaction {pos_transaction['id']}.")
+
+        return matches
+    except Exception as e:
+        logger.error(f"Error getting accounting transactions for POS: {e}", exc_info=True)
+        return []
+    finally:
+        if conn:
+            conn.close()
+
 
 def delete_transaction(transaction_id):
     """حذف تراکنش"""
