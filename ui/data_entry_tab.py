@@ -282,11 +282,12 @@ class DataEntryTab(ttk.Frame):
                 try:
                     self.logger.info("شروع پردازش فایل بانک...")
                     self.update_progress_bars((current_step / total_steps) * 100, 0)
-                    bank_result=0
-                    if(bank_name=='ملت'):
+                    bank_result = {'processed': 0}
+                    if 'ملت' in bank_name:
                         bank_result = process_mellat_bank_file(self.bank_file_var.get(), bank_id)
-                    elif(bank_name=='کشاورزی'):
-                        bank_result=process_keshavarzi_bank_file(self.bank_file_var.get(),bank_id)
+                    else:
+                        bank_result = process_keshavarzi_bank_file(self.bank_file_var.get(), bank_id)
+                    self.logger.info(f"نام بانک انتخاب شده: {bank_name}")
                     self.logger.info(f"پردازش بانک: {bank_result['processed']} تراکنش پردازش شد")
                     current_step += 1
                     self.update_progress_bars(100, 100)

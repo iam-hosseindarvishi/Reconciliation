@@ -24,6 +24,7 @@ KESHAVARZI_TRANSACTION_TYPES = {
     'PAID_CHECK': 'Paid_Check',
     'PAID_TRANSFER': 'Paid_Transfer',
     'RECEIVED_TRANSFER': 'Received_Transfer',
+    'BANK_FEES': 'Bank_Fees',
     'UNKNOWN': 'Unknown'
 }
 

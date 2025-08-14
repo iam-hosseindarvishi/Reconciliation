@@ -38,6 +38,7 @@ def process_keshavarzi_bank_file(keshavarzi_file_path, bank_id):
                 date = str(row.get('date', ''))
                 time = str(row.get('time', ''))
                 trantitle = str(row.get('trantitle', ''))
+                trandesc = str(row.get('trandesc', ''))
                 bed = float(row.get('bed', 0) or 0)
                 bes = float(row.get('bes', 0) or 0)
                 fulldesc = str(row.get('fulldesc', ''))
@@ -45,7 +46,7 @@ def process_keshavarzi_bank_file(keshavarzi_file_path, bank_id):
                 branchname = str(row.get('branchname', ''))
                 
                 # تعیین نوع تراکنش
-                transaction_type = determine_transaction_type(trantitle, depositorname, bed, bes)
+                transaction_type = determine_transaction_type(trantitle, trandesc, depositorname, bed, bes, fulldesc,branchname)
                 
                 # بروزرسانی آمار
                 report['transaction_types'][transaction_type] = report['transaction_types'].get(transaction_type, 0) + 1
@@ -54,7 +55,10 @@ def process_keshavarzi_bank_file(keshavarzi_file_path, bank_id):
                 amount = bes if bes != 0 else -bed  # مقادیر بستانکار مثبت و بدهکار منفی
                 
                 # استخراج شماره‌های مورد نیاز
-                extracted_terminal_id = extract_terminal_id(fulldesc)
+                if(transaction_type==KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS']):
+                    extracted_terminal_id = extract_terminal_id(fulldesc)
+                else:
+                    extracted_terminal_id = None
                 extracted_tracking_number = extract_tracking_number(fulldesc)
                 source_card_number = extract_source_card_number(fulldesc)
                 
@@ -94,39 +98,65 @@ def process_keshavarzi_bank_file(keshavarzi_file_path, bank_id):
     logger.info(f"پردازش فایل بانک کشاورزی به پایان رسید. {report['processed']} از {report['total_rows']} ردیف پردازش شد.")
     return report
 
-def determine_transaction_type(trantitle, depositorname, bed, bes):
+def determine_transaction_type(trantitle, trandesc, depositorname, bed, bes, fulldesc, branchname):
     """
-    تعیین نوع تراکنش بر اساس شرایط مشخص شده
+    تعیین نوع تراکنش بر اساس قوانین مشخص شده برای فایل بانک کشاورزی.
     
     Args:
-        trantitle: عنوان تراکنش
-        depositorname: نام واریزکننده
-        bed: مبلغ بدهکار
-        bes: مبلغ بستانکار
+        trantitle (str): عنوان اصلی تراکنش.
+        trandesc (str): شرح کوتاه تراکنش.
+        depositorname (str): نام واریزکننده.
+        bed (float): مبلغ بدهکار.
+        bes (float): مبلغ بستانکار.
+        fulldesc (str): توضیحات کامل تراکنش.
+        branchname (str): نام شعبه.
         
     Returns:
-        str: نوع تراکنش
+        str: نوع تراکنش.
     """
-    # شرط ۱: تراکنش‌های POS از طریق شاپرک
+    
+    # اولویت اول: شناسایی کارمزدها (Bank_Fees)
+    # این بخش باید اولین بررسی باشد تا کارمزدها به عنوان انتقال اشتباه گرفته نشوند
+    if "كارمزد" in trantitle or "کارمزد" in trantitle:
+        return KESHAVARZI_TRANSACTION_TYPES['BANK_FEES']
+    
+    if trantitle == "برداشت انتقالي" and "کارمزد ثبت چک" in trandesc:
+        return KESHAVARZI_TRANSACTION_TYPES['BANK_FEES']
+    
+    # کارمزدهای مربوط به پایا/ساتنا با مبلغ کم
+    if (trantitle == "پايا" or trantitle == "ساتنا") and branchname == "مبادلات الکترونيک-(ساتناوپايا":
+        # مبلغ بدهکار کمتر از 1000000 ریال به عنوان کارمزد در نظر گرفته می‌شود
+        if bed > 0 and bed < 1000000:
+            return KESHAVARZI_TRANSACTION_TYPES['BANK_FEES']
+    
+    # اولویت دوم: تراکنش‌های POS
     if depositorname == "مرکزشاپرک":
         return KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS']
     
-    # شرط ۲: وصول چک
+    # اولویت سوم: تراکنش‌های چک
     if trantitle == "وصول چكاوك":
         return KESHAVARZI_TRANSACTION_TYPES['RECEIVED_CHECK']
     
-    # شرط ۳: چک انتقالی
     if trantitle == "چك انتقالي":
         return KESHAVARZI_TRANSACTION_TYPES['PAID_CHECK']
     
-    # شرط ۴: انتقال‌ها
-    transfer_keywords = ["انتقالPAYMENT", "انتقالATM", "انتقالKYOS", "واريزتجمعي"]
-    if any(keyword in trantitle for keyword in transfer_keywords):
-        if bes > 0:  # واریز (دریافت)
+    # اولویت چهارم: تراکنش‌های انتقال (Transfers)
+    # حواله‌ها از طریق مبادلات الکترونیک (پایا/ساتنا)
+    if branchname == "مبادلات الکترونيک-(ساتناوپايا" or branchname=="اينترنت بانك":
+        if bes > 0:
             return KESHAVARZI_TRANSACTION_TYPES['RECEIVED_TRANSFER']
-        elif bed > 0:  # برداشت (پرداخت)
+        elif bed > 0:
             return KESHAVARZI_TRANSACTION_TYPES['PAID_TRANSFER']
-    
+   
+    # سایر حواله‌ها
+    if "واریز" in trantitle or "انتقال" in trantitle:
+        if bes > 0:
+            return KESHAVARZI_TRANSACTION_TYPES['RECEIVED_TRANSFER']
+        elif bed > 0:
+            return KESHAVARZI_TRANSACTION_TYPES['PAID_TRANSFER']
+     # واریزهای 
+    if('عمليات متمركز' in branchname and 'واريزتجمعي' in trantitle):
+        return KESHAVARZI_TRANSACTION_TYPES['RECEIVED_TRANSFER']
     # حالت پیش‌فرض
     return KESHAVARZI_TRANSACTION_TYPES['UNKNOWN']
 
