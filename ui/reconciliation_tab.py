@@ -7,6 +7,9 @@ from tkinter import StringVar
 from tkinter.ttk import Combobox
 from ttkbootstrap.scrolled import ScrolledText
 from database.banks_repository import get_all_banks
+from database.reconciliation.reconciliation_repository import has_unreconciled_transactions, get_unknown_transactions_by_bank as get_unknown_transactions, has_unknown_transactions
+from reconciliation.reconciliation_logic import ReconciliationProcess
+from reconciliation.unknown_transactions_dialog import UnknownTransactionsDialog
 from config.settings import (
     DATA_DIR, DEFAULT_FONT, DEFAULT_FONT_SIZE,
     HEADER_FONT_SIZE, BUTTON_FONT_SIZE
@@ -20,6 +23,7 @@ class UIHandler(logging.Handler):
         
     def emit(self, record):
         msg = self.format(record) + '\n'
+        # ScrolledText در ttkbootstrap از state پشتیبانی نمی‌کند
         self.text_widget.insert('end', msg)
         self.text_widget.see('end')
 
@@ -141,7 +145,7 @@ class ReconciliationTab(ttk.Frame):
         log_frame.pack(fill="both", expand=True, pady=5, padx=10)
         
         # برای ScrolledText می‌توانیم مستقیماً از font استفاده کنیم
-        self.log_text = ScrolledText(log_frame, height=15, font=self.log_font, state='disabled')  # افزایش ارتفاع
+        self.log_text = ScrolledText(log_frame, height=15, font=self.log_font)  # افزایش ارتفاع
         self.log_text.pack(fill="both", expand=True, padx=10, pady=10)
         
         # اضافه کردن UI handler به logger
@@ -168,6 +172,47 @@ class ReconciliationTab(ttk.Frame):
         except Exception as e:
             self.logger.error(f"خطا در بارگذاری لیست بانک‌ها: {str(e)}")
 
+    # کلاس مدیریت رابط کاربری برای فرآیند مغایرت‌گیری
+    class ReconciliationUIHandler:
+        def __init__(self, parent):
+            self.parent = parent
+            self.logger = parent.logger
+        
+        def update_status(self, message):
+            """بروزرسانی وضعیت کلی"""
+            self.parent.status_var.set(message)
+            self.parent.update_idletasks()
+        
+        def update_detailed_status(self, message):
+            """بروزرسانی وضعیت جزئی"""
+            self.parent.detailed_status_var.set(message)
+            self.parent.update_idletasks()
+        
+        def update_progress(self, value):
+            """بروزرسانی نوار پیشرفت کلی"""
+            self.parent.overall_progressbar['value'] = value
+            self.parent.update_idletasks()
+        
+        def update_detailed_progress(self, value):
+            """بروزرسانی نوار پیشرفت جزئی"""
+            self.parent.detailed_progressbar['value'] = value
+            self.parent.update_idletasks()
+        
+        def log_info(self, message):
+            """ثبت پیام اطلاعاتی در لاگ"""
+            self.logger.info(message)
+            self.parent.log_text.see('end')
+        
+        def log_warning(self, message):
+            """ثبت پیام هشدار در لاگ"""
+            self.logger.warning(message)
+            self.parent.log_text.see('end')
+        
+        def log_error(self, message):
+            """ثبت پیام خطا در لاگ"""
+            self.logger.error(message)
+            self.parent.log_text.see('end')
+    
     def start_reconciliation(self):
         """شروع فرآیند مغایرت‌گیری"""
         try:
@@ -187,17 +232,23 @@ class ReconciliationTab(ttk.Frame):
             self.overall_progressbar['value'] = 0
             self.detailed_progressbar['value'] = 0
             
-            # فعال کردن ویجت لاگ
-            self.log_text.configure(state='normal')
+            # پاک کردن محتوای ویجت لاگ
             self.log_text.delete('1.0', 'end')
+            # ScrolledText در ttkbootstrap نیازی به تغییر state ندارد
             
             # لاگ شروع فرآیند
             bank_name = self.selected_bank_var.get()
             bank_id = self.banks_dict[bank_name]
             self.logger.info(f"شروع فرآیند مغایرت‌گیری برای بانک {bank_name}")
             
-            # شبیه‌سازی پیشرفت (در نسخه واقعی، این بخش با منطق اصلی مغایرت‌گیری جایگزین می‌شود)
-            self.simulate_progress()
+            # ایجاد شیء مدیریت رابط کاربری
+            ui_handler = self.ReconciliationUIHandler(self)
+            
+            # اجرای فرآیند مغایرت‌گیری در یک thread جداگانه
+            threading.Thread(
+                target=self.run_reconciliation_process,
+                args=(bank_id, bank_name, ui_handler)
+            ).start()
             
         except Exception as e:
             self.logger.error(f"خطا در شروع فرآیند مغایرت‌گیری: {str(e)}")
@@ -206,51 +257,45 @@ class ReconciliationTab(ttk.Frame):
                 if isinstance(widget, ttk.Button):
                     widget.configure(state='normal')
     
-    def simulate_progress(self):
-        """شبیه‌سازی پیشرفت فرآیند (فقط برای نمایش)"""
-        def update_progress():
-            try:
-                # مراحل شبیه‌سازی شده
-                steps = [
-                    "بارگیری داده‌های بانک",
-                    "بارگیری داده‌های تراکنش‌های پوز",
-                    "بارگیری داده‌های حسابداری",
-                    "تطبیق داده‌های بانک و پوز",
-                    "تطبیق داده‌های بانک و حسابداری",
-                    "تولید گزارش مغایرت‌ها"
-                ]
-                
-                total_steps = len(steps)
-                
-                for i, step in enumerate(steps):
-                    # بروزرسانی وضعیت
-                    self.status_var.set(f"مرحله {i+1} از {total_steps}: {step}")
-                    self.detailed_status_var.set(f"در حال پردازش {step}...")
-                    self.overall_progressbar['value'] = ((i+1) / total_steps) * 100
+    def run_reconciliation_process(self, bank_id, bank_name, ui_handler):
+        """اجرای فرآیند مغایرت‌گیری"""
+        try:
+            # بررسی وجود تراکنش‌های مغایرت‌گیری نشده
+            if not has_unreconciled_transactions(bank_id):
+                ui_handler.log_error("هیچ تراکنش مغایرت‌گیری نشده‌ای برای این بانک وجود ندارد")
+                ui_handler.update_status("فرآیند مغایرت‌گیری به پایان رسید - تراکنشی یافت نشد")
+                ui_handler.update_progress(100)
+                # فعال کردن مجدد دکمه‌ها
+                for widget in self.winfo_children():
+                    if isinstance(widget, ttk.Button):
+                        widget.configure(state='normal')
+                return
+            # بررسی وجود تراکنش های دارای وضعیت نامخشص
+            if has_unknown_transactions(bank_id):
+                # نمایش دیالوگ تراکنش های نامشخص
+                dialog = UnknownTransactionsDialog(self, bank_id, bank_name, get_unknown_transactions(bank_id))
+                if dialog.result:
+                    # اگر تغییرات ذخیره شد، فرآیند را مجدد اجرا کنید
+                    self.run_reconciliation_process(bank_id, bank_name, ui_handler)
+                    return
+            # ایجاد و اجرای فرآیند مغایرت‌گیری
+            process = ReconciliationProcess(self, bank_id, bank_name, ui_handler)
+            result = process.start()
+            
+            # فعال کردن مجدد دکمه‌ها
+            for widget in self.winfo_children():
+                if isinstance(widget, ttk.Button):
+                    widget.configure(state='normal')
                     
-                    # شبیه‌سازی پیشرفت جزئی
-                    for j in range(10):
-                        self.detailed_progressbar['value'] = (j+1) * 10
-                        self.logger.info(f"پیشرفت {step}: {(j+1)*10}%")
-                        self.update_idletasks()
-                        self.after(100)  # تاخیر برای نمایش پیشرفت
+            # نمایش نتیجه
+            if result:
+                ui_handler.log_info("فرآیند مغایرت‌گیری با موفقیت به پایان رسید")
+            else:
+                ui_handler.log_warning("فرآیند مغایرت‌گیری با مشکل مواجه شد")
                 
-                # پایان فرآیند
-                self.status_var.set("فرآیند مغایرت‌گیری با موفقیت به پایان رسید")
-                self.detailed_status_var.set("تمام مراحل با موفقیت انجام شد")
-                self.logger.info("فرآیند مغایرت‌گیری با موفقیت به پایان رسید")
-                
-                # فعال کردن مجدد دکمه‌ها
-                for widget in self.winfo_children():
-                    if isinstance(widget, ttk.Button):
-                        widget.configure(state='normal')
-                        
-            except Exception as e:
-                self.logger.error(f"خطا در شبیه‌سازی پیشرفت: {str(e)}")
-                # فعال کردن مجدد دکمه‌ها
-                for widget in self.winfo_children():
-                    if isinstance(widget, ttk.Button):
-                        widget.configure(state='normal')
-        
-        # اجرای فرآیند در thread جداگانه
-        threading.Thread(target=update_progress).start()
+        except Exception as e:
+            self.logger.error(f"خطا در اجرای فرآیند مغایرت‌گیری: {str(e)}")
+            # فعال کردن مجدد دکمه‌ها
+            for widget in self.winfo_children():
+                if isinstance(widget, ttk.Button):
+                    widget.configure(state='normal')
