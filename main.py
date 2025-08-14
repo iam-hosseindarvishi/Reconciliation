@@ -12,6 +12,7 @@ from config.settings import (
 from database.init_db import init_db
 from ui.bank_tab import BankTab
 from ui.data_entry_tab import DataEntryTab
+from ui.reconciliation_tab import ReconciliationTab
 from utils.logger_config import setup_logger
 
 # تنظیم کدگذاری کنسول برای نمایش درست متون فارسی
@@ -100,6 +101,16 @@ def main():
             logger.info("تب مدیریت بانک‌ها با موفقیت بارگذاری شد")
         except Exception as e:
             logger.error(f"خطا در بارگذاری تب مدیریت بانک‌ها: {str(e)}")
+            raise
+            
+        try:
+            # افزودن تب مغایرت‌گیری
+            logger.info("در حال بارگذاری تب مغایرت‌گیری...")
+            reconciliation_tab = ReconciliationTab(notebook)
+            notebook.add(reconciliation_tab, text="مغایرت‌گیری")
+            logger.info("تب مغایرت‌گیری با موفقیت بارگذاری شد")
+        except Exception as e:
+            logger.error(f"خطا در بارگذاری تب مغایرت‌گیری: {str(e)}")
             raise
 
         logger.info("رابط کاربری با موفقیت راه‌اندازی شد")
