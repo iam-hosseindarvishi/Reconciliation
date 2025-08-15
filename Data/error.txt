@@ -1,1 +1,12 @@
-﻿
+﻿2025-08-15 22:19:03 - reconciliation.mellat_received_transfer_reconciliation - ERROR - Error reconciling Bank Transfer 3964: 'ReconciliationUIHandler' object has no attribute 'get_parent'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_received_transfer_reconciliation.py", line 86, in _reconcile_single_transfer
+    dialog = ManualReconciliationDialog(ui_handler.get_parent(), matches)
+                                        ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'ReconciliationUIHandler' object has no attribute 'get_parent'
+2025-08-15 22:19:03,269 - ERROR - Error reconciling Bank Transfer 3964: 'ReconciliationUIHandler' object has no attribute 'get_parent'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_received_transfer_reconciliation.py", line 86, in _reconcile_single_transfer
+    dialog = ManualReconciliationDialog(ui_handler.get_parent(), matches)
+                                        ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'ReconciliationUIHandler' object has no attribute 'get_parent'

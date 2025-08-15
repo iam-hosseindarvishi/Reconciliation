@@ -11,6 +11,7 @@ def create_connection():
     try:
         os.makedirs(DATA_DIR, exist_ok=True)
         conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
         return conn
     except Exception as e:
         logger.error(f"خطا در اتصال به دیتابیس: {str(e)}")

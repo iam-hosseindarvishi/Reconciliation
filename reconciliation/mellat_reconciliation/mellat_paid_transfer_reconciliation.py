@@ -1,4 +1,4 @@
-# file: reconciliation/mellat_received_transfer_reconciliation.py
+# file: reconciliation/mellat_reconciliation/mellat_paid_transfer_reconciliation.py
 
 import threading
 import tkinter as tk
@@ -10,11 +10,11 @@ from database.accounting_repository import get_transactions_by_date_amount_type
 from reconciliation.save_reconciliation_result import success_reconciliation_result, fail_reconciliation_result
 from ui.dialog.manual_reconciliation_dialog import ManualReconciliationDialog
 
-logger = setup_logger('reconciliation.mellat_received_transfer_reconciliation')
+logger = setup_logger('reconciliation.mellat_paid_transfer_reconciliation')
 
-def reconcile_mellat_received_transfer(bank_transactions, ui_handler):
+def reconcile_mellat_paid_transfer(bank_transactions, ui_handler):
     """
-    Reconciles Mellat Bank Received Transfer transactions in a separate thread.
+    Reconciles Mellat Bank Paid Transfer transactions in a separate thread.
 
     Args:
         bank_transactions (list): List of bank transfer transactions to reconcile.
@@ -32,7 +32,7 @@ def _reconcile_in_thread(bank_transactions, ui_handler):
     """
     The actual reconciliation logic that runs in a separate thread.
     """
-    logger.info(f"Starting Received_Transfer reconciliation for {len(bank_transactions)} transactions.")
+    logger.info(f"Starting Paid_Transfer reconciliation for {len(bank_transactions)} transactions.")
     total_transactions = len(bank_transactions)
     for i, bank_record in enumerate(bank_transactions):
         _reconcile_single_transfer(bank_record, ui_handler)
@@ -42,13 +42,13 @@ def _reconcile_in_thread(bank_transactions, ui_handler):
         ui_handler.update_progress(progress_percentage)
         ui_handler.update_detailed_status(f"Reconciled {i + 1} of {total_transactions} transfer transactions.")
 
-    logger.info("Finished Received_Transfer reconciliation.")
-    ui_handler.update_status("Finished Received_Transfer reconciliation.")
+    logger.info("Finished Paid_Transfer reconciliation.")
+    ui_handler.update_status("Finished Paid_Transfer reconciliation.")
 
 
 def _reconcile_single_transfer(bank_record, ui_handler):
     """
-    Reconciles a single Received_Transfer transaction.
+    Reconciles a single Paid_Transfer transaction.
     """
     try:
         bank_date = bank_record['transaction_date']
@@ -56,11 +56,11 @@ def _reconcile_single_transfer(bank_record, ui_handler):
         bank_tracking_num = bank_record['extracted_tracking_number']
 
         # Step 1: Get all potential matches based on date, amount, and type
-        matches = get_transactions_by_date_amount_type(bank_record['bank_id'], bank_date, bank_amount, 'Received Transfer')
+        matches = get_transactions_by_date_amount_type(bank_record['bank_id'], bank_date, bank_amount, 'Paid Transfer')
 
         # Helper function for consistent success handling
         def handle_success(accounting_doc):
-            success_reconciliation_result(bank_record['id'], accounting_doc['id'], None, 'Exact match', 'Received_Transfer')
+            success_reconciliation_result(bank_record['id'], accounting_doc['id'], None, 'Exact match', 'Paid_Transfer')
             logger.info(f"Reconciled Bank Transfer {bank_record['id']} with accounting doc {accounting_doc['id']}")
 
         # Step 2: Prioritize matching based on tracking number
@@ -88,12 +88,12 @@ def _reconcile_single_transfer(bank_record, ui_handler):
             if selected_match:
                 handle_success(selected_match)
             else:
-                fail_reconciliation_result(bank_record['id'], None, None, 'Manual reconciliation cancelled', 'Received_Transfer')
+                fail_reconciliation_result(bank_record['id'], None, None, 'Manual reconciliation cancelled', 'Paid_Transfer')
         else:
             # No match found
             logger.warning(f"No matching accounting document found for Bank Transfer {bank_record['id']}.")
-            fail_reconciliation_result(bank_record['id'], None, None, 'No match found', 'Received_Transfer')
+            fail_reconciliation_result(bank_record['id'], None, None, 'No match found', 'Paid_Transfer')
 
     except Exception as e:
         logger.error(f"Error reconciling Bank Transfer {bank_record['id']}: {e}", exc_info=True)
-        fail_reconciliation_result(bank_record['id'], None, None, f"Processing error: {str(e)}", 'Received_Transfer')
+        fail_reconciliation_result(bank_record['id'], None, None, f"Processing error: {str(e)}", 'Paid_Transfer')

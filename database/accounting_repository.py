@@ -48,7 +48,9 @@ def get_transactions_by_type(bank_id, transaction_type):
             SELECT * FROM AccountingTransactions 
             WHERE bank_id = ? AND transaction_type = ?
         """, (bank_id, transaction_type))
-        result = cursor.fetchall()
+        # Convert tuple results to a list of dictionaries
+        columns = [description[0] for description in cursor.description]
+        result = [dict(zip(columns, row)) for row in cursor.fetchall()]
         logger.info(f"تعداد {len(result)} تراکنش از نوع {transaction_type} برای بانک {bank_id} یافت شد")
         return result
     except Exception as e:
@@ -68,7 +70,8 @@ def get_transactions_by_date_and_type(bank_id, start_date, end_date, transaction
             SELECT * FROM AccountingTransactions
             WHERE bank_id = ? AND due_date BETWEEN ? AND ? AND transaction_type = ?
         """, (bank_id, start_date, end_date, transaction_type))
-        result = cursor.fetchall()
+        columns = [description[0] for description in cursor.description]
+        result = [dict(zip(columns, row)) for row in cursor.fetchall()]
         logger.info(f"تعداد {len(result)} تراکنش از نوع {transaction_type} در بازه {start_date} تا {end_date} یافت شد")
         return result
     except Exception as e:
@@ -91,7 +94,8 @@ def get_transactions_by_date_amount_type(bank_id, transaction_date, amount, tran
             AND transaction_amount = ?
             AND transaction_type = ?
         """, (bank_id, transaction_date, amount, transaction_type))
-        result = cursor.fetchall()
+        columns = [description[0] for description in cursor.description]
+        result = [dict(zip(columns, row)) for row in cursor.fetchall()]
         logger.info(f"Found {len(result)} transactions of type {transaction_type} with amount {amount} on date {transaction_date}")
         return result
     except Exception as e:

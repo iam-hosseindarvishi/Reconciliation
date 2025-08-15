@@ -2,7 +2,10 @@ from database.reconciliation_results_repository import create_reconciliation_res
 from database.pos_transactions_repository import update_reconciliation_status
 from database.accounting_repository import update_accounting_transaction_reconciliation_status
 from database.bank_transaction_repository import update_bank_transaction_reconciliation_status
-from main import logger
+from utils.logger_config import setup_logger
+logger = setup_logger('save_reconciliation_result')
+
+
 def success_reconciliation_result(bank_record_id,acc_record_id,pos_record_id,description,match_type):
     try:
             """Submit reconciliation result to the database."""
