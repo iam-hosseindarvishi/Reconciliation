@@ -60,7 +60,27 @@ def persian_to_gregorian(jalali_date_str):
     
     logger.warning(f"فرمت تاریخ نامعتبر: {jalali_date_str}")
     return ''
+def normalize_shamsi_date(date_str):
+    """
+    رشته تاریخ شمسی با فرمت YYYYMMDD را به YYYY-MM-DD تبدیل می‌کند.
 
+    Args:
+        date_str (str): رشته تاریخ ورودی (مثال: '14040101').
+
+    Returns:
+        str: رشته تاریخ نرمال‌شده (مثال: '1404-01-01') یا یک رشته خالی در صورت خطا.
+    """
+    if not isinstance(date_str, str) or len(date_str) != 8 or not date_str.isdigit():
+        return ""
+
+    try:
+        year = date_str[0:4]
+        month = date_str[4:6]
+        day = date_str[6:8]
+        
+        return f"{year}-{month}-{day}"
+    except (ValueError, IndexError):
+        return ""
 def get_pos_date_from_bank(bank_date_str):
     """
     Creates POS date from bank date by subtracting one day

@@ -1,6 +1,6 @@
 import pandas as pd
 from database.accounting_repository import create_accounting_transaction
-from utils.pos_excel_importer import persian_to_gregorian
+from utils.helpers import persian_to_gregorian,normalize_shamsi_date
 from utils.constants import TRANSACTION_TYPE_MAP
 
 def import_accounting_excel(accounting_file_path, bank_id):
@@ -22,8 +22,8 @@ def import_accounting_excel(accounting_file_path, bank_id):
                 'bank_id': bank_id,
                 'transaction_number': str(row.get('شماره', '')),
                 'transaction_amount': float(row.get('مبلغ', 0)),
-                'due_date': persian_to_gregorian(str(row.get('تاريخ سررسيد', ''))),
-                'collection_date': persian_to_gregorian(str(row.get('تاريخ وصول', ''))),
+                'due_date': persian_to_gregorian(normalize_shamsi_date(str(row.get('تاريخ سررسيد', '')))),
+                'collection_date': persian_to_gregorian(normalize_shamsi_date(str(row.get('تاريخ وصول', '')))),
                 'transaction_type': transaction_type,
                 'customer_name': str(row.get('نام مشتري', '')),
                 "description": str(row.get('توضیحات', '')),
