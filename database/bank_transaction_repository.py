@@ -128,7 +128,8 @@ def get_unreconciled_transactions_by_bank(bank_id):
         if conn:
             conn.close()
 
-def update_reconciliation_status(transaction_id, status):
+def update_bank_transaction_reconciliation_status(transaction_id, status):
+
     """به‌روزرسانی وضعیت تطبیق تراکنش"""
     conn = None
     try:

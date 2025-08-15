@@ -159,7 +159,7 @@ def get_transactions_by_collection_date_and_bank(bank_id, start_date, end_date):
         if conn:
             conn.close()
 
-def update_reconciliation_status(transaction_id, status):
+def update_accounting_transaction_reconciliation_status(transaction_id, status):
     """به‌روزرسانی وضعیت تطبیق تراکنش"""
     conn = None
     try:

@@ -18443,3 +18443,22 @@ AttributeError: module 'ttkbootstrap' has no attribute 'messagebox'
 2025-08-15 18:54:42 - database.accounting_repository - INFO - تراکنش حسابداری جدید با شماره 811221 ثبت شد
 2025-08-15 18:54:42,107 - INFO - پردازش حسابداری: 654 تراکنش ذخیره شد
 2025-08-15 18:54:42,126 - INFO - عملیات پردازش به پایان رسید
+2025-08-15 18:56:12 - main - INFO - در حال راه‌اندازی پایگاه داده...
+2025-08-15 18:56:12 - database.init_db - INFO - شروع ایجاد جداول دیتابیس
+2025-08-15 18:56:12 - main - INFO - پایگاه داده با موفقیت راه‌اندازی شد
+2025-08-15 18:56:12 - main - INFO - در حال ایجاد رابط کاربری...
+2025-08-15 18:56:12 - main - INFO - در حال بارگذاری تب ورود اطلاعات...
+2025-08-15 18:56:12 - banks_repository - INFO - تعداد 2 بانک یافت شد
+2025-08-15 18:56:12 - main - INFO - تب ورود اطلاعات با موفقیت بارگذاری شد
+2025-08-15 18:56:12 - main - INFO - در حال بارگذاری تب مدیریت بانک‌ها...
+2025-08-15 18:56:12 - banks_repository - INFO - تعداد 2 بانک یافت شد
+2025-08-15 18:56:12 - ui.bank_tab - INFO - تب مدیریت بانک‌ها با موفقیت راه‌اندازی شد
+2025-08-15 18:56:12 - main - INFO - تب مدیریت بانک‌ها با موفقیت بارگذاری شد
+2025-08-15 18:56:12 - main - INFO - در حال بارگذاری تب مغایرت‌گیری...
+2025-08-15 18:56:12 - banks_repository - INFO - تعداد 2 بانک یافت شد
+2025-08-15 18:56:12 - main - INFO - تب مغایرت‌گیری با موفقیت بارگذاری شد
+2025-08-15 18:56:12 - main - INFO - رابط کاربری با موفقیت راه‌اندازی شد
+2025-08-15 18:56:25,332 - INFO - شروع فرآیند مغایرت‌گیری برای بانک ملت
+2025-08-15 18:56:25 - reconciliation.mellat_pos_reconciliation - INFO - Starting POS reconciliation for 178 transactions.
+2025-08-15 18:56:25,398 - INFO - Starting POS reconciliation for 178 transactions.
+2025-08-15 18:56:25 - database.accounting_repository - INFO - Found 1 transactions of type Pos with amount 8950000.0 on date 2025-04-12
