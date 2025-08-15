@@ -20,10 +20,10 @@ def reconcile_mellat_pos(pos_transactions, ui_handler):
 def reconcile_single_pos(pos_transaction, ui_handler):
     """Reconcile a single POS transaction."""
     pos_date = get_pos_date_from_bank(pos_transaction['transaction_date'])
-    pos_amount = pos_transaction['transaction_amount']
+    pos_amount = pos_transaction['amount']
     pos_type = pos_transaction['transaction_type']
 
-    matches = get_transactions_by_date_amount_type(pos_transaction['bank_id'], pos_date, pos_amount, pos_type)
+    matches = get_transactions_by_date_amount_type(pos_transaction['bank_id'], pos_date, pos_amount, 'Pos')
 
     if len(matches) == 1:
         # Exact match found

@@ -79,11 +79,15 @@ def determine_transaction_type(row):
     has_credit = float(row['مبلغ گردش بستانکار'] or 0) != 0
     has_debit = float(row['مبلغ گردش بدهکار'] or 0) != 0
     
+    # پیش شرط برای مشخص شدن پایا
+    if(branch == 'خیابان شیخ آباد' and ('از اینترنت' and 'پایا' in description) and has_debit):
+        return MELLAT_TRANSACTION_TYPES['PAID_TRANSFER']
     # شرط ۱: تراکنش‌های POS از طریق شاپرک
-    if ('شاپرک-پوز' in beneficiary and 
-        branch == 'شاپرک' and 
+    if ((('شاپرک-پوز' in beneficiary and 
+        branch == 'شاپرک') or 'حواله شاپرک' in description ) and 
         has_credit):
         return MELLAT_TRANSACTION_TYPES['RECEIVED_POS']
+
     # شرط حواله ها و واریز انتقالی
     if(('حواله' in description or 'حواله همراه بانک' in description) and has_credit):
         return MELLAT_TRANSACTION_TYPES['RECEIVED_TRANSFER']
@@ -97,7 +101,7 @@ def determine_transaction_type(row):
         return MELLAT_TRANSACTION_TYPES['BANK_FEES']
 
     # شرط ۳: انتقال‌های دریافتی (پایا یا لحظه‌ای)
-    if ((branch in ['اداره امور پایا', 'اداره امور پرداخت لحظه ای'] or ['پایا','از اینترنت'] in description) and has_credit):
+    if ((branch in ['اداره امور پایا', 'اداره امور پرداخت لحظه ای'] or  'پایا' in description  ) and has_credit):
         return MELLAT_TRANSACTION_TYPES['RECEIVED_TRANSFER']
     
     # شرط ۴: انتقال‌های دریافتی (حسابداری متمرکز)
@@ -105,12 +109,13 @@ def determine_transaction_type(row):
         return MELLAT_TRANSACTION_TYPES['RECEIVED_TRANSFER']
     
     # شرط ۵: انتقال‌های پرداختی
-    if (branch == 'اداره حسابداری متمرکز' and has_debit):
+    if ((branch == 'اداره حسابداری متمرکز' or description in ['پایا','از اینترنت']) and has_debit):
         return MELLAT_TRANSACTION_TYPES['PAID_TRANSFER']
     
+
     # شرط ۶: تراکنش‌های POS از طریق پایا
     if (branch == 'اداره امور پایا' and 'پوز' in beneficiary):
-        return MELLAT_TRANSACTION_TYPES['POS']
+        return MELLAT_TRANSACTION_TYPES['RECEIVED_POS']
     
     # حالت پیش‌فرض
     return MELLAT_TRANSACTION_TYPES['UNKNOWN']

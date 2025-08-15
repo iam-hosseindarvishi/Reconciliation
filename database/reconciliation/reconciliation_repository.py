@@ -25,18 +25,7 @@ def has_unreconciled_transactions(bank_id):
         if conn:
             conn.close()
 
-def get_unreconciled_pos_transactions(bank_id):
-    """Get unreconciled POS transactions for a specific bank."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT * FROM BankTransactions
-        WHERE bank_id = ? AND transaction_type = 'RECEIVED_POS' AND is_reconciled = 0
-    """, (bank_id,))
-    transactions = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return transactions
+
     
 
 def get_accounting_transactions_for_pos(pos_transaction):
@@ -154,7 +143,7 @@ def update_transaction_type(transaction_id, new_type):
         if conn:
             conn.close()
 
-def get_unreconciled_pos_transactions(bank_id):
+def get_categorized_unreconciled_transactions(bank_id):
     """دریافت تراکنش‌های POS مغایرت‌گیری نشده برای یک بانک"""
     conn = None
     try:

@@ -13,7 +13,6 @@ MELLAT_TRANSACTION_TYPES = {
     'BANK_FEES': 'Bank_Fees',
     'PAID_TRANSFER': 'Paid_Transfer',
     'RECEIVED_TRANSFER': 'Received_Transfer',
-    'POS': 'Pos',
     'UNKNOWN': 'Unknown'
 }
 

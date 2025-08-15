@@ -1,13 +1,13 @@
 import logging
 from database.reconciliation.reconciliation_repository import (
     has_unreconciled_transactions,
-    get_unknown_transactions_by_bank,
-    get_categorized_unreconciled_transactions
+    get_unknown_transactions_by_bank
 )
+from database.reconciliation.reconciliation_repository import get_categorized_unreconciled_transactions
 from reconciliation.unknown_transactions_dialog import UnknownTransactionsDialog
 from reconciliation.mellat_reconciliation import reconcile_mellat_pos
 from utils.logger_config import setup_logger
-
+from utils.constants import KESHAVARZI_TRANSACTION_TYPES
 # راه‌اندازی لاگر
 logger = setup_logger('reconciliation.reconciliation_logic')
 
@@ -90,47 +90,47 @@ class ReconciliationProcess:
             # به عنوان مثال، برای تراکنش‌های POS
             # به عنوان مثال، برای تراکنش\u200cهای POS
             # به عنوان مثال، برای تراکنش‌های POS
-            if 'RECEIVED_POS' in categorized_transactions:
+            if KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS'] in categorized_transactions:
                 if self.bank_id == 1:  # ID for Mellat Bank
                     self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های POS بانک ملت...")
                     self.ui.update_detailed_progress(60)
-                    reconcile_mellat_pos(categorized_transactions['RECEIVED_POS'], self.ui)
+                    reconcile_mellat_pos(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS']], self.ui)
                 else:
                     self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های POS...")
                     self.ui.update_detailed_progress(60)
-                    self.reconcile_pos_transactions(categorized_transactions['RECEIVED_POS'])
+                    self.reconcile_pos_transactions(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS']])
                 self.ui.update_detailed_status("در حال مغایرت\u200cگیری تراکنش\u200cهای POS...")
                 
                 self.ui.update_detailed_progress(60)
-                self.reconcile_pos_transactions(categorized_transactions['RECEIVED_POS'])
+                self.reconcile_pos_transactions(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS']])
             
             # برای تراکنش‌های چک
-            if 'RECEIVED_CHECK' in categorized_transactions:
+            if KESHAVARZI_TRANSACTION_TYPES['RECEIVED_CHECK'] in categorized_transactions:
                 self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های چک دریافتی...")
                 self.ui.update_detailed_progress(70)
-                self.reconcile_check_transactions(categorized_transactions['RECEIVED_CHECK'], 'received')
+                self.reconcile_check_transactions(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_CHECK']], 'received')
             
-            if 'PAID_CHECK' in categorized_transactions:
+            if KESHAVARZI_TRANSACTION_TYPES['PAID_CHECK'] in categorized_transactions:
                 self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های چک پرداختی...")
                 self.ui.update_detailed_progress(80)
-                self.reconcile_check_transactions(categorized_transactions['PAID_CHECK'], 'paid')
+                self.reconcile_check_transactions(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['PAID_CHECK']], 'paid')
             
             # برای تراکنش‌های انتقال
-            if 'RECEIVED_TRANSFER' in categorized_transactions:
+            if KESHAVARZI_TRANSACTION_TYPES['RECEIVED_TRANSFER'] in categorized_transactions:
                 self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های انتقال دریافتی...")
                 self.ui.update_detailed_progress(85)
-                self.reconcile_transfer_transactions(categorized_transactions['RECEIVED_TRANSFER'], 'received')
+                self.reconcile_transfer_transactions(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_TRANSFER']], 'received')
             
-            if 'PAID_TRANSFER' in categorized_transactions:
+            if KESHAVARZI_TRANSACTION_TYPES['PAID_TRANSFER'] in categorized_transactions:
                 self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های انتقال پرداختی...")
                 self.ui.update_detailed_progress(90)
-                self.reconcile_transfer_transactions(categorized_transactions['PAID_TRANSFER'], 'paid')
+                self.reconcile_transfer_transactions(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['PAID_TRANSFER']], 'paid')
             
             # برای کارمزدهای بانکی
-            if 'BANK_FEES' in categorized_transactions:
+            if KESHAVARZI_TRANSACTION_TYPES['BANK_FEES'] in categorized_transactions:
                 self.ui.update_detailed_status("در حال مغایرت‌گیری کارمزدهای بانکی...")
                 self.ui.update_detailed_progress(95)
-                self.reconcile_bank_fees(categorized_transactions['BANK_FEES'])
+                self.reconcile_bank_fees(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['BANK_FEES']])
             
             # گام 5: تولید گزارش
             self.ui.update_status("در حال تولید گزارش مغایرت‌گیری...")

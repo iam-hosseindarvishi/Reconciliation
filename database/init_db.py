@@ -40,7 +40,7 @@ def init_db():
                 transaction_date TEXT,
                 transaction_time TEXT,
                 amount FLOAT NOT NULL,
-                description TEXT,
+                description TEXT NULL,
                 reference_number TEXT,
                 extracted_terminal_id TEXT,
                 extracted_tracking_number TEXT,
@@ -87,6 +87,21 @@ def init_db():
                 description TEXT,
                 is_reconciled BOOLEAN DEFAULT 0,
                 FOREIGN KEY (bank_id) REFERENCES Banks(id)
+            )
+        """)
+        # Reconciliation Results table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ReconciliationResults (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pos_id INTEGER NULL,
+                acc_id INTEGER NULL,
+                bank_record_id INTEGER NULL,
+                description TEXT NULL,
+                type_matched TEXT NULL,
+                date_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (pos_id) REFERENCES PosTransactions(id),
+                FOREIGN KEY (acc_id) REFERENCES AccountingTransactions(id),
+                FOREIGN KEY (bank_record_id) REFERENCES BankTransactions(id)
             )
         """)
         conn.commit()
