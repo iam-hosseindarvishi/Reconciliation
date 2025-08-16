@@ -12,7 +12,7 @@ from ui.dialog.manual_reconciliation_dialog import ManualReconciliationDialog
 logger = setup_logger('reconciliation.mellat_pos_reconciliation')
 
 
-def reconcile_mellat_pos(pos_transactions, ui_handler, on_complete):
+def reconcile_mellat_pos(pos_transactions, ui_handler):
     """
     Reconciles Mellat Bank POS transactions in a separate thread to prevent UI freezing.
 
@@ -23,12 +23,12 @@ def reconcile_mellat_pos(pos_transactions, ui_handler, on_complete):
     """
     thread = threading.Thread(
         target=_reconcile_in_thread,
-        args=(pos_transactions, ui_handler, on_complete)
+        args=(pos_transactions, ui_handler)
     )
     thread.start()
 
 
-def _reconcile_in_thread(pos_transactions, ui_handler, on_complete):
+def _reconcile_in_thread(pos_transactions, ui_handler, ):
     """
     The actual reconciliation logic that runs in a separate thread.
     """

@@ -81,6 +81,30 @@ def get_transactions_by_date_and_type(bank_id, start_date, end_date, transaction
         if conn:
             conn.close()
 
+def get_transactions_by_date_less_than_amount_type(bank_id, transaction_date, amount, transaction_type):
+    """Get transactions by date, amount less than specified amount and transaction type"""
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM AccountingTransactions 
+            WHERE bank_id = ? 
+            AND due_date = ?
+            AND transaction_amount < ?
+            AND transaction_type = ?
+        """, (bank_id, transaction_date, amount, transaction_type))
+        columns = [description[0] for description in cursor.description]
+        result = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        logger.info(f"Found {len(result)} transactions of type {transaction_type} with amount less than {amount} on date {transaction_date}")
+        return result
+    except Exception as e:
+        logger.error(f"Error getting transactions by date, less than amount and type: {str(e)}")
+        raise
+    finally:
+        if conn:
+            conn.close()
+
 def get_transactions_by_date_amount_type(bank_id, transaction_date, amount, transaction_type):
     """Get transactions by date, amount and transaction type"""
     conn = None

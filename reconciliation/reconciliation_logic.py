@@ -97,11 +97,11 @@ class ReconciliationProcess:
                 if self.bank_id == 1:  # ID for Mellat Bank
                     self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های POS بانک ملت...")
                     self.ui.update_detailed_progress(60)
-                  #  reconcile_mellat_pos(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS']], self.ui)
-                # else:
-                #     self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های POS...")
-                #     self.ui.update_detailed_progress(60)
-                #     self.reconcile_pos_transactions(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS']])
+                    reconcile_mellat_pos(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS']], self.ui)
+                else:
+                    self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های POS...")
+                    self.ui.update_detailed_progress(60)
+                    self.reconcile_pos_transactions(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS']])
                 self.ui.update_detailed_status("در حال مغایرت\u200cگیری تراکنش\u200cهای POS...")
                 
                 self.ui.update_detailed_progress(60)
