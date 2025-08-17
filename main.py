@@ -1,155 +1,151 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-"""
-مدول اصلی برنامه مغایرت‌گیری بانک، پوز و حسابداری
-این ماژول نقطه ورود اصلی برنامه است و مسئول راه‌اندازی رابط کاربری و اتصال تمام ماژول‌های دیگر است.
-"""
-
 import sys
 import os
 import traceback
-from datetime import datetime
 import locale
-import platform
+import ttkbootstrap as ttk
+from tkinter import messagebox
+from config.settings import (
+    WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_RESIZABLE,
+    DEFAULT_FONT, DEFAULT_FONT_SIZE, HEADER_FONT_SIZE,
+    BUTTON_FONT_SIZE, RTL, ENCODING
+)
+from database.init_db import init_db
+from ui.bank_tab import BankTab
+from ui.data_entry_tab import DataEntryTab
+from ui.reconciliation_tab import ReconciliationTab
+from utils.logger_config import setup_logger
 
-from PySide6.QtWidgets import QApplication, QMessageBox, QSplashScreen
-from PySide6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QTimer
-from PySide6.QtGui import QPixmap, QFont, QFontDatabase
+# تنظیم کدگذاری کنسول برای نمایش درست متون فارسی
+if sys.platform.startswith('win'):
+    # تنظیم کدگذاری کنسول ویندوز
+    os.system('chcp 65001')
+    # تنظیم محیط برای پشتیبانی از فارسی
+    if os.environ.get('PYTHONIOENCODING') != 'utf-8':
+        os.environ['PYTHONIOENCODING'] = 'utf-8'
 
-# افزودن مسیر پروژه به مسیرهای پایتون
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(BASE_DIR)
-
-# واردسازی ماژول‌های برنامه
-from config.config import APPLICATION_NAME, APPLICATION_VERSION, APPLICATION_ORGANIZATION
-from modules.logger import setup_logging, get_logger, log_exception
-from modules.database_manager import DatabaseManager
-from ui.main_window import MainWindow
-
-# راه‌اندازی سیستم لاگ
-setup_logging()
-logger = get_logger(__name__)
-
-
-def setup_persian_support():
-    """
-    تنظیم پشتیبانی از زبان فارسی
-    """
+# تنظیم locale برای پشتیبانی از زبان فارسی
+try:
+    locale.setlocale(locale.LC_ALL, 'fa_IR.UTF-8')
+except locale.Error:
     try:
-        # تنظیم لوکال برای پشتیبانی از فارسی
-        if platform.system() == 'Windows':
-            locale.setlocale(locale.LC_ALL, 'Persian_Iran.1256')
-        else:  # لینوکس و مک
-            locale.setlocale(locale.LC_ALL, 'fa_IR.UTF-8')
-        
-        logger.info("پشتیبانی از زبان فارسی با موفقیت تنظیم شد.")
-        return True
-    except Exception as e:
-        logger.warning(f"خطا در تنظیم پشتیبانی از زبان فارسی: {str(e)}")
-        return False
+        locale.setlocale(locale.LC_ALL, 'Persian_Iran.1256')
+    except locale.Error:
+        pass
 
-def setup_qt_persian_support(app):
-    """
-    تنظیم پشتیبانی از زبان فارسی در Qt
-    """
-    try:
-        # افزودن فونت‌های فارسی
-        fonts_dir = os.path.join(BASE_DIR, 'config', 'fonts')
-        if os.path.exists(fonts_dir):
-            for font_file in os.listdir(fonts_dir):
-                if font_file.endswith('.ttf'):
-                    font_path = os.path.join(fonts_dir, font_file)
-                    QFontDatabase.addApplicationFont(font_path)
-        
-        # تنظیم فونت پیش‌فرض برنامه
-        default_font = QFont("Tahoma", 9)  # فونت تاهوما برای رابط کاربری
-        app.setFont(default_font)
-        
-        # تنظیم جهت راست به چپ برای رابط کاربری
-        app.setLayoutDirection(Qt.RightToLeft)
-        
-        # تنظیم مترجم Qt
-        translator = QTranslator()
-        translator.load("qtbase_" + QLocale.system().name(),
-                       QLibraryInfo.location(QLibraryInfo.TranslationsPath))
-        app.installTranslator(translator)
-        
-        logger.info("پشتیبانی از زبان فارسی در Qt با موفقیت تنظیم شد.")
-        return True
-    except Exception as e:
-        logger.warning(f"خطا در تنظیم پشتیبانی از زبان فارسی در Qt: {str(e)}")
-        return False
-
-def exception_hook(exc_type, exc_value, exc_traceback):
-    """
-    هندلر استثناهای پیش‌بینی نشده
-    """
-    # ثبت استثنا در لاگ
-    log_exception(exc_value, exc_traceback)
-    
-    # نمایش پیام خطا به کاربر
-    error_msg = f"خطای پیش‌بینی نشده: {str(exc_value)}"
-    QMessageBox.critical(None, "خطای سیستم", error_msg)
+# راه‌اندازی لاگر
+logger = setup_logger('main')
 
 def main():
     """
-    تابع اصلی برنامه که مسئول راه‌اندازی برنامه است
+    تابع اصلی برنامه با مدیریت خطا و لاگینگ
     """
-    # ثبت شروع برنامه در لاگ
-    logger.info(f"شروع برنامه {APPLICATION_NAME} نسخه {APPLICATION_VERSION}")
-    
-    # تنظیم هندلر استثناهای پیش‌بینی نشده
-    # sys.excepthook = exception_hook  # موقتاً غیرفعال شد
-    
-    # راه‌اندازی برنامه Qt
-    app = QApplication(sys.argv)
-    app.setApplicationName(APPLICATION_NAME)
-    app.setApplicationVersion(APPLICATION_VERSION)
-    app.setOrganizationName(APPLICATION_ORGANIZATION)
-    
-    # تنظیم پشتیبانی از زبان فارسی
-    setup_persian_support()
-    setup_qt_persian_support(app)
-    
-    # نمایش صفحه اسپلش
-    splash_pixmap = QPixmap(os.path.join(BASE_DIR, 'config', 'splash.svg'))
-    if not splash_pixmap.isNull():
-        splash = QSplashScreen(splash_pixmap)
-        splash.show()
-        app.processEvents()
-    else:
-        splash = None
-    
-    # راه‌اندازی پایگاه داده
-    db_manager = DatabaseManager()
-    db_manager.connect()
-    db_manager.setup_database()
-    main_window=MainWindow()
-    # راه‌اندازی پنجره اصلی با تاخیر
-    def show_main_window():
-        print("نمایش پنجره اصلی...")
-        main_window.show()
-        if splash:
-            splash.finish(main_window)
-        print("پنجره اصلی نمایش داده شد.")
-    
-    # نمایش پنجره اصلی پس از 1 ثانیه
-    print("تنظیم تایمر برای نمایش پنجره اصلی...")
-    QTimer.singleShot(1000, show_main_window)
-    print("تایمر تنظیم شد.")
-    
-    # اجرای حلقه رویداد برنامه
-    print("شروع حلقه رویداد برنامه...")
-    return app.exec()
+    try:
+        # راه‌اندازی پایگاه داده
+        logger.info("در حال راه‌اندازی پایگاه داده...")
+        init_db()
+        logger.info("پایگاه داده با موفقیت راه‌اندازی شد")
 
+        # ایجاد پنجره اصلی
+        logger.info("در حال ایجاد رابط کاربری...")
+        app = ttk.Window(themename="cosmo")
+        app.title("مدیریت مغایرت‌گیری")
+        app.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
+        app.resizable(WINDOW_RESIZABLE, WINDOW_RESIZABLE)
+
+        # تنظیم فونت‌ها برای پشتیبانی از فارسی
+        default_font = (DEFAULT_FONT, DEFAULT_FONT_SIZE, 'bold')
+        header_font = (DEFAULT_FONT, HEADER_FONT_SIZE, 'bold')
+        button_font = (DEFAULT_FONT, BUTTON_FONT_SIZE, 'bold')
+        
+        style = ttk.Style()
+        # تنظیم فونت و وزن برای تمام عناصر رابط کاربری
+        style.configure('.', font=default_font)  # تنظیم پیش‌فرض برای همه
+        style.configure('TLabel', font=default_font)
+        style.configure('TButton', font=button_font)
+        style.configure('Treeview', font=default_font)
+        style.configure('TEntry', font=default_font)
+        style.configure('Header.TLabel', font=header_font)
+        style.configure('Treeview.Heading', font=header_font)  # هدر جداول
+        
+        # تنظیم فونت برای منوها و کامبوباکس‌ها
+        app.option_add('*TCombobox*Listbox.font', default_font)
+        app.option_add('*Menu.font', default_font)
+        
+        # تنظیم جهت نوشتار از راست به چپ
+        if RTL:
+            app.tk.call('tk', 'scaling', 1.0)
+            app.tk.call('encoding', 'system', ENCODING)
+
+        # تنظیم مدیریت خطای سراسری
+        app.report_callback_exception = handle_exception
+
+        # ایجاد نوت‌بوک
+        notebook = ttk.Notebook(app)
+        notebook.pack(fill="both", expand=True)
+
+        try:
+            # افزودن تب ورود اطلاعات
+            logger.info("در حال بارگذاری تب ورود اطلاعات...")
+            data_entry_tab = DataEntryTab(notebook)
+            notebook.add(data_entry_tab, text="ورود اطلاعات")
+            logger.info("تب ورود اطلاعات با موفقیت بارگذاری شد")
+        except Exception as e:
+            logger.error(f"خطا در بارگذاری تب ورود اطلاعات: {str(e)}")
+            raise
+
+        try:
+            # افزودن تب مدیریت بانک‌ها
+            logger.info("در حال بارگذاری تب مدیریت بانک‌ها...")
+            bank_tab = BankTab(notebook, on_bank_change_callback=data_entry_tab.load_banks_to_combobox)
+            notebook.add(bank_tab, text="مدیریت بانک‌ها")
+            logger.info("تب مدیریت بانک‌ها با موفقیت بارگذاری شد")
+        except Exception as e:
+            logger.error(f"خطا در بارگذاری تب مدیریت بانک‌ها: {str(e)}")
+            raise
+            
+        try:
+            # افزودن تب مغایرت‌گیری
+            logger.info("در حال بارگذاری تب مغایرت‌گیری...")
+            reconciliation_tab = ReconciliationTab(notebook)
+            notebook.add(reconciliation_tab, text="مغایرت‌گیری")
+            logger.info("تب مغایرت‌گیری با موفقیت بارگذاری شد")
+        except Exception as e:
+            logger.error(f"خطا در بارگذاری تب مغایرت‌گیری: {str(e)}")
+            raise
+
+        logger.info("رابط کاربری با موفقیت راه‌اندازی شد")
+        
+        # شروع حلقه اصلی برنامه
+        app.mainloop()
+
+    except Exception as e:
+        logger.critical(f"خطای بحرانی در اجرای برنامه: {str(e)}")
+        logger.critical(f"جزئیات خطا:\n{traceback.format_exc()}")
+        messagebox.showerror(
+            "خطای بحرانی",
+            "متأسفانه خطای غیرمنتظره‌ای رخ داده است. لطفاً با پشتیبانی تماس بگیرید.\n\n"
+            f"جزئیات خطا: {str(e)}"
+        )
+        sys.exit(1)
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    """
+    مدیریت خطاهای مربوط به رابط کاربری
+    """
+    # لاگ کردن خطا
+    logger.error("خطای رابط کاربری:")
+    logger.error("".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+    
+    # نمایش پیام خطا به کاربر
+    error_message = str(exc_value)
+    if not error_message:
+        error_message = str(exc_type.__name__)
+    
+    messagebox.showerror(
+        "خطا",
+        f"خطایی رخ داده است:\n\n{error_message}\n\n"
+        "جزئیات خطا در فایل لاگ ثبت شده است."
+    )
 
 if __name__ == "__main__":
-    exit_code = main()
-    
-    # اگر برنامه مستقیماً با پایتون اجرا شده باشد (نه از طریق run_app.bat)، منتظر فشردن کلید بماند
-    if len(sys.argv) <= 1:  # هیچ آرگومانی به برنامه داده نشده است
-        print("\nبرنامه با موفقیت اجرا شد. برای خروج کلیدی را فشار دهید...")
-        input()
-    
-    sys.exit(exit_code)
+    main()
