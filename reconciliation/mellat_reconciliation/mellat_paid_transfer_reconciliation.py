@@ -74,8 +74,11 @@ def _reconcile_single_transfer(bank_record, ui_handler):
 
         possible_matches_with_fee = []
         for match in potential_matches:
-            fee = bank_amount - match['amount']
-            if 0 < fee:
+            fee = bank_amount - match['transaction_amount']
+            if(match['transaction_number']==bank_tracking_num):
+                possible_matches_with_fee.append((match, fee))
+                break
+            elif 0 < fee:
                 possible_matches_with_fee.append((match, fee))
 
         if len(possible_matches_with_fee) == 1:

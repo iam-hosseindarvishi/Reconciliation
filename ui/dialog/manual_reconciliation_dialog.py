@@ -25,7 +25,7 @@ class ManualReconciliationDialog(tk.Toplevel):
 
     def populate_table(self):
         for match in self.matches:
-            self.tree.insert("", "end", values=(match['id'], match['date'], match['amount'], match['description']))
+            self.tree.insert("", "end", values=(match['id'], match['due_date'], match['transaction_amount'], match['description']))
 
     def on_select(self):
         selected_item = self.tree.selection()

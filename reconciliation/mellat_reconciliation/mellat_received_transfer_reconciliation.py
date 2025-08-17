@@ -83,7 +83,7 @@ def _reconcile_single_transfer(bank_record, ui_handler):
         elif len(matches) > 1:
             # Multiple matches, requiring user intervention
             logger.warning(f"Multiple matches found for Bank Transfer {bank_record['id']}. Opening dialog.")
-            dialog = ManualReconciliationDialog(ui_handler.get_parent(), matches)
+            dialog = ManualReconciliationDialog(ui_handler.parent, matches)
             selected_match = dialog.show()
             if selected_match:
                 handle_success(selected_match)

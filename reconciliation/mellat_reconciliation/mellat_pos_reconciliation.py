@@ -41,15 +41,12 @@ def _reconcile_in_thread(pos_transactions, ui_handler, ):
         # NOTE: This is a simplified approach. For a robust solution,
         # it's recommended to use a thread-safe queue for UI updates.
         progress_percentage = (i + 1) / total_transactions * 100
-        ui_handler.overall_progressbar['value'] = progress_percentage
-        ui_handler.detailed_status_var.set(f"Reconciled {i + 1} of {total_transactions} POS transactions.")
-        ui_handler.update_idletasks()
+        ui_handler.update_progress(progress_percentage)
+        ui_handler.update_detailed_status(f"Reconciled {i + 1} of {total_transactions} POS transactions.")
 
 
     logger.info("Finished POS reconciliation.")
-    ui_handler.overall_status_var.set("Finished POS reconciliation.")
-    ui_handler.update_idletasks()
-    on_complete()
+    ui_handler.update_status("Finished POS reconciliation.")
 
 
 def _reconcile_single_pos(bank_record, ui_handler):
