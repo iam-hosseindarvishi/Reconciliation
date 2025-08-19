@@ -65,3 +65,7 @@
 2025-08-17 20:30:06,326 - INFO - مغایرت‌گیری 79 تراکنش کارمزد بانکی
 2025-08-17 20:30:08,785 - INFO - فرآیند مغایرت‌گیری با موفقیت به پایان رسید
 2025-08-17 20:30:08,792 - INFO - فرآیند مغایرت‌گیری با موفقیت به پایان رسید
+2025-08-19 22:36:16,876 - INFO - شروع فرآیند مغایرت‌گیری برای بانک بانک ملت
+2025-08-19 22:36:26,578 - ERROR - خطا در اجرای فرآیند مغایرت‌گیری: ReconciliationProcess.__init__() missing 1 required positional argument: 'manual_reconciliation_queue'
+2025-08-19 22:37:25,240 - INFO - شروع فرآیند مغایرت‌گیری برای بانک بانک ملت
+2025-08-19 22:37:25,243 - ERROR - خطا در اجرای فرآیند مغایرت‌گیری: ReconciliationProcess.__init__() missing 1 required positional argument: 'manual_reconciliation_queue'

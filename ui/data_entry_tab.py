@@ -1,6 +1,7 @@
 import os
 import logging
 import threading
+import queue
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from tkinter import StringVar, filedialog, font
@@ -15,7 +16,7 @@ from config.settings import (
     DATA_DIR, DEFAULT_FONT, DEFAULT_FONT_SIZE,
     HEADER_FONT_SIZE, BUTTON_FONT_SIZE
 )
-
+from ui.dialog.manual_reconciliation_dialog import ManualReconciliationDialog
 
 
 # کلاس برای نمایش لاگ‌ها در UI
@@ -40,6 +41,8 @@ class DataEntryTab(ttk.Frame):
         self.status_var = StringVar(value="منتظر شروع فرآیند...")
         self.create_widgets()
         self.load_banks_to_combobox()
+        self.manual_reconciliation_queue = queue.Queue()
+        self.after(100, self.check_manual_reconciliation_queue)
         
         # ذخیره مقدار انتخاب شده قبلی
         self.previous_bank_selection = None
@@ -325,10 +328,39 @@ class DataEntryTab(ttk.Frame):
         self.overall_progressbar['value'] = 0
         self.detailed_progressbar['value'] = 0
 
-        # شروع thread جدید
-        process_thread = threading.Thread(target=self.process_thread)
-        process_thread.daemon = True  # thread با بسته شدن برنامه متوقف می‌شود
-        process_thread.start()
+    def check_manual_reconciliation_queue(self):
+        """بررسی صف برای درخواست‌های مغایرت دستی"""
+        try:
+            while not self.manual_reconciliation_queue.empty():
+                request = self.manual_reconciliation_queue.get_nowait()
+                self.logger.info(f"درخواست مغایرت دستی جدید دریافت شد: {request['type']}")
+
+                dialog = ManualReconciliationDialog(self, request['data'], request['type'])
+                self.wait_window(dialog)
+
+                result = dialog.result
+                self.logger.info(f"نتیجه مغایرت دستی: {result}")
+                
+                # ارسال نتیجه به ترد مربوطه
+                if 'callback' in request and callable(request['callback']):
+                    request['callback'](result)
+
+        except queue.Empty:
+            pass  # صف خالی است
+        except Exception as e:
+            self.logger.error(f"خطا در پردازش صف مغایرت دستی: {str(e)}")
+        finally:
+            self.after(100, self.check_manual_reconciliation_queue)
+
+    def start_process(self):
+        """شروع فرآیند پردازش"""
+        if not self.validate_inputs():
+            return
+
+        # غیرفعال کردن دکمه‌ها
+        for widget in self.winfo_children():
+            if isinstance(widget, ttk.Button):
+                widget
 
         # چک کردن وضعیت thread و فعال کردن مجدد دکمه‌ها
         def check_thread():

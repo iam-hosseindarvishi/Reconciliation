@@ -1,5 +1,8 @@
 # file: reconciliation/mellat_reconciliation/mellat_paid_transfer_reconciliation.py
 
+# file: reconciliation/mellat_reconciliation/mellat_paid_transfer_reconciliation.py
+
+import queue
 import threading
 import tkinter as tk
 from tkinter import messagebox
@@ -8,34 +11,33 @@ from utils.logger_config import setup_logger
 from utils.compare_tracking_numbers import compare_tracking_numbers
 from database.accounting_repository import get_transactions_by_date_amount_type, get_transactions_by_date_less_than_amount_type, create_accounting_transaction, update_accounting_transaction_reconciliation_status
 from reconciliation.save_reconciliation_result import success_reconciliation_result, fail_reconciliation_result
-from ui.dialog.manual_reconciliation_dialog import ManualReconciliationDialog
 
 logger = setup_logger('reconciliation.mellat_paid_transfer_reconciliation')
 
-def reconcile_mellat_paid_transfer(bank_transactions, ui_handler):
+def reconcile_mellat_paid_transfer(bank_transactions, ui_handler, manual_reconciliation_queue):
     """
     Reconciles Mellat Bank Paid Transfer transactions in a separate thread.
 
     Args:
         bank_transactions (list): List of bank transfer transactions to reconcile.
         ui_handler: An object to handle UI updates.
-
+        manual_reconciliation_queue (queue.Queue): The queue for manual reconciliation requests.
     """
     thread = threading.Thread(
         target=_reconcile_in_thread,
-        args=(bank_transactions, ui_handler)
+        args=(bank_transactions, ui_handler, manual_reconciliation_queue)
     )
     thread.start()
 
 
-def _reconcile_in_thread(bank_transactions, ui_handler):
+def _reconcile_in_thread(bank_transactions, ui_handler, manual_reconciliation_queue):
     """
     The actual reconciliation logic that runs in a separate thread.
     """
     logger.info(f"Starting Paid_Transfer reconciliation for {len(bank_transactions)} transactions.")
     total_transactions = len(bank_transactions)
     for i, bank_record in enumerate(bank_transactions):
-        _reconcile_single_transfer(bank_record, ui_handler)
+        _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_queue)
 
         # Update UI progress
         progress_percentage = (i + 1) / total_transactions * 100
@@ -46,7 +48,7 @@ def _reconcile_in_thread(bank_transactions, ui_handler):
     ui_handler.update_status("Finished Paid_Transfer reconciliation.")
 
 
-def _reconcile_single_transfer(bank_record, ui_handler):
+def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_queue):
     """
     Reconciles a single Paid_Transfer transaction.
     """
@@ -85,9 +87,9 @@ def _reconcile_single_transfer(bank_record, ui_handler):
 
         # Manual Reconciliation Dialog
         potential_matches = get_transactions_by_date_less_than_amount_type(bank_id, bank_date, bank_amount, transaction_type)
-
-        dialog = ManualReconciliationDialog(ui_handler.parent, bank_record, potential_matches)
-        result = dialog.result
+        result_queue = queue.Queue()
+        manual_reconciliation_queue.put((bank_record, potential_matches, result_queue, 'Paid_Transfer'))
+        result = result_queue.get()  # Wait for the result from the main thread
 
         if result:
             success_reconciliation_result(bank_record['id'], result['id'], None, 'Manual reconciliation', transaction_type)
