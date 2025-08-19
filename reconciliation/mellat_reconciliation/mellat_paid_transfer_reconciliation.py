@@ -53,7 +53,6 @@ def _reconcile_single_transfer(bank_record, ui_handler):
     try:
         bank_date = bank_record['transaction_date']
         bank_amount = bank_record['amount']
-        bank_tracking_num = bank_record['extracted_tracking_number']
         bank_id = bank_record['bank_id']
         transaction_type = 'Paid Transfer'
 
@@ -64,27 +63,11 @@ def _reconcile_single_transfer(bank_record, ui_handler):
             logger.info(f"Reconciled Bank Transfer {bank_record['id']} with accounting doc {exact_matches[0]['id']}")
             return
 
-        # Approximate Match (Fee Reconciliation)
-        potential_matches = get_transactions_by_date_less_than_amount_type(bank_id, bank_date, bank_amount, transaction_type)
-
-        if not potential_matches:
-            logger.warning(f"No matching accounting document found for Bank Transfer {bank_record['id']}.")
-            fail_reconciliation_result(bank_record['id'], None, None, 'No match found', transaction_type)
-            return
-
-        possible_matches_with_fee = []
-        for match in potential_matches:
-            fee = bank_amount - match['transaction_amount']
-            if(match['transaction_number']==bank_tracking_num):
-                possible_matches_with_fee.append((match, fee))
-                break
-            elif 0 < fee:
-                possible_matches_with_fee.append((match, fee))
-
-        if len(possible_matches_with_fee) == 1:
-            match, fee = possible_matches_with_fee[0]
-            if fee <= 100000:
-                # Automatic Reconciliation
+        # Fixed Fee Match
+        for fee in [450, 360]:
+            potential_matches = get_transactions_by_date_amount_type(bank_id, bank_date, bank_amount - fee, transaction_type)
+            if len(potential_matches) == 1:
+                match = potential_matches[0]
                 fee_transaction_data = {
                     'bank_id': bank_id,
                     'transaction_amount': fee,
@@ -94,25 +77,26 @@ def _reconcile_single_transfer(bank_record, ui_handler):
                 }
                 fee_transaction_id = create_accounting_transaction(fee_transaction_data)
                 update_accounting_transaction_reconciliation_status(fee_transaction_id, True)
-                
-                bank_record['amount'] = match['amount']
-                success_reconciliation_result(bank_record['id'], match['id'], None, 'Automatic fee reconciliation', transaction_type)
+
+                bank_record['amount'] = match['transaction_amount']
+                success_reconciliation_result(bank_record['id'], match['id'], None, f'Automatic fee reconciliation with fee: {fee}', transaction_type)
                 logger.info(f"Automatically reconciled Bank Transfer {bank_record['id']} with fee {fee}")
                 return
 
-        # Manual Confirmation
-        # This part requires a dialog for user confirmation. For now, we will log it.
-        if possible_matches_with_fee:
-            logger.warning(f"Manual confirmation needed for Bank Transfer {bank_record['id']}.")
-            # Here you would open a dialog and based on user action proceed or fail.
-            # For now, we will fail it as a placeholder for manual intervention.
+        # Manual Reconciliation Dialog
+        potential_matches = get_transactions_by_date_less_than_amount_type(bank_id, bank_date, bank_amount, transaction_type)
 
-        fail_reconciliation_result(bank_record['id'], None, None, 'Manual confirmation required', transaction_type)
+        dialog = ManualReconciliationDialog(ui_handler.parent, bank_record, potential_matches)
+        result = dialog.result
+
+        if result:
+            success_reconciliation_result(bank_record['id'], result['id'], None, 'Manual reconciliation', transaction_type)
+            logger.info(f"Manually reconciled Bank Transfer {bank_record['id']} with accounting doc {result['id']}")
+        else:
+            fail_reconciliation_result(bank_record['id'], None, None, 'No match found', transaction_type)
+            logger.warning(f"Manual reconciliation failed for Bank Transfer {bank_record['id']}. No match selected.")
 
     except Exception as e:
         logger.error(f"Error reconciling Bank Transfer {bank_record['id']}: {e}", exc_info=True)
         fail_reconciliation_result(bank_record['id'], None, None, f"Processing error: {str(e)}", transaction_type)
-    """
-    Reconciles a single Paid_Transfer transaction.
-    """
    
