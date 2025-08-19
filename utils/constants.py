@@ -1,3 +1,25 @@
+#banks
+MELLAT_BANK_ID = 1
+KESHAVARZI_BANK_ID = 2
+
+MELLAT_BANK_NAME = 'بانک ملت'
+KESHAVARZI_BANK_NAME = 'بانک کشاورزی'
+
+MELLAT_BANK = {
+    'id': MELLAT_BANK_ID,
+    'name': MELLAT_BANK_NAME
+}
+
+KESHAVARZI_BANK = {
+    'id': KESHAVARZI_BANK_ID,
+    'name': KESHAVARZI_BANK_NAME
+}
+
+BANKS = {
+    MELLAT_BANK_ID: MELLAT_BANK_NAME,
+    KESHAVARZI_BANK_ID: KESHAVARZI_BANK_NAME
+}
+
 # ثابت‌های نوع تراکنش برای سیستم حسابداری
 TRANSACTION_TYPE_MAP = {
     'چک دريافتني': 'Received Check',

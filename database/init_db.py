@@ -1,6 +1,7 @@
 import sqlite3
 import os
 from config.settings import DB_PATH, DATA_DIR
+from utils.constants import BANKS
 from utils.logger_config import setup_logger
 
 # راه‌اندازی لاگر برای ثبت عملیات دیتابیس
@@ -33,6 +34,15 @@ def init_db():
                 bank_name TEXT NOT NULL UNIQUE
             )
         """)
+
+        # افزودن بانک‌های پیش‌فرض
+        try:
+            for bank_key, bank_name in BANKS.items():
+                cursor.execute("INSERT OR IGNORE INTO Banks (bank_name) VALUES (?)", (bank_name,))
+            logger.info("بانک‌های پیش‌فرض با موفقیت اضافه شدند.")
+        except Exception as e:
+            logger.error(f"خطا در افزودن بانک‌های پیش‌فرض: {str(e)}")
+
           # جدول تراکنش‌های بانکی
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS BankTransactions (

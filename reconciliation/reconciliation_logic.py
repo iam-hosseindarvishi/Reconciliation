@@ -9,7 +9,7 @@ from reconciliation.mellat_reconciliation import reconcile_mellat_pos
 from reconciliation.mellat_reconciliation.mellat_received_transfer_reconciliation import reconcile_mellat_received_transfer
 from reconciliation.mellat_reconciliation.mellat_paid_transfer_reconciliation import reconcile_mellat_paid_transfer
 from utils.logger_config import setup_logger
-from utils.constants import KESHAVARZI_TRANSACTION_TYPES
+from utils.constants import KESHAVARZI_TRANSACTION_TYPES, MELLAT_BANK
 # راه‌اندازی لاگر
 logger = setup_logger('reconciliation.reconciliation_logic')
 
@@ -94,7 +94,7 @@ class ReconciliationProcess:
             # به عنوان مثال، برای تراکنش‌های POS
             if KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS'] in categorized_transactions:
                 
-                if self.bank_id == 1:  # ID for Mellat Bank
+                if self.bank_id == MELLAT_BANK['id']:  # ID for Mellat Bank
                     self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های POS بانک ملت...")
                     self.ui.update_detailed_progress(60)
                     reconcile_mellat_pos(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS']], self.ui)
@@ -119,13 +119,13 @@ class ReconciliationProcess:
             if KESHAVARZI_TRANSACTION_TYPES['RECEIVED_TRANSFER'] in categorized_transactions:
                 self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های انتقال دریافتی...")
                 self.ui.update_detailed_progress(85)
-                if(self.bank_id == 1):
+                if(self.bank_id == MELLAT_BANK['id']):
                     reconcile_mellat_received_transfer(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_TRANSFER']], self.ui)
             
             if KESHAVARZI_TRANSACTION_TYPES['PAID_TRANSFER'] in categorized_transactions:
                 self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های انتقال پرداختی...")
                 self.ui.update_detailed_progress(90)
-                if(self.bank_id == 1):
+                if(self.bank_id == MELLAT_BANK['id']):
                     reconcile_mellat_paid_transfer(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['PAID_TRANSFER']], self.ui)
             
             # برای کارمزدهای بانکی

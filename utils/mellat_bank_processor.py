@@ -80,7 +80,7 @@ def determine_transaction_type(row):
     has_debit = float(row['مبلغ گردش بدهکار'] or 0) != 0
     
     # پیش شرط برای مشخص شدن پایا
-    if(branch == 'خیابان شیخ آباد' and ('از اینترنت' and 'پایا' in description) and has_debit):
+    if(branch == 'خیابان شیخ آباد' and (('از اینترنت' and 'پایا' in description) and ('کارمزد' not in description or 'کارمزد پایا' not in beneficiary)) and has_debit):
         return MELLAT_TRANSACTION_TYPES['PAID_TRANSFER']
     # شرط ۱: تراکنش‌های POS از طریق شاپرک
     if ((('شاپرک-پوز' in beneficiary and 
