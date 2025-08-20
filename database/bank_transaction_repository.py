@@ -113,12 +113,13 @@ def get_unreconciled_transactions_by_bank(bank_id):
     conn = None
     try:
         conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row  # برای دسترسی به نام ستون‌ها
         cursor = conn.cursor()
         cursor.execute("""
             SELECT * FROM BankTransactions 
             WHERE bank_id = ? AND is_reconciled = 0
         """, (bank_id,))
-        result = cursor.fetchall()
+        result = [dict(row) for row in cursor.fetchall()]
         logger.info(f"تعداد {len(result)} تراکنش تطبیق نشده برای بانک {bank_id} یافت شد")
         return result
     except Exception as e:

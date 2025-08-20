@@ -39,3 +39,17 @@ KeyError: 'tracking_number'
                                 ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
 KeyError: 'tracking_number'
 
+2025-08-20 22:04:49 - main - ERROR - خطا در بارگذاری تب مغایرت‌یابی دستی: No item with that key
+2025-08-20 22:04:49 - main - CRITICAL - خطای بحرانی در اجرای برنامه: No item with that key
+2025-08-20 22:04:49 - main - CRITICAL - جزئیات خطا:
+Traceback (most recent call last):
+  File "E:\Work Space\Reconciliation\main.py", line 120, in main
+    manual_reconciliation_tab = ManualReconciliationTab(notebook)
+  File "E:\Work Space\Reconciliation\ui\manual_reconciliation_tab.py", line 46, in __init__
+    self.load_banks_to_combobox()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Work Space\Reconciliation\ui\manual_reconciliation_tab.py", line 213, in load_banks_to_combobox
+    bank_names = [bank['name'] for bank in banks]
+                  ~~~~^^^^^^^^
+IndexError: No item with that key
+

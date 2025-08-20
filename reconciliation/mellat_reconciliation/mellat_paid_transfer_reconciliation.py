@@ -90,9 +90,26 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
         
         # فقط در صورتی که رکورد حسابداری مغایرت‌یابی نشده وجود داشته باشد، دیالوگ را نمایش می‌دهیم
         if potential_matches and len(potential_matches) > 0:
-            result_queue = queue.Queue()
-            manual_reconciliation_queue.put((bank_record, potential_matches, result_queue, 'Paid_Transfer'))
-            result = result_queue.get()  # Wait for the result from the main thread
+            # بررسی تنظیمات نمایش مغایرت‌گیری دستی
+            from ui.reconciliation_tab import ReconciliationTab
+            show_manual_reconciliation = True
+            
+            # بررسی وضعیت چک‌باکس نمایش مغایرت‌گیری دستی
+            try:
+                from ui.main_window import MainWindow
+                if hasattr(MainWindow.instance, 'reconciliation_tab') and \
+                   hasattr(MainWindow.instance.reconciliation_tab, 'show_manual_reconciliation_var'):
+                    show_manual_reconciliation = MainWindow.instance.reconciliation_tab.show_manual_reconciliation_var.get()
+            except Exception as e:
+                logger.warning(f"Could not check manual reconciliation setting: {e}")
+            
+            if show_manual_reconciliation:
+                result_queue = queue.Queue()
+                manual_reconciliation_queue.put((bank_record, potential_matches, result_queue, 'Paid_Transfer'))
+                result = result_queue.get()  # Wait for the result from the main thread
+            else:
+                logger.info(f"Skipping manual reconciliation dialog as per settings for Bank Transfer {bank_record['id']}")
+                result = None
         else:
             logger.warning(f"No unreconciled accounting records found for Bank Transfer {bank_record['id']}")
             result = None

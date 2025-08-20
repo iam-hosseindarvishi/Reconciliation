@@ -13,6 +13,7 @@ from database.init_db import init_db
 from ui.bank_tab import BankTab
 from ui.data_entry_tab import DataEntryTab
 from ui.reconciliation_tab import ReconciliationTab
+from ui.manual_reconciliation_tab import ManualReconciliationTab
 from utils.logger_config import setup_logger
 
 # تنظیم کدگذاری کنسول برای نمایش درست متون فارسی
@@ -111,6 +112,16 @@ def main():
             logger.info("تب مغایرت‌گیری با موفقیت بارگذاری شد")
         except Exception as e:
             logger.error(f"خطا در بارگذاری تب مغایرت‌گیری: {str(e)}")
+            raise
+            
+        try:
+            # افزودن تب مغایرت‌یابی دستی
+            logger.info("در حال بارگذاری تب مغایرت‌یابی دستی...")
+            manual_reconciliation_tab = ManualReconciliationTab(notebook)
+            notebook.add(manual_reconciliation_tab, text="مغایرت‌یابی دستی")
+            logger.info("تب مغایرت‌یابی دستی با موفقیت بارگذاری شد")
+        except Exception as e:
+            logger.error(f"خطا در بارگذاری تب مغایرت‌یابی دستی: {str(e)}")
             raise
 
         logger.info("رابط کاربری با موفقیت راه‌اندازی شد")

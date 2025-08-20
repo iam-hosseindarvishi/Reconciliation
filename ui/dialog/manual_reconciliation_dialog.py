@@ -284,7 +284,8 @@ class ManualReconciliationDialog(tk.Toplevel):
             self.bank_record['original_amount'] = float(bank_amount)
             
             # به‌روزرسانی توضیحات
-            fee_note = f"کارمزد تراکنش {self.bank_record['tracking_number']} به مبلغ {fee_amount:,}"
+            tracking_number = self.bank_record.get('tracking_number', self.bank_record.get('reference_number', 'نامشخص'))
+            fee_note = f"کارمزد تراکنش {tracking_number} به مبلغ {fee_amount:,}"
             current_notes = self.notes_text.get("1.0", "end-1c")
             if current_notes:
                 self.notes_text.delete("1.0", "end")

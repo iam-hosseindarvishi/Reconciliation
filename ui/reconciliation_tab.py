@@ -99,6 +99,16 @@ class ReconciliationTab(ttk.Frame):
         self.bank_combobox = Combobox(control_frame, textvariable=self.selected_bank_var, state="readonly", width=30)
         self.bank_combobox.configure(font=self.default_font)
         self.bank_combobox.grid(row=0, column=1, sticky="w", padx=5, pady=5)
+        
+        # چک باکس نمایش مغایرت‌گیری دستی
+        self.show_manual_reconciliation_var = ttk.BooleanVar(value=True)
+        self.show_manual_reconciliation_checkbox = ttk.Checkbutton(
+            control_frame, 
+            text="نمایش مغایرت‌گیری دستی", 
+            variable=self.show_manual_reconciliation_var,
+            style='Default.TCheckbutton'
+        )
+        self.show_manual_reconciliation_checkbox.grid(row=0, column=2, sticky="w", padx=5, pady=5)
 
         # === دکمه شروع ===
         btn_frame = ttk.Frame(control_frame)

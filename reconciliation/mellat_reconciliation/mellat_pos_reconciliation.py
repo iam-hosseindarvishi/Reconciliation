@@ -79,19 +79,33 @@ def _reconcile_single_pos(bank_record, ui_handler, manual_reconciliation_queue):
             # فقط در صورتی که رکورد حسابداری مغایرت‌یابی نشده وجود داشته باشد، دیالوگ را نمایش می‌دهیم
             unreconciled_matches = [match for match in matches if match.get('reconciliation_status', 0) == 0]
             if unreconciled_matches and len(unreconciled_matches) > 0:
-                result_queue = queue.Queue()
-                manual_reconciliation_queue.put({
-                    'bank_record': bank_record,
-                    'matches': unreconciled_matches,
-                    'result_queue': result_queue,
-                    'transaction_type': 'Pos'
-                })
-                selected_match = result_queue.get()  # Wait for the user's choice
+                # بررسی تنظیمات نمایش مغایرت‌گیری دستی
+                show_manual_reconciliation = True
+                try:
+                    from ui.main_window import MainWindow
+                    if hasattr(MainWindow.instance, 'reconciliation_tab') and \
+                       hasattr(MainWindow.instance.reconciliation_tab, 'show_manual_reconciliation_var'):
+                        show_manual_reconciliation = MainWindow.instance.reconciliation_tab.show_manual_reconciliation_var.get()
+                except Exception as e:
+                    logger.warning(f"Could not check manual reconciliation setting: {e}")
+                
+                if show_manual_reconciliation:
+                    result_queue = queue.Queue()
+                    manual_reconciliation_queue.put({
+                        'bank_record': bank_record,
+                        'matches': unreconciled_matches,
+                        'result_queue': result_queue,
+                        'transaction_type': 'Pos'
+                    })
+                    selected_match = result_queue.get()  # Wait for the user's choice
 
-                if selected_match:
-                    handle_success(selected_match)
+                    if selected_match:
+                        handle_success(selected_match)
+                    else:
+                        fail_reconciliation_result(bank_record['id'], None, None, 'Manual reconciliation cancelled', 'Pos')
                 else:
-                    fail_reconciliation_result(bank_record['id'], None, None, 'Manual reconciliation cancelled', 'Pos')
+                    logger.info(f"Skipping manual reconciliation dialog as per settings for POS transaction {bank_record['id']}")
+                    fail_reconciliation_result(bank_record['id'], None, None, 'Manual reconciliation skipped by settings', 'Pos')
             else:
                 logger.warning(f"No unreconciled accounting records found for POS transaction {bank_record['id']}")
                 fail_reconciliation_result(bank_record['id'], None, None, 'No unreconciled match found', 'Pos')

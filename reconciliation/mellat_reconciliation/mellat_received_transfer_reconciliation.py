@@ -88,13 +88,27 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
             # فقط در صورتی که رکورد حسابداری مغایرت‌یابی نشده وجود داشته باشد، دیالوگ را نمایش می‌دهیم
             unreconciled_matches = [match for match in matches if match.get('reconciliation_status', 0) == 0]
             if unreconciled_matches and len(unreconciled_matches) > 0:
-                result_queue = queue.Queue()
-                manual_reconciliation_queue.put((bank_record, unreconciled_matches, result_queue, 'Received_Transfer'))
-                selected_match = result_queue.get()  # Wait for the result from the main thread
-                if selected_match:
-                    handle_success(selected_match)
+                # بررسی تنظیمات نمایش مغایرت‌گیری دستی
+                show_manual_reconciliation = True
+                try:
+                    from ui.main_window import MainWindow
+                    if hasattr(MainWindow.instance, 'reconciliation_tab') and \
+                       hasattr(MainWindow.instance.reconciliation_tab, 'show_manual_reconciliation_var'):
+                        show_manual_reconciliation = MainWindow.instance.reconciliation_tab.show_manual_reconciliation_var.get()
+                except Exception as e:
+                    logger.warning(f"Could not check manual reconciliation setting: {e}")
+                
+                if show_manual_reconciliation:
+                    result_queue = queue.Queue()
+                    manual_reconciliation_queue.put((bank_record, unreconciled_matches, result_queue, 'Received_Transfer'))
+                    selected_match = result_queue.get()  # Wait for the result from the main thread
+                    if selected_match:
+                        handle_success(selected_match)
+                    else:
+                        fail_reconciliation_result(bank_record['id'], None, None, 'Manual reconciliation cancelled', 'Received_Transfer')
                 else:
-                    fail_reconciliation_result(bank_record['id'], None, None, 'Manual reconciliation cancelled', 'Received_Transfer')
+                    logger.info(f"Skipping manual reconciliation dialog as per settings for Bank Transfer {bank_record['id']}")
+                    fail_reconciliation_result(bank_record['id'], None, None, 'Manual reconciliation skipped by settings', 'Received_Transfer')
             else:
                 logger.warning(f"No unreconciled accounting records found for Bank Transfer {bank_record['id']}")
                 fail_reconciliation_result(bank_record['id'], None, None, 'No unreconciled match found', 'Received_Transfer')
