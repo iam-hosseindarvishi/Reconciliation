@@ -85,13 +85,19 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
         elif len(matches) > 1:
             # Multiple matches, requiring user intervention
             logger.warning(f"Multiple matches found for Bank Transfer {bank_record['id']}. Opening dialog.")
-            result_queue = queue.Queue()
-            manual_reconciliation_queue.put((bank_record, matches, result_queue, 'Received_Transfer'))
-            selected_match = result_queue.get()  # Wait for the result from the main thread
-            if selected_match:
-                handle_success(selected_match)
+            # فقط در صورتی که رکورد حسابداری مغایرت‌یابی نشده وجود داشته باشد، دیالوگ را نمایش می‌دهیم
+            unreconciled_matches = [match for match in matches if match.get('reconciliation_status', 0) == 0]
+            if unreconciled_matches and len(unreconciled_matches) > 0:
+                result_queue = queue.Queue()
+                manual_reconciliation_queue.put((bank_record, unreconciled_matches, result_queue, 'Received_Transfer'))
+                selected_match = result_queue.get()  # Wait for the result from the main thread
+                if selected_match:
+                    handle_success(selected_match)
+                else:
+                    fail_reconciliation_result(bank_record['id'], None, None, 'Manual reconciliation cancelled', 'Received_Transfer')
             else:
-                fail_reconciliation_result(bank_record['id'], None, None, 'Manual reconciliation cancelled', 'Received_Transfer')
+                logger.warning(f"No unreconciled accounting records found for Bank Transfer {bank_record['id']}")
+                fail_reconciliation_result(bank_record['id'], None, None, 'No unreconciled match found', 'Received_Transfer')
         else:
             # No match found
             logger.warning(f"No matching accounting document found for Bank Transfer {bank_record['id']}.")

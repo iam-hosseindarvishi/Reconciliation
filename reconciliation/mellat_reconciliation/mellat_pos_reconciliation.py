@@ -76,19 +76,25 @@ def _reconcile_single_pos(bank_record, ui_handler, manual_reconciliation_queue):
             handle_success(matches[0])
         elif len(matches) > 1:
             logger.warning(f"Multiple matches found for POS transaction {bank_record['id']}. Requesting manual reconciliation.")
-            result_queue = queue.Queue()
-            manual_reconciliation_queue.put({
-                'bank_record': bank_record,
-                'matches': matches,
-                'result_queue': result_queue,
-                'transaction_type': 'Pos'
-            })
-            selected_match = result_queue.get()  # Wait for the user's choice
+            # فقط در صورتی که رکورد حسابداری مغایرت‌یابی نشده وجود داشته باشد، دیالوگ را نمایش می‌دهیم
+            unreconciled_matches = [match for match in matches if match.get('reconciliation_status', 0) == 0]
+            if unreconciled_matches and len(unreconciled_matches) > 0:
+                result_queue = queue.Queue()
+                manual_reconciliation_queue.put({
+                    'bank_record': bank_record,
+                    'matches': unreconciled_matches,
+                    'result_queue': result_queue,
+                    'transaction_type': 'Pos'
+                })
+                selected_match = result_queue.get()  # Wait for the user's choice
 
-            if selected_match:
-                handle_success(selected_match)
+                if selected_match:
+                    handle_success(selected_match)
+                else:
+                    fail_reconciliation_result(bank_record['id'], None, None, 'Manual reconciliation cancelled', 'Pos')
             else:
-                fail_reconciliation_result(bank_record['id'], None, None, 'Manual reconciliation cancelled', 'Pos')
+                logger.warning(f"No unreconciled accounting records found for POS transaction {bank_record['id']}")
+                fail_reconciliation_result(bank_record['id'], None, None, 'No unreconciled match found', 'Pos')
         else:
             logger.warning(f"No matching accounting document found for POS transaction {bank_record['id']}.")
             fail_reconciliation_result(bank_record['id'], None, None, 'No match found', 'Pos')

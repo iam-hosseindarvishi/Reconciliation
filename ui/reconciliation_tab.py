@@ -1,6 +1,7 @@
 import os
 import logging
 import threading
+import queue
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from tkinter import StringVar
@@ -279,8 +280,24 @@ class ReconciliationTab(ttk.Frame):
                     self.run_reconciliation_process(bank_id, bank_name, ui_handler)
                     return
             # ایجاد و اجرای فرآیند مغایرت‌گیری
-            process = ReconciliationProcess(self, bank_id, bank_name, ui_handler)
+            # ایجاد صف برای ارتباط بین تردها
+            manual_reconciliation_queue = queue.Queue()
+            
+            # ایجاد ترد برای پردازش درخواست‌های مغایرت‌یابی دستی
+            manual_reconciliation_thread = threading.Thread(
+                target=self.process_manual_reconciliation_requests,
+                args=(manual_reconciliation_queue,)
+            )
+            # ترد را به صورت غیر daemon تنظیم می‌کنیم تا برنامه منتظر تکمیل آن بماند
+            manual_reconciliation_thread.daemon = False
+            manual_reconciliation_thread.start()
+            
+            # ایجاد و شروع فرآیند مغایرت‌گیری
+            process = ReconciliationProcess(self, bank_id, bank_name, ui_handler, manual_reconciliation_queue)
             result = process.start()
+            
+            # منتظر می‌مانیم تا تمام درخواست‌های مغایرت‌یابی دستی پردازش شوند
+            manual_reconciliation_queue.join()
             
             # فعال کردن مجدد دکمه‌ها
             for widget in self.winfo_children():
@@ -299,3 +316,52 @@ class ReconciliationTab(ttk.Frame):
             for widget in self.winfo_children():
                 if isinstance(widget, ttk.Button):
                     widget.configure(state='normal')
+    
+    def process_manual_reconciliation_requests(self, manual_reconciliation_queue):
+        """پردازش درخواست‌های مغایرت‌یابی دستی"""
+        from ui.dialog.manual_reconciliation_dialog import ManualReconciliationDialog
+        
+        try:
+            while True:
+                # دریافت درخواست از صف
+                request = manual_reconciliation_queue.get()
+                
+                try:
+                    # بررسی تعداد آرگومان‌های دریافتی
+                    if isinstance(request, tuple) and len(request) == 4:
+                        bank_record, accounting_records, result_queue, transaction_type = request
+                    else:
+                        self.logger.error(f"فرمت نامعتبر درخواست مغایرت‌یابی دستی: {request}")
+                        continue
+                    
+                    # لاگ کردن اطلاعات
+                    self.logger.info(f"درخواست مغایرت‌یابی دستی برای تراکنش بانکی با شناسه {bank_record['id']} دریافت شد")
+                    
+                    # نمایش دیالوگ مغایرت‌یابی دستی
+                    dialog = ManualReconciliationDialog(self, bank_record, accounting_records, transaction_type)
+                    selected_match, notes = dialog.show()
+                    
+                    # ارسال نتیجه به صف
+                    if selected_match:
+                        self.logger.info(f"مغایرت‌یابی دستی برای تراکنش بانکی {bank_record['id']} با رکورد حسابداری {selected_match['id']} انجام شد")
+                        # اضافه کردن توضیحات به رکورد انتخاب شده
+                        if notes:
+                            selected_match['reconciliation_notes'] = notes
+                    else:
+                        self.logger.warning(f"مغایرت‌یابی دستی برای تراکنش بانکی {bank_record['id']} انجام نشد")
+                    
+                    result_queue.put(selected_match)
+                except Exception as e:
+                    self.logger.error(f"خطا در پردازش درخواست مغایرت‌یابی دستی: {str(e)}")
+                    # در صورت خطا، None را به صف نتیجه ارسال می‌کنیم
+                    if 'result_queue' in locals():
+                        result_queue.put(None)
+                finally:
+                    # در هر صورت، اعلام می‌کنیم که پردازش درخواست به پایان رسیده است
+                    manual_reconciliation_queue.task_done()
+                
+        except Exception as e:
+            self.logger.error(f"خطا در پردازش درخواست مغایرت‌یابی دستی: {str(e)}")
+            # در صورت خطا، یک نتیجه خالی به صف ارسال می‌کنیم تا فرآیند اصلی متوقف نشود
+            if 'result_queue' in locals():
+                result_queue.put(None)

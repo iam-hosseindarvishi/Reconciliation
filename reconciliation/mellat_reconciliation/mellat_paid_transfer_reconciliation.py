@@ -87,12 +87,40 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
 
         # Manual Reconciliation Dialog
         potential_matches = get_transactions_by_date_less_than_amount_type(bank_id, bank_date, bank_amount, transaction_type)
-        result_queue = queue.Queue()
-        manual_reconciliation_queue.put((bank_record, potential_matches, result_queue, 'Paid_Transfer'))
-        result = result_queue.get()  # Wait for the result from the main thread
+        
+        # فقط در صورتی که رکورد حسابداری مغایرت‌یابی نشده وجود داشته باشد، دیالوگ را نمایش می‌دهیم
+        if potential_matches and len(potential_matches) > 0:
+            result_queue = queue.Queue()
+            manual_reconciliation_queue.put((bank_record, potential_matches, result_queue, 'Paid_Transfer'))
+            result = result_queue.get()  # Wait for the result from the main thread
+        else:
+            logger.warning(f"No unreconciled accounting records found for Bank Transfer {bank_record['id']}")
+            result = None
 
         if result:
-            success_reconciliation_result(bank_record['id'], result['id'], None, 'Manual reconciliation', transaction_type)
+            notes = 'Manual reconciliation'
+            
+            # اگر کارمزد جدا شده باشد
+            if 'fee_amount' in bank_record and bank_record['fee_amount'] > 0:
+                fee = bank_record['fee_amount']
+                
+                # ایجاد تراکنش کارمزد در حسابداری
+                fee_transaction_data = {
+                    'transaction_date': bank_date,
+                    'transaction_amount': fee,
+                    'transaction_type': 'Bank_Fee',
+                    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                    'bank_id': bank_id
+                }
+                
+                fee_transaction_id = create_accounting_transaction(fee_transaction_data)
+                update_accounting_transaction_reconciliation_status(fee_transaction_id, True)
+                
+                notes = f'Manual reconciliation with fee: {fee}'
+                logger.info(f"Fee of {fee} recorded for Bank Transfer {bank_record['id']}")
+            
+            # ثبت نتیجه مغایرت‌گیری
+            success_reconciliation_result(bank_record['id'], result['id'], None, notes, transaction_type)
             logger.info(f"Manually reconciled Bank Transfer {bank_record['id']} with accounting doc {result['id']}")
         else:
             fail_reconciliation_result(bank_record['id'], None, None, 'No match found', transaction_type)

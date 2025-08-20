@@ -313,20 +313,7 @@ class DataEntryTab(ttk.Frame):
         """به‌روزرسانی وضعیت در thread اصلی"""
         self.after(0, lambda: self.status_var.set(status))
 
-    def start_process(self):
-        """شروع فرآیند پردازش"""
-        if not self.validate_inputs():
-            return
 
-        # غیرفعال کردن دکمه‌ها
-        for widget in self.winfo_children():
-            if isinstance(widget, ttk.Button):
-                widget.configure(state='disabled')
-
-        # تنظیم وضعیت اولیه
-        self.status_var.set("در حال پردازش...")
-        self.overall_progressbar['value'] = 0
-        self.detailed_progressbar['value'] = 0
 
     def check_manual_reconciliation_queue(self):
         """بررسی صف برای درخواست‌های مغایرت دستی"""
@@ -342,8 +329,8 @@ class DataEntryTab(ttk.Frame):
                 self.logger.info(f"نتیجه مغایرت دستی: {result}")
                 
                 # ارسال نتیجه به ترد مربوطه
-                if 'callback' in request and callable(request['callback']):
-                    request['callback'](result)
+                if 'result_queue' in request:
+                    request['result_queue'].put(result)
 
         except queue.Empty:
             pass  # صف خالی است
@@ -357,22 +344,59 @@ class DataEntryTab(ttk.Frame):
         if not self.validate_inputs():
             return
 
-        # غیرفعال کردن دکمه‌ها
-        for widget in self.winfo_children():
-            if isinstance(widget, ttk.Button):
-                widget
+        # اجرای فرآیند در یک ترد جدید
+        self.process_thread = ReconciliationProcess(
+            self.selected_bank_var.get(), 
+            self.manual_reconciliation_queue
+        )
+        self.process_thread.start()
 
-        # چک کردن وضعیت thread و فعال کردن مجدد دکمه‌ها
-        def check_thread():
-            if process_thread.is_alive():
-                self.after(100, check_thread)
-            else:
-                # فعال کردن مجدد دکمه‌ها
-                for widget in self.winfo_children():
+        # غیرفعال کردن دکمه‌ها
+        self.disable_buttons()
+
+        # بررسی وضعیت ترد و فعال‌سازی مجدد دکمه‌ها
+        self.after(100, self.check_thread_status)
+
+    def check_thread_status(self):
+        """بررسی وضعیت ترد و به‌روزرسانی UI"""
+        if self.process_thread.is_alive():
+            # به‌روزرسانی پروگرس‌بارها
+            progress = self.process_thread.get_progress()
+            self.overall_progressbar['value'] = progress['overall']
+            self.detailed_progressbar['value'] = progress['detailed']
+            self.status_var.set(self.process_thread.get_status())
+            self.after(100, self.check_thread_status)
+        else:
+            # پایان فرآیند
+            progress = self.process_thread.get_progress()
+            self.overall_progressbar['value'] = progress['overall']
+            self.detailed_progressbar['value'] = progress['detailed']
+            self.status_var.set("فرآیند به پایان رسید")
+            self.enable_buttons()
+
+    def disable_buttons(self):
+        """غیرفعال کردن دکمه‌های اصلی"""
+        for child in self.winfo_children():
+            if isinstance(child, ttk.LabelFrame):
+                for widget in child.winfo_children():
+                    if isinstance(widget, ttk.Button):
+                        widget.configure(state='disabled')
+            elif isinstance(child, ttk.Frame):
+                for widget in child.winfo_children():
+                     if isinstance(widget, ttk.Button):
+                        widget.configure(state='disabled')
+
+    def enable_buttons(self):
+        """فعال کردن دکمه‌های اصلی"""
+        for child in self.winfo_children():
+            if isinstance(child, ttk.LabelFrame):
+                for widget in child.winfo_children():
                     if isinstance(widget, ttk.Button):
                         widget.configure(state='normal')
-
-        self.after(100, check_thread)
+            elif isinstance(child, ttk.Frame):
+                for widget in child.winfo_children():
+                     if isinstance(widget, ttk.Button):
+                        widget.configure(state='normal')
 
     def clear_entries(self):
         """پاک کردن تمام ورودی‌ها"""

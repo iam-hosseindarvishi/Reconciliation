@@ -1,2 +1,10 @@
-﻿2025-08-19 22:37:25,240 - INFO - شروع فرآیند مغایرت‌گیری برای بانک بانک ملت
-2025-08-19 22:37:25,243 - ERROR - خطا در اجرای فرآیند مغایرت‌گیری: ReconciliationProcess.__init__() missing 1 required positional argument: 'manual_reconciliation_queue'
+﻿2025-08-20 21:35:53 - main - ERROR - خطای رابط کاربری:
+2025-08-20 21:35:53 - main - ERROR - Traceback (most recent call last):
+  File "C:\Users\Hossein\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "e:\Work Space\Reconciliation\ui\dialog\manual_reconciliation_dialog.py", line 287, in on_deduct_fee
+    fee_note = f"کارمزد تراکنش {self.bank_record['tracking_number']} به مبلغ {fee_amount:,}"
+                                ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+
