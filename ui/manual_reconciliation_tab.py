@@ -66,10 +66,14 @@ class ManualReconciliationTab(ttk.Frame):
         self.bank_combobox = Combobox(top_frame, textvariable=self.selected_bank_var, state="readonly", width=30)
         self.bank_combobox.configure(font=self.default_font)
         self.bank_combobox.pack(side=tk.RIGHT, padx=5)
+        self.bank_combobox.bind("<<ComboboxSelected>>", lambda event: self.show_bank_records())
         
         # دکمه نمایش اطلاعات
         self.show_data_button = ttk.Button(top_frame, text="نمایش اطلاعات", command=self.show_bank_records)
         self.show_data_button.pack(side=tk.RIGHT, padx=5)
+        
+        # اضافه کردن رویداد تغییر مقدار کامبوباکس
+        self.bank_combobox.bind("<<ComboboxSelected>>", lambda event: self.show_bank_records())
         
         # === بخش میانی - لیست رکوردهای بانک ===
         bank_frame = ttk.LabelFrame(main_frame, text="رکوردهای مغایرت‌گیری نشده بانک")
@@ -210,10 +214,20 @@ class ManualReconciliationTab(ttk.Frame):
     def load_banks_to_combobox(self):
         """بارگذاری لیست بانک‌ها در کامبوباکس"""
         banks = get_all_banks()
-        bank_names = [bank[1] for bank in banks]  # استفاده از ایندکس 1 برای دسترسی به نام بانک
+        bank_names = [bank['bank_name'] for bank in banks]  # استفاده از نام ستون برای دسترسی به نام بانک
+        
+        # بررسی و نمایش تعداد بانک‌ها در لاگ
+        print(f"تعداد بانک‌ها: {len(banks)}")
+        for bank in banks:
+            print(f"بانک: {bank['bank_name']} (شناسه: {bank['id']})")
+            
         self.bank_combobox['values'] = bank_names
         if bank_names:
             self.bank_combobox.current(0)
+            # تنظیم متغیر انتخاب شده با مقدار اولیه
+            self.selected_bank_var.set(bank_names[0])
+            # نمایش رکوردهای بانک انتخاب شده به صورت خودکار
+            self.show_bank_records()
     
     def show_bank_records(self):
         """نمایش رکوردهای مغایرت‌گیری نشده بانک انتخاب شده"""
@@ -229,8 +243,8 @@ class ManualReconciliationTab(ttk.Frame):
         banks = get_all_banks()
         bank_id = None
         for bank in banks:
-            if bank[1] == selected_bank:  # مقایسه با نام بانک (ایندکس 1)
-                bank_id = bank[0]  # شناسه بانک (ایندکس 0)
+            if bank['bank_name'] == selected_bank:  # مقایسه با نام بانک
+                bank_id = bank['id']  # شناسه بانک
                 break
         
         if not bank_id:
@@ -262,7 +276,9 @@ class ManualReconciliationTab(ttk.Frame):
         
         # نمایش پیام مناسب
         if not self.bank_records:
-            messagebox.showinfo("اطلاعات", "هیچ رکورد مغایرت‌گیری نشده‌ای برای این بانک یافت نشد")
+            messagebox.showinfo("اطلاعات", f"هیچ رکورد مغایرت‌گیری نشده‌ای برای بانک {selected_bank} یافت نشد")
+        else:
+            messagebox.showinfo("اطلاعات", f"تعداد {len(self.bank_records)} رکورد مغایرت‌گیری نشده برای بانک {selected_bank} یافت شد")
     
     def on_bank_record_selected(self, event):
         """رویداد انتخاب رکورد بانک"""
@@ -297,7 +313,7 @@ class ManualReconciliationTab(ttk.Frame):
         self.clear_accounting_tree()
         
         # دریافت تاریخ رکورد بانک
-        bank_date = self.selected_bank_record['date']
+        bank_date = self.selected_bank_record['transaction_date']
         
         # دریافت نوع تراکنش بانک (دریافتی یا پرداختی)
         transaction_type = 'received' if self.selected_bank_record['amount'] > 0 else 'paid'
