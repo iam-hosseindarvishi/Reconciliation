@@ -90,18 +90,10 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
         
         # فقط در صورتی که رکورد حسابداری مغایرت‌یابی نشده وجود داشته باشد، دیالوگ را نمایش می‌دهیم
         if potential_matches and len(potential_matches) > 0:
-            # بررسی تنظیمات نمایش مغایرت‌گیری دستی
-            from ui.reconciliation_tab import ReconciliationTab
-            show_manual_reconciliation = True
-            
-            # بررسی وضعیت چک‌باکس نمایش مغایرت‌گیری دستی
-            try:
-                from ui.main_window import MainWindow
-                if hasattr(MainWindow.instance, 'reconciliation_tab') and \
-                   hasattr(MainWindow.instance.reconciliation_tab, 'show_manual_reconciliation_var'):
-                    show_manual_reconciliation = MainWindow.instance.reconciliation_tab.show_manual_reconciliation_var.get()
-            except Exception as e:
-                logger.warning(f"Could not check manual reconciliation setting: {e}")
+            # دریافت وضعیت نمایش مغایرت‌گیری دستی از ماژول ui_state
+            from utils import ui_state
+            show_manual_reconciliation = ui_state.get_show_manual_reconciliation()
+            logger.info(f"Manual reconciliation dialog will be shown: {show_manual_reconciliation}")
             
             if show_manual_reconciliation:
                 result_queue = queue.Queue()
@@ -126,7 +118,7 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
                     'transaction_date': bank_date,
                     'transaction_amount': fee,
                     'transaction_type': 'Bank_Fee',
-                    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                    'description': f'Bank fee for transfer {bank_record.get("extracted_tracking_number", bank_record["id"])}',
                     'bank_id': bank_id
                 }
                 

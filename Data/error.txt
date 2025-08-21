@@ -53,3 +53,111 @@ Traceback (most recent call last):
                   ~~~~^^^^^^^^
 IndexError: No item with that key
 
+2025-08-21 22:09:22 - reconciliation.mellat_paid_transfer_reconciliation - ERROR - Error reconciling Bank Transfer 40: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:09:22,193 - ERROR - Error reconciling Bank Transfer 40: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:10:03 - reconciliation.mellat_paid_transfer_reconciliation - ERROR - Error reconciling Bank Transfer 41: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:10:03,338 - ERROR - Error reconciling Bank Transfer 41: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:10:09 - reconciliation.mellat_paid_transfer_reconciliation - ERROR - Error reconciling Bank Transfer 42: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:10:09,740 - ERROR - Error reconciling Bank Transfer 42: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:10:16 - reconciliation.mellat_paid_transfer_reconciliation - ERROR - Error reconciling Bank Transfer 64: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:10:16,988 - ERROR - Error reconciling Bank Transfer 64: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:10:23 - reconciliation.mellat_paid_transfer_reconciliation - ERROR - Error reconciling Bank Transfer 89: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:10:23,334 - ERROR - Error reconciling Bank Transfer 89: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:10:35 - reconciliation.mellat_paid_transfer_reconciliation - ERROR - Error reconciling Bank Transfer 109: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:10:35,244 - ERROR - Error reconciling Bank Transfer 109: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:10:43 - reconciliation.mellat_paid_transfer_reconciliation - ERROR - Error reconciling Bank Transfer 110: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:10:43,016 - ERROR - Error reconciling Bank Transfer 110: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:10:49 - reconciliation.mellat_paid_transfer_reconciliation - ERROR - Error reconciling Bank Transfer 112: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:10:49,302 - ERROR - Error reconciling Bank Transfer 112: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:12:40 - reconciliation.mellat_paid_transfer_reconciliation - ERROR - Error reconciling Bank Transfer 137: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'
+2025-08-21 22:12:40,618 - ERROR - Error reconciling Bank Transfer 137: 'tracking_number'
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\reconciliation\mellat_reconciliation\mellat_paid_transfer_reconciliation.py", line 129, in _reconcile_single_transfer
+    'description': f'Bank fee for transfer {bank_record["tracking_number"]}',
+                                            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+KeyError: 'tracking_number'

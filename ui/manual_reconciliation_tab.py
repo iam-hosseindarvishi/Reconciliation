@@ -210,7 +210,7 @@ class ManualReconciliationTab(ttk.Frame):
     def load_banks_to_combobox(self):
         """بارگذاری لیست بانک‌ها در کامبوباکس"""
         banks = get_all_banks()
-        bank_names = [bank['bank_name'] for bank in banks]  # استفاده از کلید 'bank_name' برای دسترسی به نام بانک
+        bank_names = [bank[1] for bank in banks]  # استفاده از ایندکس 1 برای دسترسی به نام بانک
         self.bank_combobox['values'] = bank_names
         if bank_names:
             self.bank_combobox.current(0)
@@ -229,8 +229,8 @@ class ManualReconciliationTab(ttk.Frame):
         banks = get_all_banks()
         bank_id = None
         for bank in banks:
-            if bank['bank_name'] == selected_bank:  # مقایسه با نام بانک
-                bank_id = bank['id']  # شناسه بانک
+            if bank[1] == selected_bank:  # مقایسه با نام بانک (ایندکس 1)
+                bank_id = bank[0]  # شناسه بانک (ایندکس 0)
                 break
         
         if not bank_id:

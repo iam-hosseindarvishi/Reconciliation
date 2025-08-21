@@ -241,6 +241,48 @@ class ManualReconciliationDialog(tk.Toplevel):
         # دریافت توضیحات
         self.notes = self.notes_text.get("1.0", "end-1c")
         
+        # علامت‌گذاری هر دو رکورد به عنوان مغایرت‌یابی شده
+        try:
+            from database.reconciliation.reconciliation_repository import set_reconciliation_status
+            from reconciliation.save_reconciliation_result import success_reconciliation_result
+            from database.bank_transaction_repository import create_bank_transaction
+            
+            # علامت‌گذاری رکوردها به عنوان مغایرت‌یابی شده
+            set_reconciliation_status(self.bank_record['id'], self.selected_match['id'], 1)
+            
+            # ذخیره نتیجه مغایرت‌یابی در جدول result
+            description = f"Match by user: {self.notes}" if self.notes else "Match by user"
+            success_reconciliation_result(
+                self.bank_record['id'], 
+                self.selected_match['id'], 
+                None, 
+                description, 
+                self.transaction_type
+            )
+            
+            # اگر کارمزد جدا شده باشد، یک رکورد جدید برای کارمزد ایجاد می‌کنیم
+            if hasattr(self.bank_record, 'fee_amount') and self.bank_record['fee_amount'] > 0:
+                # ایجاد رکورد جدید برای کارمزد بانکی
+                fee_data = {
+                    'bank_id': self.bank_record['bank_id'],
+                    'transaction_date': self.bank_record['transaction_date'],
+                    'transaction_time': self.bank_record['transaction_time'] if 'transaction_time' in self.bank_record else None,
+                    'amount': self.bank_record['fee_amount'],
+                    'description': f"bank fee from transfer by user",
+                    'reference_number': self.bank_record.get('reference_number', ''),
+                    'extracted_terminal_id': self.bank_record.get('extracted_terminal_id', ''),
+                    'extracted_tracking_number': self.bank_record.get('extracted_tracking_number', ''),
+                    'transaction_type': 'Bank_Fee',
+                    'source_card_number': self.bank_record.get('source_card_number', ''),
+                    'is_reconciled': 0  # علامت‌گذاری به عنوان مغایرت‌یابی شده
+                }
+                
+                # ایجاد رکورد کارمزد در دیتابیس
+                create_bank_transaction(fee_data)
+                
+        except Exception as e:
+            messagebox.showerror("خطا", f"خطا در ثبت نتیجه مغایرت‌یابی: {str(e)}")
+        
         self.destroy()
 
     def on_deduct_fee(self):

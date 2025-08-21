@@ -38,6 +38,12 @@ class ReconciliationTab(ttk.Frame):
         self.create_widgets()
         self.load_banks_to_combobox()
         
+    def _update_manual_reconciliation_state(self):
+        """به‌روزرسانی وضعیت نمایش مغایرت‌گیری دستی در ماژول ui_state"""
+        from utils import ui_state
+        value = self.show_manual_reconciliation_var.get()
+        ui_state.set_show_manual_reconciliation(value)
+        
     def setup_logging(self):
         """راه‌اندازی سیستم لاگینگ"""
         os.makedirs(DATA_DIR, exist_ok=True)
@@ -101,18 +107,20 @@ class ReconciliationTab(ttk.Frame):
         self.bank_combobox.grid(row=0, column=1, sticky="w", padx=5, pady=5)
         
         # چک باکس نمایش مغایرت‌گیری دستی
-        self.show_manual_reconciliation_var = ttk.BooleanVar(value=True)
+        from utils import ui_state
+        self.show_manual_reconciliation_var = ttk.BooleanVar(value=ui_state.get_show_manual_reconciliation())
         self.show_manual_reconciliation_checkbox = ttk.Checkbutton(
             control_frame, 
             text="نمایش مغایرت‌گیری دستی", 
             variable=self.show_manual_reconciliation_var,
-            style='Default.TCheckbutton'
+            style='Default.TCheckbutton',
+            command=self._update_manual_reconciliation_state
         )
         self.show_manual_reconciliation_checkbox.grid(row=0, column=2, sticky="w", padx=5, pady=5)
 
         # === دکمه شروع ===
         btn_frame = ttk.Frame(control_frame)
-        btn_frame.grid(row=0, column=2, sticky="e", padx=5, pady=5)
+        btn_frame.grid(row=0, column=3, sticky="e", padx=5, pady=5)
         ttk.Button(btn_frame, text="شروع مغایرت‌گیری", command=self.start_reconciliation, bootstyle=SUCCESS, width=16, style='Bold.TButton').pack(side="left", padx=5)
 
         # === فریم وضعیت و نوارهای پیشرفت ===

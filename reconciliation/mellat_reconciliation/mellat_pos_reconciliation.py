@@ -79,15 +79,10 @@ def _reconcile_single_pos(bank_record, ui_handler, manual_reconciliation_queue):
             # فقط در صورتی که رکورد حسابداری مغایرت‌یابی نشده وجود داشته باشد، دیالوگ را نمایش می‌دهیم
             unreconciled_matches = [match for match in matches if match.get('reconciliation_status', 0) == 0]
             if unreconciled_matches and len(unreconciled_matches) > 0:
-                # بررسی تنظیمات نمایش مغایرت‌گیری دستی
-                show_manual_reconciliation = True
-                try:
-                    from ui.main_window import MainWindow
-                    if hasattr(MainWindow.instance, 'reconciliation_tab') and \
-                       hasattr(MainWindow.instance.reconciliation_tab, 'show_manual_reconciliation_var'):
-                        show_manual_reconciliation = MainWindow.instance.reconciliation_tab.show_manual_reconciliation_var.get()
-                except Exception as e:
-                    logger.warning(f"Could not check manual reconciliation setting: {e}")
+                # دریافت وضعیت نمایش مغایرت‌گیری دستی از ماژول ui_state
+                from utils import ui_state
+                show_manual_reconciliation = ui_state.get_show_manual_reconciliation()
+                logger.info(f"Manual reconciliation dialog will be shown: {show_manual_reconciliation}")
                 
                 if show_manual_reconciliation:
                     result_queue = queue.Queue()
