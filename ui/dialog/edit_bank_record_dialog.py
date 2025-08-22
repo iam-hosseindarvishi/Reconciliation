@@ -86,7 +86,8 @@ class EditBankRecordDialog(tk.Toplevel):
             self.tracking_number_var.set(str(self.bank_record['tracking_number']))
         
         # تاریخ (تبدیل به شمسی)
-        shamsi_date = gregorian_to_persian(self.bank_record['date'])
+        date_key = 'transaction_date' if 'transaction_date' in self.bank_record else 'date'
+        shamsi_date = gregorian_to_persian(self.bank_record[date_key])
         self.date_var.set(shamsi_date)
         
         # مبلغ

@@ -27,7 +27,6 @@ def get_all_banks():
     conn = None
     try:
         conn = create_connection()
-        conn.row_factory = sqlite3.Row  # برای دسترسی به نام ستون‌ها
         cursor = conn.cursor()
         cursor.execute("SELECT id, bank_name FROM Banks")
         result = cursor.fetchall()
