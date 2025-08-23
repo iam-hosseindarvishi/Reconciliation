@@ -480,7 +480,7 @@ class ManualReconciliationTab(ttk.Frame):
                 
                 self.accounting_tree.insert("", tk.END, values=(
                     record['id'],
-                    record.get('tracking_number', ''),
+                    record.get('transaction_number', ''),
                     shamsi_date,
                     amount,
                     record.get('description', ''),
