@@ -4,8 +4,8 @@ import sys
 
 # تنظیمات پنجره
 WINDOW_WIDTH = 1400
-WINDOW_HEIGHT = 800
-WINDOW_RESIZABLE = False
+WINDOW_HEIGHT = 900
+WINDOW_RESIZABLE = True
 
 # تنظیمات مسیرها
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

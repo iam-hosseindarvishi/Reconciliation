@@ -52,8 +52,8 @@ def main():
         app.title("مدیریت مغایرت‌گیری")
         app.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         app.resizable(WINDOW_RESIZABLE, WINDOW_RESIZABLE)
-        # تمام صفحه کردن پنجره
-        app.state('zoomed')
+        # # تمام صفحه کردن پنجره
+        # app.state('zoomed')
 
         # تنظیم فونت‌ها برای پشتیبانی از فارسی
         default_font = (DEFAULT_FONT, DEFAULT_FONT_SIZE, 'bold')
