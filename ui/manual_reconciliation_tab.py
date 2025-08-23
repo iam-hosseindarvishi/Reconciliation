@@ -5,9 +5,10 @@ import queue
 import threading
 import decimal
 from tkinter.ttk import Combobox
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from utils.helpers import gregorian_to_persian, persian_to_gregorian
+from utils.constants import MELLAT_TRANSACTION_TYPES, KESHAVARZI_TRANSACTION_TYPES
 from database.banks_repository import get_all_banks
 from database.bank_transaction_repository import get_unreconciled_transactions_by_bank as get_unreconciled_bank_records
 from database.accounting_repository import get_transactions_by_date_and_type as get_unreconciled_accounting_records_by_date
@@ -408,20 +409,48 @@ class ManualReconciliationTab(ttk.Frame):
             
             # دریافت تاریخ رکورد بانک
             bank_date = self.selected_bank_record['transaction_date']
+            selected_bank_record=self.selected_bank_record
+            # دریافت نوع تراکنش بانک بر اساس نوع تراکنش موجود در رکورد بانک
+            bank_transaction_type = selected_bank_record.get('transaction_type', '')
             
-            # دریافت نوع تراکنش بانک (دریافتی یا پرداختی)
-            transaction_type = 'received' if self.selected_bank_record['amount'] > 0 else 'paid'
+            # تبدیل نوع تراکنش بانک به نوع تراکنش حسابداری
+            if bank_transaction_type == MELLAT_TRANSACTION_TYPES['RECEIVED_POS'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS'] or bank_transaction_type == 'received_pos':
+                transaction_type = 'Pos'
+            elif bank_transaction_type == MELLAT_TRANSACTION_TYPES['PAID_TRANSFER'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['PAID_TRANSFER'] or bank_transaction_type == 'paid_transfer':
+                transaction_type = 'Paid Transfer'
+            elif bank_transaction_type == MELLAT_TRANSACTION_TYPES['RECEIVED_TRANSFER'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['RECEIVED_TRANSFER'] or bank_transaction_type == 'received_transfer':
+                transaction_type = 'Received Transfer'
+            elif bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['RECEIVED_CHECK'] or bank_transaction_type == 'received_check':
+                transaction_type = 'Received Check'
+            elif bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['PAID_CHECK'] or bank_transaction_type == 'paid_check':
+                transaction_type = 'Paid Check'
+            elif bank_transaction_type == MELLAT_TRANSACTION_TYPES['BANK_FEES'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['BANK_FEES'] or bank_transaction_type == 'bank_fee':
+                transaction_type = 'Bank Fees'
+            else:
+                # اگر نوع تراکنش مشخص نبود، از مقدار استفاده می‌کنیم
+                transaction_type = 'Unknown'
             
             # دریافت شناسه بانک انتخاب شده
             selected_bank = self.selected_bank_var.get()
             bank_id = self.banks_dict.get(selected_bank)
             
+            # اگر نوع تراکنش POS است، تاریخ را یک روز کاهش می‌دهیم
+            search_date = bank_date
+            if transaction_type == 'Pos':
+                # تبدیل تاریخ به شیء datetime
+                date_obj = datetime.strptime(bank_date, '%Y-%m-%d')
+                # کاهش یک روز
+                prev_date_obj = date_obj - timedelta(days=1)
+                # تبدیل مجدد به رشته
+                search_date = prev_date_obj.strftime('%Y-%m-%d')
+                logging.info(f"تاریخ جستجو برای تراکنش POS از {bank_date} به {search_date} تغییر کرد")
+            
             try:
                 # دریافت رکوردهای حسابداری مغایرت‌گیری نشده در تاریخ رکورد بانک
                 self.accounting_records = get_unreconciled_accounting_records_by_date(
                     bank_id=bank_id,
-                    start_date=bank_date,
-                    end_date=bank_date,
+                    start_date=search_date,
+                    end_date=search_date,
                     transaction_type=transaction_type
                 )
             except TypeError as e:
@@ -432,7 +461,7 @@ class ManualReconciliationTab(ttk.Frame):
                     if bank_id is None:
                         raise ValueError("شناسه بانک نمی‌تواند خالی باشد")
                     self.accounting_records = get_unreconciled_accounting_records_by_date(
-                        bank_id, bank_date, bank_date, transaction_type
+                        bank_id, search_date, search_date, transaction_type
                     )
                 except Exception as e2:
                     logging.error(f"خطا در جستجوی رکوردهای حسابداری: {str(e2)}")
@@ -441,13 +470,13 @@ class ManualReconciliationTab(ttk.Frame):
             # نمایش رکوردها در Treeview
             for record in self.accounting_records:
                 # تبدیل تاریخ میلادی به شمسی
-                shamsi_date = gregorian_to_persian(record['transaction_date'])
+                shamsi_date = gregorian_to_persian(record.get('due_date', record.get('transaction_date', '')))
                 
                 # فرمت‌بندی مبلغ
-                amount = f"{record['transaction_amount']:,}"
+                amount = f"{record.get('transaction_amount', 0):,}"
                 
                 # نوع تراکنش
-                type_text = "دریافتی" if record['transaction_type'] == 'received' else "پرداختی"
+                type_text =record.get('transaction_type', '')
                 
                 self.accounting_tree.insert("", tk.END, values=(
                     record['id'],
@@ -496,10 +525,11 @@ class ManualReconciliationTab(ttk.Frame):
             
             if confirm:
                 # ثبت مغایرت‌گیری
-                save_reconciliation_result(
-                    None,  # pos_id
-                    accounting_id, 
-                    bank_id,
+                from reconciliation.save_reconciliation_result import success_reconciliation_result
+                success_reconciliation_result(
+                    bank_id,  # bank_record_id
+                    accounting_id,  # acc_record_id
+                    None,  # pos_record_id
                     "مغایرت‌گیری دستی از طریق تب مغایرت‌یابی دستی",
                     'manual_match'
                 )

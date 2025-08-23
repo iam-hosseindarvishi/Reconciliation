@@ -35,6 +35,10 @@ class ReconciliationProcess:
     def start(self):
         """شروع فرآیند مغایرت‌گیری"""
         try:
+            # بررسی وضعیت نمایش مغایرت‌گیری دستی
+            from utils import ui_state
+            show_manual_reconciliation = ui_state.get_show_manual_reconciliation()
+            
             # گام 1: بررسی وجود تراکنش‌های مغایرت‌گیری نشده
             self.ui.update_status("در حال بررسی تراکنش‌های مغایرت‌گیری نشده...")
             self.ui.update_progress(10)
@@ -99,7 +103,13 @@ class ReconciliationProcess:
                 if self.bank_id == MELLAT_BANK['id']:  # ID for Mellat Bank
                     self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های POS بانک ملت...")
                     self.ui.update_detailed_progress(60)
-                    reconcile_mellat_pos(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS']], self.ui, self.manual_reconciliation_queue)
+                    # فقط اگر چک‌باکس مغایرت‌گیری دستی فعال باشد، از صف استفاده می‌کنیم
+                    from utils import ui_state
+                    if ui_state.get_show_manual_reconciliation():
+                        reconcile_mellat_pos(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS']], self.ui, self.manual_reconciliation_queue)
+                    else:
+                        # اجرای مغایرت‌گیری بدون استفاده از صف مغایرت‌گیری دستی
+                        reconcile_mellat_pos(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS']], self.ui, None)
                 else:
                     self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های POS...")
                     self.ui.update_detailed_progress(60)
@@ -122,13 +132,25 @@ class ReconciliationProcess:
                 self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های انتقال دریافتی...")
                 self.ui.update_detailed_progress(85)
                 if(self.bank_id == MELLAT_BANK['id']):
-                    reconcile_mellat_received_transfer(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_TRANSFER']], self.ui, self.manual_reconciliation_queue)
+                    # بررسی وضعیت چک‌باکس مغایرت‌گیری دستی
+                    from utils import ui_state
+                    if ui_state.get_show_manual_reconciliation():
+                        reconcile_mellat_received_transfer(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_TRANSFER']], self.ui, self.manual_reconciliation_queue)
+                    else:
+                        # اجرای مغایرت‌گیری بدون استفاده از صف مغایرت‌گیری دستی
+                        reconcile_mellat_received_transfer(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['RECEIVED_TRANSFER']], self.ui, None)
             
             if KESHAVARZI_TRANSACTION_TYPES['PAID_TRANSFER'] in categorized_transactions:
                 self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های انتقال پرداختی...")
                 self.ui.update_detailed_progress(90)
                 if(self.bank_id == MELLAT_BANK['id']):
-                    reconcile_mellat_paid_transfer(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['PAID_TRANSFER']], self.ui, self.manual_reconciliation_queue)
+                    # بررسی وضعیت چک‌باکس مغایرت‌گیری دستی
+                    from utils import ui_state
+                    if ui_state.get_show_manual_reconciliation():
+                        reconcile_mellat_paid_transfer(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['PAID_TRANSFER']], self.ui, self.manual_reconciliation_queue)
+                    else:
+                        # اجرای مغایرت‌گیری بدون استفاده از صف مغایرت‌گیری دستی
+                        reconcile_mellat_paid_transfer(categorized_transactions[KESHAVARZI_TRANSACTION_TYPES['PAID_TRANSFER']], self.ui, None)
             
             # برای کارمزدهای بانکی
             if KESHAVARZI_TRANSACTION_TYPES['BANK_FEES'] in categorized_transactions:

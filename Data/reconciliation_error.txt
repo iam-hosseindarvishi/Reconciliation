@@ -1,4 +1,0 @@
-2025-08-16 22:23:36,009 - ERROR - هیچ تراکنش مغایرت‌گیری نشده‌ای برای این بانک وجود ندارد
-2025-08-16 22:27:12,308 - ERROR - خطا در فرآیند مغایرت‌گیری: reconcile_mellat_pos() missing 1 required positional argument: 'on_complete'
-2025-08-19 22:36:26,578 - ERROR - خطا در اجرای فرآیند مغایرت‌گیری: ReconciliationProcess.__init__() missing 1 required positional argument: 'manual_reconciliation_queue'
-2025-08-19 22:37:25,243 - ERROR - خطا در اجرای فرآیند مغایرت‌گیری: ReconciliationProcess.__init__() missing 1 required positional argument: 'manual_reconciliation_queue'
