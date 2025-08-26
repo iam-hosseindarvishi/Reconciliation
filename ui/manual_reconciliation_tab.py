@@ -501,6 +501,7 @@ class ManualReconciliationTab(ttk.Frame):
             messagebox.showerror("خطا", error_message)
     
     def quick_reconcile(self):
+        # TODO: این متد باید بهبود یابد
         """مغایرت‌گیری سریع بین رکورد بانک و رکورد حسابداری انتخاب شده"""
         try:
             selected_bank_item = self.bank_tree.selection()

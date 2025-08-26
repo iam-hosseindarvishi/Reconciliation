@@ -57,10 +57,13 @@ def _reconcile_single_pos(bank_record, ui_handler, manual_reconciliation_queue):
         matches = get_transactions_by_date_amount_type(bank_record['bank_id'], bank_date, bank_amount, 'Pos')
 
         def handle_success(accounting_doc):
-            success_reconciliation_result(None, accounting_doc['id'], bank_record['id'], 'Exact match', 'Pos')
+            success_reconciliation_result(bank_record['id'], accounting_doc['id'], None, 'Exact match', 'Pos')
             logger.info(f"Reconciled POS transaction {bank_record['id']} with accounting doc {accounting_doc['id']}")
 
         if matches:
+            if len(matches)==1:
+                handle_success(matches[0])
+                return
             tracking_matches = [
                 match for match in matches
                 if compare_tracking_numbers(bank_tracking_num, match['transaction_number'])

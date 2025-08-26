@@ -74,12 +74,12 @@ class ReconciliationProcess:
                     self.ui.update_status("فرآیند مغایرت‌گیری لغو شد")
                     return False
                 
-                # بررسی مجدد تراکنش‌های نامشخص
-                unknown_transactions = get_unknown_transactions_by_bank(self.bank_id)
-                if unknown_transactions:
-                    self.ui.log_warning(f"هنوز {len(unknown_transactions)} تراکنش نامشخص وجود دارد")
-                    self.ui.update_status("فرآیند مغایرت‌گیری به دلیل وجود تراکنش‌های نامشخص متوقف شد")
-                    return False
+                # # بررسی مجدد تراکنش‌های نامشخص
+                # unknown_transactions = get_unknown_transactions_by_bank(self.bank_id)
+                # if unknown_transactions:
+                #     self.ui.log_warning(f"هنوز {len(unknown_transactions)} تراکنش نامشخص وجود دارد")
+                #     self.ui.update_status("فرآیند مغایرت‌گیری به دلیل وجود تراکنش‌های نامشخص متوقف شد")
+                #     return False
             
             # گام 3: دریافت تراکنش‌های دسته‌بندی شده
             self.ui.update_status("در حال دریافت تراکنش‌های دسته‌بندی شده...")
