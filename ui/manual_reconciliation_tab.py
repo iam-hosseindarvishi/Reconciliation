@@ -297,7 +297,7 @@ class ManualReconciliationTab(ttk.Frame):
             hidden_fee_count = 0
             for record in self.bank_records:
                 # اگر رکورد کارمزد است و چک باکس فعال نیست، آن را نمایش نده
-                if not show_fees and record.get('transaction_type') == 'bank_fee':
+                if not show_fees and record.get('transaction_type') == KESHAVARZI_TRANSACTION_TYPES['BANK_FEES']:
                     hidden_fee_count += 1
                     continue
                 filtered_records.append(record)
