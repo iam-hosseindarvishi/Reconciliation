@@ -592,18 +592,35 @@ class ManualReconciliationTab(ttk.Frame):
             )
             
             if confirm:
-                # اضافه کردن اطلاعات کارمزد به رکورد بانک
-                bank_record['fee_amount'] = float(fee_amount)
-                bank_record['original_amount'] = float(bank_amount)
+                # استفاده از Helper برای کسر کارمزد و ایجاد رکورد جدید
+                from database.Helper import deduct_fee
                 
-                # ثبت مغایرت‌گیری با کارمزد
-                save_reconciliation_result(
-                    None,  # pos_id
-                    accounting_id, 
-                    bank_id,
-                    f"مغایرت‌گیری دستی با کسر کارمزد به مبلغ {fee_amount:,} ریال",
-                    'manual_match_with_fee'
-                )
+                try:
+                    # کسر کارمزد از مبلغ تراکنش و ایجاد رکورد جدید برای کارمزد
+                    updated_bank_id, fee_record_id = deduct_fee(
+                        bank_id,
+                        float(bank_amount),
+                        float(fee_amount),
+                        f"کارمزد برای رکورد {bank_id}"
+                    )
+                    
+                    if updated_bank_id and fee_record_id:
+                        # ثبت مغایرت‌گیری با کارمزد با استفاده از success_reconciliation_result
+                        from reconciliation.save_reconciliation_result import success_reconciliation_result
+                        success_reconciliation_result(
+                            updated_bank_id,  # bank_record_id
+                            accounting_id,  # acc_record_id
+                            None,  # pos_record_id
+                            f"مغایرت‌گیری دستی با کسر کارمزد به مبلغ {fee_amount:,} ریال",
+                            'manual_match_with_fee'
+                        )
+                    else:
+                        messagebox.showerror("خطا", "خطا در کسر کارمزد از تراکنش بانکی")
+                        return
+                except Exception as e:
+                    messagebox.showerror("خطا", f"خطا در کسر کارمزد: {str(e)}")
+                    logging.error(f"خطا در کسر کارمزد: {str(e)}")
+                    return
                 
                 messagebox.showinfo("اطلاعات", "مغایرت‌گیری با کسر کارمزد با موفقیت انجام شد")
                 logging.info(f"مغایرت‌گیری با کسر کارمزد {fee_amount} بین رکورد بانک {bank_id} و رکورد حسابداری {accounting_id} انجام شد")

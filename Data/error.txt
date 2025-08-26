@@ -362,3 +362,15 @@ Traceback (most recent call last):
     ))
     ^^
 sqlite3.IntegrityError: NOT NULL constraint failed: AccountingTransactions.due_date
+2025-08-26 22:37:14 - database.init_db - ERROR - خطا در ایجاد جداول دیتابیس: database is locked
+2025-08-26 22:37:14 - main - CRITICAL - خطای بحرانی در اجرای برنامه: database is locked
+2025-08-26 22:37:14 - main - CRITICAL - جزئیات خطا:
+Traceback (most recent call last):
+  File "e:\Work Space\Reconciliation\main.py", line 46, in main
+    init_db()
+    ~~~~~~~^^
+  File "e:\Work Space\Reconciliation\database\init_db.py", line 118, in init_db
+    conn.commit()
+    ~~~~~~~~~~~^^
+sqlite3.OperationalError: database is locked
+
