@@ -105,7 +105,7 @@ class ManualReconciliationTab(ttk.Frame):
         
         # ستون‌های Treeview بانک
         self.bank_tree = ttk.Treeview(bank_tree_frame, 
-                                     columns=("id", "tracking_number", "date", "amount", "description", "status"),
+                                     columns=("id", "tracking_number", "date", "amount", "description", "type", "status"),
                                      show="headings",
                                      yscrollcommand=bank_scrollbar_y.set,
                                      xscrollcommand=bank_scrollbar_x.set)
@@ -120,6 +120,7 @@ class ManualReconciliationTab(ttk.Frame):
         self.bank_tree.heading("date", text="تاریخ")
         self.bank_tree.heading("amount", text="مبلغ")
         self.bank_tree.heading("description", text="توضیحات")
+        self.bank_tree.heading("type", text="نوع تراکنش")
         self.bank_tree.heading("status", text="وضعیت")
         
         # تنظیم عرض ستون‌ها
@@ -128,6 +129,7 @@ class ManualReconciliationTab(ttk.Frame):
         self.bank_tree.column("date", width=100, anchor=tk.CENTER)
         self.bank_tree.column("amount", width=120, anchor=tk.CENTER)
         self.bank_tree.column("description", width=200)
+        self.bank_tree.column("type", width=100, anchor=tk.CENTER)
         self.bank_tree.column("status", width=100, anchor=tk.CENTER)
         
         self.bank_tree.pack(fill=tk.BOTH, expand=True)
@@ -146,6 +148,39 @@ class ManualReconciliationTab(ttk.Frame):
         search_frame = ttk.Frame(main_frame)
         search_frame.pack(fill=tk.X, pady=5)
         
+        # چک باکس جستجوی پیشرفته
+        self.advanced_search_var = tk.BooleanVar(value=False)
+        self.advanced_search_checkbox = ttk.Checkbutton(search_frame, text="جستجوی پیشرفته", 
+                                                     variable=self.advanced_search_var,
+                                                     command=self.toggle_advanced_search)
+        self.advanced_search_checkbox.pack(side=tk.RIGHT, padx=5)
+        
+        # فریم جستجوی پیشرفته (در ابتدا مخفی)
+        self.advanced_search_options_frame = ttk.Frame(search_frame)
+        
+        # تاریخ سفارشی
+        ttk.Label(self.advanced_search_options_frame, text="تاریخ:").pack(side=tk.RIGHT, padx=5)
+        self.custom_date_var = tk.StringVar()
+        self.custom_date_entry = ttk.Entry(self.advanced_search_options_frame, textvariable=self.custom_date_var, width=10)
+        self.custom_date_entry.pack(side=tk.RIGHT, padx=5)
+        
+        # انتخاب بانک دیگر
+        ttk.Label(self.advanced_search_options_frame, text="بانک:").pack(side=tk.RIGHT, padx=5)
+        self.search_bank_var = tk.StringVar()
+        self.search_bank_combobox = Combobox(self.advanced_search_options_frame, textvariable=self.search_bank_var, 
+                                           state="readonly", width=15)
+        self.search_bank_combobox.pack(side=tk.RIGHT, padx=5)
+        
+        # نوع تراکنش
+        ttk.Label(self.advanced_search_options_frame, text="نوع تراکنش:").pack(side=tk.RIGHT, padx=5)
+        self.transaction_type_var = tk.StringVar()
+        self.transaction_type_combobox = Combobox(self.advanced_search_options_frame, 
+                                                textvariable=self.transaction_type_var,
+                                                state="readonly", width=15)
+        self.transaction_type_combobox['values'] = ['Pos', 'Received Transfer', 'Paid Transfer', 'Received Check', 'Paid Check', 'Bank Fees']
+        self.transaction_type_combobox.pack(side=tk.RIGHT, padx=5)
+        
+        # دکمه جستجو
         self.search_button = ttk.Button(search_frame, text="جستجوی رکوردهای حسابداری", command=self.search_accounting_records)
         self.search_button.pack(side=tk.LEFT, padx=5)
         
@@ -166,7 +201,7 @@ class ManualReconciliationTab(ttk.Frame):
         
         # ستون‌های Treeview حسابداری
         self.accounting_tree = ttk.Treeview(accounting_tree_frame, 
-                                          columns=("id", "tracking_number", "date", "amount", "description", "type"),
+                                          columns=("id", "tracking_number", "date", "amount", "description", "type", "bank"),
                                           show="headings",
                                           yscrollcommand=accounting_scrollbar_y.set,
                                           xscrollcommand=accounting_scrollbar_x.set)
@@ -182,6 +217,7 @@ class ManualReconciliationTab(ttk.Frame):
         self.accounting_tree.heading("amount", text="مبلغ")
         self.accounting_tree.heading("description", text="توضیحات")
         self.accounting_tree.heading("type", text="نوع تراکنش")
+        self.accounting_tree.heading("bank", text="بانک")
         
         # تنظیم عرض ستون‌ها
         self.accounting_tree.column("id", width=50, anchor=tk.CENTER)
@@ -190,6 +226,7 @@ class ManualReconciliationTab(ttk.Frame):
         self.accounting_tree.column("amount", width=120, anchor=tk.CENTER)
         self.accounting_tree.column("description", width=200)
         self.accounting_tree.column("type", width=100, anchor=tk.CENTER)
+        self.accounting_tree.column("bank", width=100, anchor=tk.CENTER)
         
         self.accounting_tree.pack(fill=tk.BOTH, expand=True)
         
@@ -313,12 +350,16 @@ class ManualReconciliationTab(ttk.Frame):
                 # وضعیت
                 status = "مغایرت‌گیری نشده"
                 
+                # نوع تراکنش
+                transaction_type = record.get('transaction_type', '')
+                
                 self.bank_tree.insert("", tk.END, values=(
                     record['id'],
                     record.get('extracted_tracking_number', ''),
                     shamsi_date,
                     amount,
                     record.get('description', ''),
+                    transaction_type,
                     status
                 ))
             
@@ -397,75 +438,144 @@ class ManualReconciliationTab(ttk.Frame):
         
         logging.info(f"رکورد حسابداری با شناسه {record_id} انتخاب شد")
     
+    def toggle_advanced_search(self):
+        """نمایش یا مخفی کردن گزینه‌های جستجوی پیشرفته"""
+        if self.advanced_search_var.get():
+            # نمایش گزینه‌های جستجوی پیشرفته
+            self.advanced_search_options_frame.pack(fill=tk.X, pady=5, before=self.search_button)
+            # بارگذاری لیست بانک‌ها در کامبوباکس جستجو
+            self.search_bank_combobox['values'] = self.bank_combobox['values']
+            # انتخاب بانک فعلی به عنوان پیش‌فرض
+            self.search_bank_var.set(self.selected_bank_var.get())
+        else:
+            # مخفی کردن گزینه‌های جستجوی پیشرفته
+            self.advanced_search_options_frame.pack_forget()
+    
     def search_accounting_records(self):
         """جستجوی رکوردهای حسابداری مرتبط با رکورد بانک انتخاب شده"""
         try:
-            if not self.selected_bank_record:
+            if not self.selected_bank_record and not self.advanced_search_var.get():
                 messagebox.showwarning("هشدار", "لطفاً یک رکورد بانک را انتخاب کنید")
                 return
             
             # پاک کردن لیست قبلی
             self.clear_accounting_tree()
             
-            # دریافت تاریخ رکورد بانک
-            bank_date = self.selected_bank_record['transaction_date']
-            selected_bank_record=self.selected_bank_record
-            # دریافت نوع تراکنش بانک بر اساس نوع تراکنش موجود در رکورد بانک
-            bank_transaction_type = selected_bank_record.get('transaction_type', '')
-            
-            # تبدیل نوع تراکنش بانک به نوع تراکنش حسابداری
-            if bank_transaction_type == MELLAT_TRANSACTION_TYPES['RECEIVED_POS'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS'] or bank_transaction_type == 'received_pos':
-                transaction_type = 'Pos'
-            elif bank_transaction_type == MELLAT_TRANSACTION_TYPES['PAID_TRANSFER'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['PAID_TRANSFER'] or bank_transaction_type == 'paid_transfer':
-                transaction_type = 'Paid Transfer'
-            elif bank_transaction_type == MELLAT_TRANSACTION_TYPES['RECEIVED_TRANSFER'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['RECEIVED_TRANSFER'] or bank_transaction_type == 'received_transfer':
-                transaction_type = 'Received Transfer'
-            elif bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['RECEIVED_CHECK'] or bank_transaction_type == 'received_check':
-                transaction_type = 'Received Check'
-            elif bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['PAID_CHECK'] or bank_transaction_type == 'paid_check':
-                transaction_type = 'Paid Check'
-            elif bank_transaction_type == MELLAT_TRANSACTION_TYPES['BANK_FEES'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['BANK_FEES'] or bank_transaction_type == 'bank_fee':
-                transaction_type = 'Bank Fees'
+            # بررسی حالت جستجوی پیشرفته
+            if self.advanced_search_var.get():
+                # استفاده از جستجوی پیشرفته
+                search_params = {}
+                
+                # اگر تاریخ سفارشی وارد شده باشد
+                custom_date = self.custom_date_var.get().strip()
+                if custom_date:
+                    try:
+                        # تبدیل تاریخ شمسی به میلادی
+                        search_params['custom_date'] = persian_to_gregorian(custom_date)
+                    except Exception as e:
+                        messagebox.showerror("خطا", f"فرمت تاریخ نامعتبر است: {str(e)}")
+                        return
+                
+                # اگر بانک انتخاب شده باشد
+                selected_search_bank = self.search_bank_var.get()
+                if selected_search_bank:
+                    search_params['bank_id'] = self.banks_dict.get(selected_search_bank)
+                else:
+                    # استفاده از بانک فعلی
+                    selected_bank = self.selected_bank_var.get()
+                    search_params['bank_id'] = self.banks_dict.get(selected_bank)
+                
+                # اگر نوع تراکنش انتخاب شده باشد
+                selected_transaction_type = self.transaction_type_var.get()
+                if selected_transaction_type:
+                    search_params['transaction_type'] = selected_transaction_type
+                elif self.selected_bank_record:
+                    # استفاده از نوع تراکنش رکورد بانک انتخاب شده
+                    bank_transaction_type = self.selected_bank_record.get('transaction_type', '')
+                    # تبدیل نوع تراکنش بانک به نوع تراکنش حسابداری
+                    if bank_transaction_type == MELLAT_TRANSACTION_TYPES['RECEIVED_POS'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS'] or bank_transaction_type == 'received_pos':
+                        search_params['transaction_type'] = 'Pos'
+                    elif bank_transaction_type == MELLAT_TRANSACTION_TYPES['PAID_TRANSFER'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['PAID_TRANSFER'] or bank_transaction_type == 'paid_transfer':
+                        search_params['transaction_type'] = 'Paid Transfer'
+                    elif bank_transaction_type == MELLAT_TRANSACTION_TYPES['RECEIVED_TRANSFER'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['RECEIVED_TRANSFER'] or bank_transaction_type == 'received_transfer':
+                        search_params['transaction_type'] = 'Received Transfer'
+                    elif bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['RECEIVED_CHECK'] or bank_transaction_type == 'received_check':
+                        search_params['transaction_type'] = 'Received Check'
+                    elif bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['PAID_CHECK'] or bank_transaction_type == 'paid_check':
+                        search_params['transaction_type'] = 'Paid Check'
+                    elif bank_transaction_type == MELLAT_TRANSACTION_TYPES['BANK_FEES'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['BANK_FEES'] or bank_transaction_type == 'bank_fee':
+                        search_params['transaction_type'] = 'Bank Fees'
+                
+                # اگر رکورد بانک انتخاب شده باشد، مبلغ و شماره پیگیری را هم اضافه کنیم
+                if self.selected_bank_record:
+                    search_params['amount'] = self.selected_bank_record.get('amount')
+                    search_params['tracking_number'] = self.selected_bank_record.get('extracted_tracking_number')
+                
+                # استفاده از تابع جستجوی پیشرفته
+                from database.accounting_repository import get_transactions_advanced_search
+                self.accounting_records = get_transactions_advanced_search(search_params)
+                
             else:
-                # اگر نوع تراکنش مشخص نبود، از مقدار استفاده می‌کنیم
-                transaction_type = 'Unknown'
-            
-            # دریافت شناسه بانک انتخاب شده
-            selected_bank = self.selected_bank_var.get()
-            bank_id = self.banks_dict.get(selected_bank)
-            
-            # اگر نوع تراکنش POS است، تاریخ را یک روز کاهش می‌دهیم
-            search_date = bank_date
-            if transaction_type == 'Pos':
-                # تبدیل تاریخ به شیء datetime
-                date_obj = datetime.strptime(bank_date, '%Y-%m-%d')
-                # کاهش یک روز
-                prev_date_obj = date_obj - timedelta(days=1)
-                # تبدیل مجدد به رشته
-                search_date = prev_date_obj.strftime('%Y-%m-%d')
-                logging.info(f"تاریخ جستجو برای تراکنش POS از {bank_date} به {search_date} تغییر کرد")
-            
-            try:
-                # دریافت رکوردهای حسابداری مغایرت‌گیری نشده در تاریخ رکورد بانک
-                self.accounting_records = get_unreconciled_accounting_records_by_date(
-                    bank_id=bank_id,
-                    start_date=search_date,
-                    end_date=search_date,
-                    transaction_type=transaction_type
-                )
-            except TypeError as e:
-                # اگر خطای پارامتر رخ داد، با روش دیگری امتحان کنیم
-                logging.warning(f"خطا در فراخوانی تابع با پارامترهای نام‌گذاری شده: {str(e)}")
+                # استفاده از جستجوی معمولی
+                # دریافت تاریخ رکورد بانک
+                bank_date = self.selected_bank_record['transaction_date']
+                selected_bank_record = self.selected_bank_record
+                # دریافت نوع تراکنش بانک بر اساس نوع تراکنش موجود در رکورد بانک
+                bank_transaction_type = selected_bank_record.get('transaction_type', '')
+                
+                # تبدیل نوع تراکنش بانک به نوع تراکنش حسابداری
+                if bank_transaction_type == MELLAT_TRANSACTION_TYPES['RECEIVED_POS'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS'] or bank_transaction_type == 'received_pos':
+                    transaction_type = 'Pos'
+                elif bank_transaction_type == MELLAT_TRANSACTION_TYPES['PAID_TRANSFER'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['PAID_TRANSFER'] or bank_transaction_type == 'paid_transfer':
+                    transaction_type = 'Paid Transfer'
+                elif bank_transaction_type == MELLAT_TRANSACTION_TYPES['RECEIVED_TRANSFER'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['RECEIVED_TRANSFER'] or bank_transaction_type == 'received_transfer':
+                    transaction_type = 'Received Transfer'
+                elif bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['RECEIVED_CHECK'] or bank_transaction_type == 'received_check':
+                    transaction_type = 'Received Check'
+                elif bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['PAID_CHECK'] or bank_transaction_type == 'paid_check':
+                    transaction_type = 'Paid Check'
+                elif bank_transaction_type == MELLAT_TRANSACTION_TYPES['BANK_FEES'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['BANK_FEES'] or bank_transaction_type == 'bank_fee':
+                    transaction_type = 'Bank Fees'
+                else:
+                    # اگر نوع تراکنش مشخص نبود، از مقدار استفاده می‌کنیم
+                    transaction_type = 'Unknown'
+                
+                # دریافت شناسه بانک انتخاب شده
+                selected_bank = self.selected_bank_var.get()
+                bank_id = self.banks_dict.get(selected_bank)
+                
+                # اگر نوع تراکنش POS است، تاریخ را یک روز کاهش می‌دهیم
+                search_date = bank_date
+                if transaction_type == 'Pos':
+                    # تبدیل تاریخ به شیء datetime
+                    date_obj = datetime.strptime(bank_date, '%Y-%m-%d')
+                    # کاهش یک روز
+                    prev_date_obj = date_obj - timedelta(days=1)
+                    # تبدیل مجدد به رشته
+                    search_date = prev_date_obj.strftime('%Y-%m-%d')
+                    logging.info(f"تاریخ جستجو برای تراکنش POS از {bank_date} به {search_date} تغییر کرد")
+                
                 try:
-                    # اطمینان از ارسال پارامتر bank_id
-                    if bank_id is None:
-                        raise ValueError("شناسه بانک نمی‌تواند خالی باشد")
+                    # دریافت رکوردهای حسابداری مغایرت‌گیری نشده در تاریخ رکورد بانک
                     self.accounting_records = get_unreconciled_accounting_records_by_date(
-                        bank_id, search_date, search_date, transaction_type
+                        bank_id=bank_id,
+                        start_date=search_date,
+                        end_date=search_date,
+                        transaction_type=transaction_type
                     )
-                except Exception as e2:
-                    logging.error(f"خطا در جستجوی رکوردهای حسابداری: {str(e2)}")
-                    self.accounting_records = []
+                except TypeError as e:
+                    # اگر خطای پارامتر رخ داد، با روش دیگری امتحان کنیم
+                    logging.warning(f"خطا در فراخوانی تابع با پارامترهای نام‌گذاری شده: {str(e)}")
+                    try:
+                        # اطمینان از ارسال پارامتر bank_id
+                        if bank_id is None:
+                            raise ValueError("شناسه بانک نمی‌تواند خالی باشد")
+                        self.accounting_records = get_unreconciled_accounting_records_by_date(
+                            bank_id, search_date, search_date, transaction_type
+                        )
+                    except Exception as e2:
+                        logging.error(f"خطا در جستجوی رکوردهای حسابداری: {str(e2)}")
+                        self.accounting_records = []
             
             # نمایش رکوردها در Treeview
             for record in self.accounting_records:
@@ -476,7 +586,11 @@ class ManualReconciliationTab(ttk.Frame):
                 amount = f"{record.get('transaction_amount', 0):,}"
                 
                 # نوع تراکنش
-                type_text =record.get('transaction_type', '')
+                type_text = record.get('transaction_type', '')
+                
+                # نام بانک
+                bank_id = record.get('bank_id')
+                bank_name = next((name for name, bid in self.banks_dict.items() if bid == bank_id), "نامشخص")
                 
                 self.accounting_tree.insert("", tk.END, values=(
                     record['id'],
@@ -484,7 +598,8 @@ class ManualReconciliationTab(ttk.Frame):
                     shamsi_date,
                     amount,
                     record.get('description', ''),
-                    type_text
+                    type_text,
+                    bank_name
                 ))
             
             # فعال کردن دکمه‌های عملیات
@@ -493,7 +608,7 @@ class ManualReconciliationTab(ttk.Frame):
                 self.delete_accounting_button.config(state=tk.NORMAL)
                 logging.info(f"تعداد {len(self.accounting_records)} رکورد حسابداری یافت شد")
             else:
-                messagebox.showinfo("اطلاعات", "هیچ رکورد حسابداری مغایرت‌گیری نشده‌ای در تاریخ مورد نظر یافت نشد")
+                messagebox.showinfo("اطلاعات", "هیچ رکورد حسابداری مغایرت‌گیری نشده‌ای با شرایط مورد نظر یافت نشد")
                 logging.info("هیچ رکورد حسابداری یافت نشد")
         except Exception as e:
             error_message = f"خطا در جستجوی رکوردهای حسابداری: {str(e)}"
@@ -678,11 +793,12 @@ class ManualReconciliationTab(ttk.Frame):
             c.drawRightString(500, 690, f"تاریخ: {gregorian_to_persian(bank_record['transaction_date'])}")
             c.drawRightString(500, 670, f"مبلغ: {bank_record['amount']:,} ریال")
             c.drawRightString(500, 650, f"توضیحات: {bank_record.get('description', '')}")
+            c.drawRightString(500, 630, f"نوع تراکنش: {bank_record.get('transaction_type', 'نامشخص')}")
             
             # اطلاعات رکوردهای حسابداری
-            c.drawRightString(500, 620, "رکوردهای حسابداری مرتبط:")
+            c.drawRightString(500, 600, "رکوردهای حسابداری مرتبط:")
             
-            y_position = 600
+            y_position = 580
             for i, record in enumerate(self.accounting_records, 1):
                 c.drawRightString(500, y_position, f"رکورد {i}:")
                 c.drawRightString(480, y_position - 20, f"شناسه: {record['id']}")
@@ -690,8 +806,14 @@ class ManualReconciliationTab(ttk.Frame):
                 c.drawRightString(480, y_position - 60, f"تاریخ: {gregorian_to_persian(record['transaction_date'])}")
                 c.drawRightString(480, y_position - 80, f"مبلغ: {record['transaction_amount']:,} ریال")
                 c.drawRightString(480, y_position - 100, f"توضیحات: {record.get('description', '')}")
+                c.drawRightString(480, y_position - 120, f"نوع تراکنش: {record.get('transaction_type', '')}")
                 
-                y_position -= 120
+                # نمایش نام بانک
+                bank_id = record.get('bank_id')
+                bank_name = next((name for name, bid in self.banks_dict.items() if bid == bank_id), "نامشخص")
+                c.drawRightString(480, y_position - 140, f"بانک: {bank_name}")
+                
+                y_position -= 160
                 
                 # اگر به پایین صفحه رسیدیم، صفحه جدید ایجاد کنیم
                 if y_position < 100:

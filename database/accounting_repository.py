@@ -81,6 +81,61 @@ def get_transactions_by_date_and_type(bank_id, start_date, end_date, transaction
         if conn:
             conn.close()
 
+def get_transactions_advanced_search(search_params):
+    """جستجوی پیشرفته تراکنش‌های حسابداری با پارامترهای متنوع"""
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        
+        # ساخت پرس و جو پایه
+        query = "SELECT * FROM AccountingTransactions WHERE 1=1"
+        params = []
+        
+        # اضافه کردن شرط‌ها بر اساس پارامترهای ورودی
+        if search_params.get('bank_id'):
+            query += " AND bank_id = ?"
+            params.append(search_params['bank_id'])
+            
+        if search_params.get('custom_date'):
+            query += " AND due_date = ?"
+            params.append(search_params['custom_date'])
+            
+        if search_params.get('transaction_type'):
+            query += " AND transaction_type = ?"
+            params.append(search_params['transaction_type'])
+            
+        if search_params.get('amount'):
+            # جستجو بر اساس مبلغ با تلرانس 1000 ریال
+            amount = float(search_params['amount'])
+            query += " AND transaction_amount BETWEEN ? AND ?"
+            params.append(amount - 1000)  # تلرانس پایین
+            params.append(amount + 1000)  # تلرانس بالا
+            
+        if search_params.get('tracking_number'):
+            query += " AND transaction_number LIKE ?"
+            params.append(f"%{search_params['tracking_number']}%")
+        
+        # فقط رکوردهای مغایرت‌گیری نشده را برگردان
+        query += " AND is_reconciled = 0"
+        
+        # اجرای پرس و جو
+        cursor.execute(query, params)
+        columns = [description[0] for description in cursor.description]
+        result = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        
+        logger.info(f"جستجوی پیشرفته: تعداد {len(result)} تراکنش یافت شد")
+        return result
+    except Exception as e:
+        logger.error(f"خطا در جستجوی پیشرفته تراکنش‌ها: {str(e)}")
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        if conn:
+            conn.close()
+            
+
 def get_transactions_by_date_less_than_amount_type(bank_id, transaction_date, amount, transaction_type):
     """Get transactions by date, amount less than specified amount and transaction type"""
     conn = None
