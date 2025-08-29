@@ -5,6 +5,8 @@ from utils.logger_config import setup_logger
 import re
 
 # راه‌اندازی لاگر
+
+
 logger = setup_logger('utils.accounting_excel_importer_v2')
 
 def import_accounting_excel_v2(accounting_file_path, bank_id):
@@ -28,7 +30,8 @@ def import_accounting_excel_v2(accounting_file_path, bank_id):
     for idx, row in df.iterrows():
         try:
             # تعیین نوع تراکنش بر اساس ستون "نوع"
-            transaction_type = determine_transaction_type(str(row.get('نوع', '')).strip())
+            type_name=str(row.get('نوع', '')).strip()
+            transaction_type = determine_transaction_type(type_name)
             if not transaction_type:
                 logger.warning(f"نوع تراکنش نامعتبر در سطر {idx+1}: {row.get('نوع', '')}")
                 continue  # نوع تراکنش نامعتبر، رد شود
@@ -45,7 +48,7 @@ def import_accounting_excel_v2(accounting_file_path, bank_id):
             
             # تبدیل تاریخ شمسی به میلادی
             date_str = str(row.get('تاریخ', ''))
-            gregorian_date = persian_to_gregorian(normalize_shamsi_date(date_str))
+            gregorian_date = persian_to_gregorian(date_str)
             
             # ایجاد دیکشنری داده‌های تراکنش
             transaction_data = {
@@ -76,7 +79,7 @@ def determine_transaction_type(type_str):
     """
     تعیین نوع تراکنش بر اساس ستون "نوع"
     """
-    type_str = type_str.strip()
+    # type_str = type_str
     
     # نگاشت انواع تراکنش‌ها
     transaction_type_map = {
