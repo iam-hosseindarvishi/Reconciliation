@@ -14,6 +14,8 @@ from ui.bank_tab import BankTab
 from ui.data_entry_tab import DataEntryTab
 from ui.reconciliation_tab import ReconciliationTab
 from ui.manual_reconciliation_tab import ManualReconciliationTab
+from ui.dashboard_tab import DashboardTab
+from ui.report_tab import ReportTab
 from utils.logger_config import setup_logger
 
 # تنظیم کدگذاری کنسول برای نمایش درست متون فارسی
@@ -85,6 +87,21 @@ def main():
         # ایجاد نوت‌بوک
         notebook = ttk.Notebook(app)
         notebook.pack(fill="both", expand=True)
+        
+        # تنظیم تب داشبورد به عنوان تب پیش‌فرض
+        def select_dashboard_tab():
+            notebook.select(0)  # انتخاب اولین تب (داشبورد) به عنوان تب پیش‌فرض
+        app.after(100, select_dashboard_tab)  # اجرای تابع پس از بارگذاری کامل رابط کاربری
+
+        try:
+            # افزودن تب داشبورد (اولین تب)
+            logger.info("در حال بارگذاری تب داشبورد...")
+            dashboard_tab = DashboardTab(notebook)
+            notebook.add(dashboard_tab, text="داشبورد")
+            logger.info("تب داشبورد با موفقیت بارگذاری شد")
+        except Exception as e:
+            logger.error(f"خطا در بارگذاری تب داشبورد: {str(e)}")
+            raise
 
         try:
             # افزودن تب ورود اطلاعات
@@ -124,6 +141,16 @@ def main():
             logger.info("تب مغایرت‌یابی دستی با موفقیت بارگذاری شد")
         except Exception as e:
             logger.error(f"خطا در بارگذاری تب مغایرت‌یابی دستی: {str(e)}")
+            raise
+            
+        try:
+            # افزودن تب گزارش‌گیری
+            logger.info("در حال بارگذاری تب گزارش‌گیری...")
+            report_tab = ReportTab(notebook)
+            notebook.add(report_tab, text="گزارش‌گیری")
+            logger.info("تب گزارش‌گیری با موفقیت بارگذاری شد")
+        except Exception as e:
+            logger.error(f"خطا در بارگذاری تب گزارش‌گیری: {str(e)}")
             raise
 
         logger.info("رابط کاربری با موفقیت راه‌اندازی شد")

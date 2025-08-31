@@ -85,6 +85,43 @@ def get_reconciliation_results_by_bank_id(bank_id):
             conn.close()
     return []
 
+def get_reconciliation_results(bank_id=None, is_reconciled=None):
+    """
+    Fetches reconciliation results with optional filtering.
+    
+    Args:
+        bank_id (int, optional): The ID of the bank to filter by.
+        is_reconciled (bool, optional): Filter by reconciliation status.
+        
+    Returns:
+        list: A list of tuples containing the filtered results.
+    """
+    conn = create_connection()
+    if conn:
+        try:
+            with conn:
+                cursor = conn.cursor()
+                query = "SELECT * FROM ReconciliationResults"
+                params = []
+                
+                # اضافه کردن شرط‌های فیلتر
+                conditions = []
+                if bank_id is not None and bank_id != "همه موارد":
+                    conditions.append("bank_record_id IN (SELECT id FROM BankTransactions WHERE bank_id = ?)")
+                    params.append(bank_id)
+                
+                if conditions:
+                    query += " WHERE " + " AND ".join(conditions)
+                
+                cursor.execute(query, tuple(params))
+                return cursor.fetchall()
+        except sqlite3.Error as e:
+            print(f"Error fetching reconciliation results: {e}")
+            return []
+        finally:
+            conn.close()
+    return []
+
 def delete_reconciliation_result(result_id):
     """
     Deletes a reconciliation result by its ID.

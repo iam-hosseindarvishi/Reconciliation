@@ -96,6 +96,23 @@ def get_transaction_by_date(date):
         if conn:
             conn.close()
 
+def get_transactions_by_bank(bank_id):
+    """دریافت تراکنش‌های یک بانک"""
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM PosTransactions WHERE bank_id = ?", (bank_id,))
+        result = cursor.fetchall()
+        logger.info(f"تعداد {len(result)} تراکنش برای بانک با شناسه {bank_id} یافت شد")
+        return result
+    except Exception as e:
+        logger.error(f"خطا در دریافت تراکنش‌های بانک با شناسه {bank_id}: {str(e)}")
+        raise
+    finally:
+        if conn:
+            conn.close()
+
 def update_reconciliation_status(transaction_id, status):
     """به‌روزرسانی وضعیت تطبیق تراکنش"""
     conn = None

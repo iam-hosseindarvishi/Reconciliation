@@ -1,0 +1,2 @@
+2025-08-31 23:26:37,096 - ERROR - خطا در نمایش داده‌ها در جدول: Tableview.insert_column() got an unexpected keyword argument 'dataindex'
+2025-08-31 23:26:37,099 - ERROR - خطا در ساخت گزارش: Tableview.insert_column() got an unexpected keyword argument 'dataindex'
