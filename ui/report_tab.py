@@ -467,37 +467,44 @@ class ReportTab(ttk.Frame):
     def display_data_in_table(self):
         """نمایش داده‌ها در جدول"""
         try:
-            # تبدیل داده‌ها به فرمت مناسب برای Tableview
-            rows = []
+            # تبدیل ستون‌ها به فرمت صحیح برای Tableview
+            coldata = []
+            dataindex_to_colindex = {}
+            
+            for i, col in enumerate(self.columns):
+                coldata.append({"text": col["text"], "stretch": True})
+                dataindex_to_colindex[col["dataindex"]] = i
+            
+            # تبدیل داده‌ها به فرمت مناسب برای Tableview (لیست تاپل‌ها)
+            rowdata = []
             for item in self.data:
-                row = {}
+                row = ["" for _ in range(len(self.columns))]
                 for col in self.columns:
                     key = col["dataindex"]
+                    col_index = dataindex_to_colindex[key]
                     if key in item:
                         # تبدیل مقادیر بولین به متن
                         if key == "is_reconciled":
-                            row[key] = "بله" if item[key] == 1 else "خیر"
+                            row[col_index] = "بله" if item[key] == 1 else "خیر"
                         else:
-                            row[key] = item[key]
-                    else:
-                        row[key] = ""
-                rows.append(row)
+                            row[col_index] = item[key]
+                rowdata.append(tuple(row))
             
             # ایجاد جدول
             table = Tableview(
                 master=self.table_frame,
-                coldata=self.columns,
-                rowdata=rows,
+                coldata=coldata,
+                rowdata=rowdata,
                 paginated=True,
                 searchable=True,
                 bootstyle="primary",
                 stripecolor=("#f5f5f5", None),
-                autofit=False
+                autofit=True
             )
             table.pack(fill="both", expand=True, padx=5, pady=5)
             
             # ذخیره داده‌ها برای استفاده در صدور
-            self.table_data = rows
+            self.table_data = rowdata
         except Exception as e:
             self.logger.error(f"خطا در نمایش داده‌ها در جدول: {str(e)}")
             raise
@@ -519,12 +526,9 @@ class ReportTab(ttk.Frame):
             if not file_path:
                 return
             
-            # تبدیل داده‌ها به دیتافریم پانداس
-            df = pd.DataFrame(self.table_data)
-            
-            # اضافه کردن ستون نام بانک اگر وجود نداشته باشد
-            if "bank_name" not in df.columns:
-                df["bank_name"] = self.selected_bank_var.get()
+            # تبدیل داده‌ها به دیتافریم پانداس با نام ستون‌های مناسب
+            column_names = [col["text"] for col in self.columns]
+            df = pd.DataFrame(self.table_data, columns=column_names)
             
             # ذخیره به فایل اکسل
             df.to_excel(file_path, index=False)
@@ -615,11 +619,11 @@ class ReportTab(ttk.Frame):
             
             # ایجاد ردیف‌های جدول
             table_rows = ""
+            dataindex_to_colindex = {col["dataindex"]: i for i, col in enumerate(self.columns)}
+            
             for row in self.table_data:
                 table_rows += "<tr>\n"
-                for col in self.columns:
-                    key = col["dataindex"]
-                    value = row.get(key, "")
+                for i, value in enumerate(row):
                     table_rows += f"<td>{value}</td>\n"
                 table_rows += "</tr>\n"
             
@@ -720,9 +724,7 @@ class ReportTab(ttk.Frame):
                 # ردیف‌های جدول
                 for row in self.table_data:
                     data_row = []
-                    for col in self.columns:
-                        key = col["dataindex"]
-                        value = row.get(key, "")
+                    for value in row:
                         data_row.append(str(value))
                     table_data.append(data_row)
                 

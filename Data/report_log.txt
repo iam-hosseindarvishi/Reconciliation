@@ -12,3 +12,9 @@
 2025-08-31 23:26:37,025 - INFO - در حال ساخت گزارش...
 2025-08-31 23:26:37,096 - ERROR - خطا در نمایش داده‌ها در جدول: Tableview.insert_column() got an unexpected keyword argument 'dataindex'
 2025-08-31 23:26:37,099 - ERROR - خطا در ساخت گزارش: Tableview.insert_column() got an unexpected keyword argument 'dataindex'
+2025-08-31 23:36:41,937 - INFO - لیست بانک‌ها با موفقیت بارگذاری شد
+2025-08-31 23:36:47,225 - INFO - در حال ساخت گزارش...
+2025-08-31 23:36:47,296 - INFO - تعداد 4 رکورد یافت شد
+2025-08-31 23:36:59,978 - INFO - داده‌ها با موفقیت به فایل C:/Users/Hossein/Desktop/1.xlsx صادر شدند
+2025-08-31 23:37:29,989 - ERROR - خطا در چاپ گزارش: unsupported format character ';' (0x3b) at index 292
+2025-08-31 23:37:38,671 - ERROR - خطا در صدور به PDF: Can't open file "E:\Work Space\Reconciliation\assets\fonts\Vazir.ttf"
