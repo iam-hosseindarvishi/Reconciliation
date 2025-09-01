@@ -1,4 +1,6 @@
-2025-08-31 23:26:37,096 - ERROR - خطا در نمایش داده‌ها در جدول: Tableview.insert_column() got an unexpected keyword argument 'dataindex'
-2025-08-31 23:26:37,099 - ERROR - خطا در ساخت گزارش: Tableview.insert_column() got an unexpected keyword argument 'dataindex'
-2025-08-31 23:37:29,989 - ERROR - خطا در چاپ گزارش: unsupported format character ';' (0x3b) at index 292
-2025-08-31 23:37:38,671 - ERROR - خطا در صدور به PDF: Can't open file "E:\Work Space\Reconciliation\assets\fonts\Vazir.ttf"
+2025-09-01 22:12:33,926 - ERROR - خطا در نمایش داده‌ها در جدول: Tableview.__init__() got an unexpected keyword argument 'rowheight'. Did you mean 'height'?
+2025-09-01 22:12:33,966 - ERROR - خطا در ساخت گزارش: Tableview.__init__() got an unexpected keyword argument 'rowheight'. Did you mean 'height'?
+2025-09-01 22:13:39,341 - ERROR - خطا در نمایش داده‌ها در جدول: Tableview.__init__() got an unexpected keyword argument 'font'
+2025-09-01 22:13:39,342 - ERROR - خطا در ساخت گزارش: Tableview.__init__() got an unexpected keyword argument 'font'
+2025-09-01 22:15:46,721 - ERROR - خطا در چاپ گزارش: ' font-family'
+2025-09-01 22:26:29,095 - ERROR - خطا در چاپ گزارش: '\n                        font-family'

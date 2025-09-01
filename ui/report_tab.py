@@ -4,7 +4,7 @@ import threading
 import pandas as pd
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
-from tkinter import StringVar, filedialog, messagebox
+from tkinter import StringVar, filedialog, messagebox, ttk as tk_ttk
 from tkinter.ttk import Combobox
 from ttkbootstrap.scrolled import ScrolledText
 from ttkbootstrap.tableview import Tableview
@@ -467,16 +467,22 @@ class ReportTab(ttk.Frame):
     def display_data_in_table(self):
         """نمایش داده‌ها در جدول"""
         try:
+            # پاک کردن جدول قبلی
+            for widget in self.table_frame.winfo_children():
+                widget.destroy()
+                
             # تبدیل ستون‌ها به فرمت صحیح برای Tableview
             coldata = []
             dataindex_to_colindex = {}
             
             for i, col in enumerate(self.columns):
-                coldata.append({"text": col["text"], "stretch": True})
+                coldata.append({"text": col["text"], "stretch": True, "width": 120})
                 dataindex_to_colindex[col["dataindex"]] = i
             
             # تبدیل داده‌ها به فرمت مناسب برای Tableview (لیست تاپل‌ها)
             rowdata = []
+            from utils.helpers import gregorian_to_persian
+            
             for item in self.data:
                 row = ["" for _ in range(len(self.columns))]
                 for col in self.columns:
@@ -486,8 +492,27 @@ class ReportTab(ttk.Frame):
                         # تبدیل مقادیر بولین به متن
                         if key == "is_reconciled":
                             row[col_index] = "بله" if item[key] == 1 else "خیر"
+                        # تبدیل تاریخ میلادی به شمسی
+                        elif key in ["transaction_date", "due_date", "collection_date", "date_time", "bank_date", "accounting_date", "pos_date"] and item[key]:
+                            try:
+                                row[col_index] = gregorian_to_persian(str(item[key]))
+                            except Exception as e:
+                                self.logger.error(f"خطا در تبدیل تاریخ {item[key]}: {str(e)}")
+                                row[col_index] = str(item[key])
+                        # فرمت کردن مبالغ
+                        elif key in ["amount", "transaction_amount", "bank_amount", "accounting_amount", "pos_amount"]:
+                            try:
+                                if item[key] is not None:
+                                    # تبدیل به عدد و سپس فرمت‌بندی با جداکننده هزارگان
+                                    amount_value = float(item[key])
+                                    row[col_index] = f"{int(amount_value):,}"
+                                else:
+                                    row[col_index] = ""
+                            except (ValueError, TypeError):
+                                row[col_index] = str(item[key]) if item[key] is not None else ""
                         else:
-                            row[col_index] = item[key]
+                            # اطمینان از تبدیل صحیح به رشته و حذف مقادیر None
+                            row[col_index] = str(item[key]) if item[key] is not None else ""
                 rowdata.append(tuple(row))
             
             # ایجاد جدول
@@ -499,9 +524,24 @@ class ReportTab(ttk.Frame):
                 searchable=True,
                 bootstyle="primary",
                 stripecolor=("#f5f5f5", None),
-                autofit=True
+                autofit=False,
+                # تنظیمات اضافی برای نمایش بهتر متن فارسی
+                height=40  # افزایش ارتفاع سطرها برای نمایش بهتر متن فارسی
             )
             table.pack(fill="both", expand=True, padx=5, pady=5)
+            
+            # تنظیم فونت فارسی برای جدول با استفاده از روش غیرمستقیم
+            try:
+                # تلاش برای تنظیم فونت از طریق تغییر استایل
+                style = ttk.Style()
+                # استفاده از روش‌های استاندارد برای تنظیم فونت در ttkbootstrap
+                style.configure("Treeview", font=("Vazir", 10))
+                style.configure("Treeview.Heading", font=("Vazir", 10, "bold"))
+                # تنظیم ارتفاع سطرها برای نمایش بهتر متن فارسی
+                style.configure("Treeview", rowheight=30)
+            except Exception as e:
+                self.logger.warning(f"تنظیم فونت فارسی با خطا مواجه شد: {str(e)}")
+                # ادامه اجرا بدون توقف
             
             # ذخیره داده‌ها برای استفاده در صدور
             self.table_data = rowdata
@@ -530,8 +570,55 @@ class ReportTab(ttk.Frame):
             column_names = [col["text"] for col in self.columns]
             df = pd.DataFrame(self.table_data, columns=column_names)
             
+            # تنظیم فونت و استایل برای فایل اکسل
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, Alignment, PatternFill
+            from openpyxl.utils import get_column_letter
+            
             # ذخیره به فایل اکسل
-            df.to_excel(file_path, index=False)
+            with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                df.to_excel(writer, index=False, sheet_name='گزارش')
+                
+                # تنظیم استایل‌ها
+                workbook = writer.book
+                worksheet = writer.sheets['گزارش']
+                
+                # تنظیم راست به چپ بودن کل شیت
+                worksheet.sheet_view.rightToLeft = True
+                
+                # تنظیم استایل هدر
+                header_fill = PatternFill(start_color='E6E6E6', end_color='E6E6E6', fill_type='solid')
+                header_font = Font(name='Tahoma', size=12, bold=True)
+                
+                for cell in worksheet[1]:
+                    cell.fill = header_fill
+                    cell.font = header_font
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                
+                # تنظیم فونت و راست به چپ بودن برای داده‌ها
+                for row in worksheet.iter_rows(min_row=2):
+                    for cell in row:
+                        cell.font = Font(name='Tahoma', size=11)
+                        cell.alignment = Alignment(horizontal='right', vertical='center')
+                
+                # تنظیم عرض ستون‌ها
+                for i, column in enumerate(worksheet.columns):
+                    max_length = 0
+                    column_letter = get_column_letter(i+1)
+                    
+                    # بررسی طول محتوای سلول‌ها
+                    for cell in column:
+                        try:
+                            if cell.value:
+                                cell_length = len(str(cell.value))
+                                if cell_length > max_length:
+                                    max_length = cell_length
+                        except:
+                            pass
+                    
+                    # تنظیم عرض ستون با توجه به محتوا
+                    adjusted_width = max(max_length + 4, 15)  # حداقل عرض 15 کاراکتر
+                    worksheet.column_dimensions[column_letter].width = adjusted_width
             
             self.logger.info(f"داده‌ها با موفقیت به فایل {file_path} صادر شدند")
             self.status_var.set(f"داده‌ها با موفقیت به فایل اکسل صادر شدند")
@@ -554,13 +641,21 @@ class ReportTab(ttk.Frame):
             import os
             
             # ایجاد محتوای HTML
+            # مسیر فونت
+            font_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "fonts", "Vazir.ttf")
+            font_path = font_path.replace('\\', '/')
+            
             html_content = """<!DOCTYPE html>
             <html dir="rtl">
             <head>
                 <meta charset="UTF-8">
                 <title>گزارش</title>
                 <style>
-                    body { font-family: 'Tahoma', 'Arial', sans-serif; direction: rtl; }
+                    @font-face {
+                        font-family: 'Vazir';
+                        src: url('file:///{font_path}') format('truetype');
+                    }
+                    body { font-family: Vazir, Tahoma, Arial, sans-serif; direction: rtl; }
                     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
                     th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
                     th { background-color: #f2f2f2; }
@@ -577,23 +672,23 @@ class ReportTab(ttk.Frame):
             <body>
                 <div class="report-header">
                     <h1>گزارش سیستم مغایرت‌گیری</h1>
-                    <h2>%s</h2>
-                    <p>تاریخ گزارش: %s</p>
+                    <h2>{report_title}</h2>
+                    <p>تاریخ گزارش: {report_date}</p>
                 </div>
                 
                 <table>
                     <thead>
                         <tr>
-                            %s
+                            {table_header}
                         </tr>
                     </thead>
                     <tbody>
-                        %s
+                        {table_rows}
                     </tbody>
                 </table>
                 
                 <div class="report-footer">
-                    <p>تعداد رکوردها: %d</p>
+                    <p>تعداد رکوردها: {record_count}</p>
                 </div>
                 
                 <div class="no-print" style="text-align: center; margin-top: 20px;">
@@ -610,7 +705,10 @@ class ReportTab(ttk.Frame):
             
             # ایجاد تاریخ گزارش
             from datetime import datetime
-            report_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            import jdatetime
+            gregorian_date = datetime.now()
+            jalali_date = jdatetime.datetime.fromgregorian(datetime=gregorian_date)
+            report_date = jalali_date.strftime("%Y/%m/%d %H:%M:%S")
             
             # ایجاد هدر جدول
             table_header = ""
@@ -619,7 +717,6 @@ class ReportTab(ttk.Frame):
             
             # ایجاد ردیف‌های جدول
             table_rows = ""
-            dataindex_to_colindex = {col["dataindex"]: i for i, col in enumerate(self.columns)}
             
             for row in self.table_data:
                 table_rows += "<tr>\n"
@@ -627,8 +724,8 @@ class ReportTab(ttk.Frame):
                     table_rows += f"<td>{value}</td>\n"
                 table_rows += "</tr>\n"
             
-            # تکمیل محتوای HTML
-            html_content = html_content % (report_title, report_date, table_header, table_rows, len(self.table_data))
+            # تکمیل محتوای HTML با استفاده از f-string برای جلوگیری از خطای فرمت‌بندی
+            html_content = html_content.format(font_path=font_path, report_title=report_title, report_date=report_date, table_header=table_header, table_rows=table_rows, record_count=len(self.table_data))
             
             # ایجاد فایل موقت
             with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as f:
@@ -674,7 +771,13 @@ class ReportTab(ttk.Frame):
                 import os
                 
                 # ثبت فونت فارسی
-                font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "fonts", "Vazir.ttf")
+                font_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "fonts", "Vazir.ttf")
+                # اطمینان از وجود فایل فونت
+                if not os.path.exists(font_path):
+                    self.logger.error(f"فایل فونت در مسیر {font_path} یافت نشد")
+                    messagebox.showerror("خطا", f"فایل فونت در مسیر {font_path} یافت نشد")
+                    return
+                self.logger.info(f"فایل فونت در مسیر {font_path} یافت شد")
                 pdfmetrics.registerFont(TTFont('Vazir', font_path))
                 
                 # ایجاد استایل‌های متن
@@ -703,6 +806,7 @@ class ReportTab(ttk.Frame):
                 
                 # تاریخ گزارش
                 from datetime import datetime
+                import jdatetime
                 date_style = ParagraphStyle(
                     'Date',
                     parent=styles['Normal'],
@@ -710,7 +814,9 @@ class ReportTab(ttk.Frame):
                     alignment=TA_RIGHT,
                     fontSize=10
                 )
-                report_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                gregorian_date = datetime.now()
+                jalali_date = jdatetime.datetime.fromgregorian(datetime=gregorian_date)
+                report_date = jalali_date.strftime("%Y/%m/%d %H:%M:%S")
                 elements.append(Paragraph(f"تاریخ گزارش: {report_date}", date_style))
                 elements.append(Spacer(1, 20))
                 
@@ -724,8 +830,9 @@ class ReportTab(ttk.Frame):
                 # ردیف‌های جدول
                 for row in self.table_data:
                     data_row = []
+                    # چون self.table_data یک لیست از تاپل‌هاست، مستقیماً از عناصر آن استفاده می‌کنیم
                     for value in row:
-                        data_row.append(str(value))
+                        data_row.append(str(value) if value is not None else "")
                     table_data.append(data_row)
                 
                 # ایجاد جدول

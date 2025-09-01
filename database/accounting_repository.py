@@ -60,24 +60,6 @@ def get_transactions_by_type(bank_id, transaction_type):
         if conn:
             conn.close()
 
-def get_transactions_by_bank(bank_id):
-    """دریافت تراکنش‌های یک بانک"""
-    conn = None
-    try:
-        conn = create_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM AccountingTransactions WHERE bank_id = ?", (bank_id,))
-        columns = [description[0] for description in cursor.description]
-        result = [dict(zip(columns, row)) for row in cursor.fetchall()]
-        logger.info(f"تعداد {len(result)} تراکنش حسابداری برای بانک با شناسه {bank_id} یافت شد")
-        return result
-    except Exception as e:
-        logger.error(f"خطا در دریافت تراکنش‌های حسابداری بانک با شناسه {bank_id}: {str(e)}")
-        raise
-    finally:
-        if conn:
-            conn.close()
-
 def get_transactions_by_date_and_type(bank_id, start_date, end_date, transaction_type):
     """دریافت تراکنش‌ها بر اساس تاریخ و نوع تراکنش"""
     conn = None

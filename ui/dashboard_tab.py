@@ -303,7 +303,17 @@ class DashboardTab(ttk.Frame):
             unreconciled = [stat['unreconciled_records'] for stat in bank_stats]
             
             # تنظیم فونت فارسی برای matplotlib
-            plt.rcParams['font.family'] = 'Tahoma'
+            import matplotlib.font_manager as fm
+            font_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets', 'fonts', 'Vazir.ttf')
+            if os.path.exists(font_path):
+                fm.fontManager.addfont(font_path)
+                plt.rcParams['font.family'] = 'Vazir, Tahoma'
+            else:
+                plt.rcParams['font.family'] = 'Tahoma'
+            plt.rcParams['axes.unicode_minus'] = False
+            # تنظیم راست به چپ بودن متن
+            plt.rcParams['axes.formatter.use_locale'] = True
+            plt.rcParams['text.color'] = 'black'
             
             # ایجاد نمودار میله‌ای
             x = range(len(bank_names))
@@ -411,7 +421,11 @@ class DashboardTab(ttk.Frame):
             unreconciled = [stat['unreconciled_records'] for stat in accounting_stats]
             
             # تنظیم فونت فارسی برای matplotlib
-            plt.rcParams['font.family'] = 'Tahoma'
+            plt.rcParams['font.family'] = 'Vazir, Tahoma'
+            plt.rcParams['axes.unicode_minus'] = False
+            # تنظیم راست به چپ بودن متن
+            plt.rcParams['axes.formatter.use_locale'] = True
+            plt.rcParams['text.color'] = 'black'
             
             # ایجاد نمودار میله‌ای
             x = range(len(bank_names))
@@ -504,42 +518,44 @@ class DashboardTab(ttk.Frame):
             
             # ایجاد نمودار
             if pos_stats:
-                # تمام عملیات matplotlib در حلقه اصلی tkinter
-                self._create_pos_chart(pos_stats)
+                fig, ax = plt.subplots(figsize=(6, 4))
+                
+                bank_names = [stat['bank_name'] for stat in pos_stats]
+                reconciled = [stat['reconciled_records'] for stat in pos_stats]
+                unreconciled = [stat['unreconciled_records'] for stat in pos_stats]
+                
+                # تنظیم فونت فارسی برای matplotlib
+                import matplotlib.font_manager as fm
+                font_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets', 'fonts', 'Vazir.ttf')
+                if os.path.exists(font_path):
+                    fm.fontManager.addfont(font_path)
+                    plt.rcParams['font.family'] = 'Vazir, Tahoma'
+                else:
+                    plt.rcParams['font.family'] = 'Tahoma'
+                plt.rcParams['axes.unicode_minus'] = False
+                # تنظیم راست به چپ بودن متن
+                plt.rcParams['axes.formatter.use_locale'] = True
+                plt.rcParams['text.color'] = 'black'
+                
+                # ایجاد نمودار میله‌ای
+                x = range(len(bank_names))
+                width = 0.35
+                
+                ax.bar([i - width/2 for i in x], reconciled, width, label='مغایرت‌گیری شده')
+                ax.bar([i + width/2 for i in x], unreconciled, width, label='مغایرت‌گیری نشده')
+                
+                ax.set_ylabel('تعداد رکوردها')
+                ax.set_title('وضعیت مغایرت‌گیری پوز')
+                ax.set_xticks(x)
+                ax.set_xticklabels(bank_names)
+                ax.legend()
+                
+                # اضافه کردن نمودار به UI
+                canvas = FigureCanvasTkAgg(fig, master=self.pos_chart_frame)
+                canvas.draw()
+                canvas.get_tk_widget().pack(fill="both", expand=True)
         except Exception as e:
             self.logger.error(f"خطا در به‌روزرسانی UI آمار پوز: {str(e)}")
-            
-    def _create_pos_chart(self, pos_stats):
-        """ایجاد نمودار پوز"""
-        try:
-            fig, ax = plt.subplots(figsize=(6, 4))
-            
-            bank_names = [stat['bank_name'] for stat in pos_stats]
-            reconciled = [stat['reconciled_records'] for stat in pos_stats]
-            unreconciled = [stat['unreconciled_records'] for stat in pos_stats]
-            
-            # تنظیم فونت فارسی برای matplotlib
-            plt.rcParams['font.family'] = 'Tahoma'
-            
-            # ایجاد نمودار میله‌ای
-            x = range(len(bank_names))
-            width = 0.35
-            
-            ax.bar([i - width/2 for i in x], reconciled, width, label='مغایرت‌گیری شده')
-            ax.bar([i + width/2 for i in x], unreconciled, width, label='مغایرت‌گیری نشده')
-            
-            ax.set_ylabel('تعداد رکوردها')
-            ax.set_title('وضعیت مغایرت‌گیری پوز')
-            ax.set_xticks(x)
-            ax.set_xticklabels(bank_names)
-            ax.legend()
-            
-            # اضافه کردن نمودار به UI
-            canvas = FigureCanvasTkAgg(fig, master=self.pos_chart_frame)
-            canvas.draw()
-            canvas.get_tk_widget().pack(fill="both", expand=True)
-        except Exception as e:
-            self.logger.error(f"خطا در ایجاد نمودار پوز: {str(e)}")
     
     def delete_all_records(self):
         """حذف کل رکوردها از تمامی جداول"""
