@@ -15,7 +15,7 @@ DB_PATH = os.path.join(DATA_DIR, 'app.db')
 # تنظیمات فونت
 if sys.platform.startswith('win'):
     # فونت‌های پیش‌فرض برای ویندوز
-    DEFAULT_FONT = 'B Nazanin'
+    DEFAULT_FONT = 'Vazir'
     # DEFAULT_FONT = 'Microsoft Uighur'
     DEFAULT_FONT_SIZE = 18
     HEADER_FONT_SIZE = 20

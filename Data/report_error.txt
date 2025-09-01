@@ -1,6 +1,0 @@
-2025-09-01 22:12:33,926 - ERROR - خطا در نمایش داده‌ها در جدول: Tableview.__init__() got an unexpected keyword argument 'rowheight'. Did you mean 'height'?
-2025-09-01 22:12:33,966 - ERROR - خطا در ساخت گزارش: Tableview.__init__() got an unexpected keyword argument 'rowheight'. Did you mean 'height'?
-2025-09-01 22:13:39,341 - ERROR - خطا در نمایش داده‌ها در جدول: Tableview.__init__() got an unexpected keyword argument 'font'
-2025-09-01 22:13:39,342 - ERROR - خطا در ساخت گزارش: Tableview.__init__() got an unexpected keyword argument 'font'
-2025-09-01 22:15:46,721 - ERROR - خطا در چاپ گزارش: ' font-family'
-2025-09-01 22:26:29,095 - ERROR - خطا در چاپ گزارش: '\n                        font-family'
