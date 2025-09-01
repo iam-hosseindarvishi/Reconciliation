@@ -8,6 +8,8 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from tkinter import StringVar, BooleanVar, messagebox
 from ttkbootstrap.scrolled import ScrolledText
+import arabic_reshaper
+from bidi.algorithm import get_display
 from config.settings import (
     DB_PATH, DATA_DIR, DEFAULT_FONT, DEFAULT_FONT_SIZE,
     HEADER_FONT_SIZE, BUTTON_FONT_SIZE
@@ -298,7 +300,9 @@ class DashboardTab(ttk.Frame):
         try:
             fig, ax = plt.subplots(figsize=(6, 4))
             
-            bank_names = [stat['bank_name'] for stat in bank_stats]
+            # تبدیل نام‌های بانک به فرمت صحیح فارسی با استفاده از arabic-reshaper و bidi
+            bank_names_original = [stat['bank_name'] for stat in bank_stats]
+            bank_names = [get_display(arabic_reshaper.reshape(name)) for name in bank_names_original]
             reconciled = [stat['reconciled_records'] for stat in bank_stats]
             unreconciled = [stat['unreconciled_records'] for stat in bank_stats]
             
@@ -319,11 +323,19 @@ class DashboardTab(ttk.Frame):
             x = range(len(bank_names))
             width = 0.35
             
-            ax.bar([i - width/2 for i in x], reconciled, width, label='مغایرت‌گیری شده')
-            ax.bar([i + width/2 for i in x], unreconciled, width, label='مغایرت‌گیری نشده')
+            # تبدیل برچسب‌ها به فرمت صحیح فارسی
+            reshaped_label1 = get_display(arabic_reshaper.reshape('مغایرت‌گیری شده'))
+            reshaped_label2 = get_display(arabic_reshaper.reshape('مغایرت‌گیری نشده'))
             
-            ax.set_ylabel('تعداد رکوردها')
-            ax.set_title('وضعیت مغایرت‌گیری بانک‌ها')
+            ax.bar([i - width/2 for i in x], reconciled, width, label=reshaped_label1)
+            ax.bar([i + width/2 for i in x], unreconciled, width, label=reshaped_label2)
+            
+            # تبدیل عنوان‌ها به فرمت صحیح فارسی
+            reshaped_ylabel = get_display(arabic_reshaper.reshape('تعداد رکوردها'))
+            reshaped_title = get_display(arabic_reshaper.reshape('وضعیت مغایرت‌گیری بانک‌ها'))
+            
+            ax.set_ylabel(reshaped_ylabel)
+            ax.set_title(reshaped_title)
             ax.set_xticks(x)
             ax.set_xticklabels(bank_names)
             ax.legend()
@@ -416,12 +428,20 @@ class DashboardTab(ttk.Frame):
         try:
             fig, ax = plt.subplots(figsize=(6, 4))
             
-            bank_names = [stat['bank_name'] for stat in accounting_stats]
+            # تبدیل نام‌های بانک به فرمت صحیح فارسی با استفاده از arabic-reshaper و bidi
+            bank_names_original = [stat['bank_name'] for stat in accounting_stats]
+            bank_names = [get_display(arabic_reshaper.reshape(name)) for name in bank_names_original]
             reconciled = [stat['reconciled_records'] for stat in accounting_stats]
             unreconciled = [stat['unreconciled_records'] for stat in accounting_stats]
             
             # تنظیم فونت فارسی برای matplotlib
-            plt.rcParams['font.family'] = 'Vazir, Tahoma'
+            import matplotlib.font_manager as fm
+            font_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets', 'fonts', 'Vazir.ttf')
+            if os.path.exists(font_path):
+                fm.fontManager.addfont(font_path)
+                plt.rcParams['font.family'] = 'Vazir, Tahoma'
+            else:
+                plt.rcParams['font.family'] = 'Tahoma'
             plt.rcParams['axes.unicode_minus'] = False
             # تنظیم راست به چپ بودن متن
             plt.rcParams['axes.formatter.use_locale'] = True
@@ -431,11 +451,19 @@ class DashboardTab(ttk.Frame):
             x = range(len(bank_names))
             width = 0.35
             
-            ax.bar([i - width/2 for i in x], reconciled, width, label='مغایرت‌گیری شده')
-            ax.bar([i + width/2 for i in x], unreconciled, width, label='مغایرت‌گیری نشده')
+            # تبدیل برچسب‌ها به فرمت صحیح فارسی
+            reshaped_label1 = get_display(arabic_reshaper.reshape('مغایرت‌گیری شده'))
+            reshaped_label2 = get_display(arabic_reshaper.reshape('مغایرت‌گیری نشده'))
             
-            ax.set_ylabel('تعداد رکوردها')
-            ax.set_title('وضعیت مغایرت‌گیری حسابداری')
+            ax.bar([i - width/2 for i in x], reconciled, width, label=reshaped_label1)
+            ax.bar([i + width/2 for i in x], unreconciled, width, label=reshaped_label2)
+            
+            # تبدیل عنوان‌ها به فرمت صحیح فارسی
+            reshaped_ylabel = get_display(arabic_reshaper.reshape('تعداد رکوردها'))
+            reshaped_title = get_display(arabic_reshaper.reshape('وضعیت مغایرت‌گیری حسابداری'))
+            
+            ax.set_ylabel(reshaped_ylabel)
+            ax.set_title(reshaped_title)
             ax.set_xticks(x)
             ax.set_xticklabels(bank_names)
             ax.legend()
@@ -520,7 +548,9 @@ class DashboardTab(ttk.Frame):
             if pos_stats:
                 fig, ax = plt.subplots(figsize=(6, 4))
                 
-                bank_names = [stat['bank_name'] for stat in pos_stats]
+                # تبدیل نام‌های بانک به فرمت صحیح فارسی با استفاده از arabic-reshaper و bidi
+                bank_names_original = [stat['bank_name'] for stat in pos_stats]
+                bank_names = [get_display(arabic_reshaper.reshape(name)) for name in bank_names_original]
                 reconciled = [stat['reconciled_records'] for stat in pos_stats]
                 unreconciled = [stat['unreconciled_records'] for stat in pos_stats]
                 
@@ -541,11 +571,19 @@ class DashboardTab(ttk.Frame):
                 x = range(len(bank_names))
                 width = 0.35
                 
-                ax.bar([i - width/2 for i in x], reconciled, width, label='مغایرت‌گیری شده')
-                ax.bar([i + width/2 for i in x], unreconciled, width, label='مغایرت‌گیری نشده')
+                # تبدیل برچسب‌ها به فرمت صحیح فارسی
+                reshaped_label1 = get_display(arabic_reshaper.reshape('مغایرت‌گیری شده'))
+                reshaped_label2 = get_display(arabic_reshaper.reshape('مغایرت‌گیری نشده'))
                 
-                ax.set_ylabel('تعداد رکوردها')
-                ax.set_title('وضعیت مغایرت‌گیری پوز')
+                ax.bar([i - width/2 for i in x], reconciled, width, label=reshaped_label1)
+                ax.bar([i + width/2 for i in x], unreconciled, width, label=reshaped_label2)
+                
+                # تبدیل عنوان‌ها به فرمت صحیح فارسی
+                reshaped_ylabel = get_display(arabic_reshaper.reshape('تعداد رکوردها'))
+                reshaped_title = get_display(arabic_reshaper.reshape('وضعیت مغایرت‌گیری پوز'))
+                
+                ax.set_ylabel(reshaped_ylabel)
+                ax.set_title(reshaped_title)
                 ax.set_xticks(x)
                 ax.set_xticklabels(bank_names)
                 ax.legend()
