@@ -96,6 +96,7 @@ def init_db():
                 collection_date TEXT,
                 customer_name TEXT,
                 description TEXT,
+                is_new_system BOOLEAN DEFAULT 0,
                 is_reconciled BOOLEAN DEFAULT 0,
                 FOREIGN KEY (bank_id) REFERENCES Banks(id)
             )

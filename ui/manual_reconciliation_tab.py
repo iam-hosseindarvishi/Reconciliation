@@ -201,7 +201,7 @@ class ManualReconciliationTab(ttk.Frame):
         
         # ستون‌های Treeview حسابداری
         self.accounting_tree = ttk.Treeview(accounting_tree_frame, 
-                                          columns=("id", "tracking_number", "date", "amount", "description", "type", "bank"),
+                                          columns=("id", "tracking_number", "date", "amount", "description", "type", "bank", "system"),
                                           show="headings",
                                           yscrollcommand=accounting_scrollbar_y.set,
                                           xscrollcommand=accounting_scrollbar_x.set)
@@ -218,6 +218,7 @@ class ManualReconciliationTab(ttk.Frame):
         self.accounting_tree.heading("description", text="توضیحات")
         self.accounting_tree.heading("type", text="نوع تراکنش")
         self.accounting_tree.heading("bank", text="بانک")
+        self.accounting_tree.heading("system", text="سیستم")
         
         # تنظیم عرض ستون‌ها
         self.accounting_tree.column("id", width=50, anchor=tk.CENTER)
@@ -227,6 +228,7 @@ class ManualReconciliationTab(ttk.Frame):
         self.accounting_tree.column("description", width=200)
         self.accounting_tree.column("type", width=100, anchor=tk.CENTER)
         self.accounting_tree.column("bank", width=100, anchor=tk.CENTER)
+        self.accounting_tree.column("system", width=100, anchor=tk.CENTER)
         
         self.accounting_tree.pack(fill=tk.BOTH, expand=True)
         
@@ -592,6 +594,9 @@ class ManualReconciliationTab(ttk.Frame):
                 bank_id = record.get('bank_id')
                 bank_name = next((name for name, bid in self.banks_dict.items() if bid == bank_id), "نامشخص")
                 
+                # تبدیل مقدار is_new_system به متن
+                system_text = "سیستم جدید" if record.get('is_new_system', 0) == 1 else "سیستم قدیم"
+                
                 self.accounting_tree.insert("", tk.END, values=(
                     record['id'],
                     record.get('transaction_number', ''),
@@ -599,7 +604,8 @@ class ManualReconciliationTab(ttk.Frame):
                     amount,
                     record.get('description', ''),
                     type_text,
-                    bank_name
+                    bank_name,
+                    system_text
                 ))
             
             # فعال کردن دکمه‌های عملیات

@@ -349,7 +349,8 @@ class ReportTab(ttk.Frame):
                 {"text": "تاریخ وصول", "dataindex": "collection_date"},
                 {"text": "نام مشتری", "dataindex": "customer_name"},
                 {"text": "شرح", "dataindex": "description"},
-                {"text": "مغایرت گیری شده", "dataindex": "is_reconciled"}
+                {"text": "مغایرت گیری شده", "dataindex": "is_reconciled"},
+                {"text": "سیستم", "dataindex": "is_new_system"}
             ]
             
             conn.close()
@@ -492,6 +493,9 @@ class ReportTab(ttk.Frame):
                         # تبدیل مقادیر بولین به متن
                         if key == "is_reconciled":
                             row[col_index] = "بله" if item[key] == 1 else "خیر"
+                        # تبدیل مقادیر is_new_system به متن
+                        elif key == "is_new_system":
+                            row[col_index] = "سیستم جدید" if item[key] == 1 else "سیستم قدیم"
                         # تبدیل تاریخ میلادی به شمسی
                         elif key in ["transaction_date", "due_date", "collection_date", "date_time", "bank_date", "accounting_date", "pos_date"] and item[key]:
                             try:

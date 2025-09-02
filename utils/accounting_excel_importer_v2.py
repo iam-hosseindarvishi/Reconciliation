@@ -59,7 +59,7 @@ def import_accounting_excel_v2(accounting_file_path, bank_id):
                 'collection_date': gregorian_date,  # استفاده از همان تاریخ برای collection_date
                 'transaction_type': transaction_type,
                 'customer_name': str(row.get('کد/نام طرف حساب', '')),
-                #'customer_name': f"کارت {card_number}" if card_number else "",  # استفاده از شماره کارت در فیلد customer_name
+                'is_new_system':1,
                 'description': str(row.get('شرح', '')),
                 'is_reconciled': 0
             }

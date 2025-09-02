@@ -14,8 +14,8 @@ def create_accounting_transaction(data):
         cursor.execute("""
             INSERT INTO AccountingTransactions (
                 bank_id, transaction_number, transaction_amount, due_date, collection_date, 
-                transaction_type, customer_name, description, is_reconciled
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                transaction_type, customer_name, description, is_reconciled, is_new_system
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data.get('bank_id'),
             data.get('transaction_number'),
@@ -25,6 +25,7 @@ def create_accounting_transaction(data):
             data.get('transaction_type'),
             data.get('customer_name'),
             data.get('description', ''),
+            data.get('is_new_system',0),
             data.get('is_reconciled', 0)
         ))
         conn.commit()
