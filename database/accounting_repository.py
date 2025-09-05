@@ -25,8 +25,8 @@ def create_accounting_transaction(data):
             data.get('transaction_type'),
             data.get('customer_name'),
             data.get('description', ''),
+            data.get('is_reconciled', 0),
             data.get('is_new_system',0),
-            data.get('is_reconciled', 0)
         ))
         conn.commit()
         logger.info(f"تراکنش حسابداری جدید با شماره {data.get('transaction_number')} ثبت شد")
