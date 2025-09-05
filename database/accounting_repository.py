@@ -61,16 +61,24 @@ def get_transactions_by_type(bank_id, transaction_type):
         if conn:
             conn.close()
 
+
+
+
 def get_transactions_by_date_and_type(bank_id, start_date, end_date, transaction_type):
     """دریافت تراکنش‌ها بر اساس تاریخ و نوع تراکنش"""
+    new_system_type='';
+    if(transaction_type in ['Pos','Received Transfer']):
+        new_system_type='Pos / Received Transfer'
+    elif(transaction_type =='Paid Transfer') :
+        new_system_type='Pos / Paid Transfer'
     conn = None
     try:
         conn = create_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT * FROM AccountingTransactions
-            WHERE bank_id = ? AND due_date BETWEEN ? AND ? AND transaction_type = ?
-        """, (bank_id, start_date, end_date, transaction_type))
+            WHERE bank_id = ? AND due_date BETWEEN ? AND ? AND (transaction_type = ? OR transaction_type= ?)
+        """, (bank_id, start_date, end_date, transaction_type,new_system_type))
         columns = [description[0] for description in cursor.description]
         result = [dict(zip(columns, row)) for row in cursor.fetchall()]
         logger.info(f"تعداد {len(result)} تراکنش از نوع {transaction_type} در بازه {start_date} تا {end_date} یافت شد")
@@ -103,8 +111,15 @@ def get_transactions_advanced_search(search_params):
             params.append(search_params['custom_date'])
             
         if search_params.get('transaction_type'):
-            query += " AND transaction_type = ?"
+            transaction_type=search_params.get('transaction_type')
+            new_system_type='';
+            if(transaction_type in ['Pos','Received Transfer']):
+                new_system_type='Pos / Received Transfer'
+            elif(transaction_type =='Paid Transfer') :
+                new_system_type='Pos / Paid Transfer'
+            query += " AND transaction_type = ? OR transaction_type = ?"
             params.append(search_params['transaction_type'])
+            params.append(new_system_type)
             
         if search_params.get('amount'):
             # جستجو بر اساس مبلغ با تلرانس 1000 ریال
