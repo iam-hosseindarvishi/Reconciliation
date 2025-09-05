@@ -204,6 +204,48 @@ def get_transactions_by_date_amount_type(bank_id, transaction_date, amount, tran
     finally:
         if conn:
             conn.close()
+        conn = create_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM AccountingTransactions 
+            WHERE bank_id = ? 
+            AND due_date = ?
+            AND transaction_amount = ?
+            AND (transaction_type = ? OR transaction_type=?)
+        """, (bank_id, transaction_date, amount, transaction_type,new_system_type))
+        columns = [description[0] for description in cursor.description]
+        result = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        logger.info(f"Found {len(result)} transactions of type {transaction_type} with amount {amount} on date {transaction_date}")
+        return result
+
+def get_transactions_by_date_type(bank_id, transaction_date, transaction_type):
+    """Get all transactions by date and transaction type without considering amount"""
+    new_system_type='';
+    if(transaction_type in ['Pos','Received Transfer']):
+        new_system_type='Pos / Received Transfer'
+    elif(transaction_type =='Paid Transfer') :
+        new_system_type='Pos / Paid Transfer'
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM AccountingTransactions 
+            WHERE bank_id = ? 
+            AND due_date = ?
+            AND (transaction_type = ? OR transaction_type=?)
+            AND is_reconciled = 0
+        """, (bank_id, transaction_date, transaction_type, new_system_type))
+        columns = [description[0] for description in cursor.description]
+        result = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        logger.info(f"Found {len(result)} transactions of type {transaction_type} on date {transaction_date}")
+        return result
+    except Exception as e:
+        logger.error(f"Error getting transactions by date, amount and type: {str(e)}")
+        raise
+    finally:
+        if conn:
+            conn.close()
 
 
 def get_transactions_by_bank(bank_id):

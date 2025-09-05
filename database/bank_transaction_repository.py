@@ -156,6 +156,44 @@ def update_bank_transaction_reconciliation_status(transaction_id, status):
         if conn:
             conn.close()
 
+def update_bank_transaction(transaction_id, data):
+    """به‌روزرسانی اطلاعات تراکنش بانکی"""
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # ساخت پرس و جوی به‌روزرسانی بر اساس داده‌های ارسالی
+        update_fields = []
+        params = []
+        
+        for key, value in data.items():
+            if key != 'id':  # شناسه را به‌روزرسانی نمی‌کنیم
+                update_fields.append(f"{key} = ?")
+                params.append(value)
+        
+        # افزودن شناسه به پارامترها
+        params.append(transaction_id)
+        
+        query = f"UPDATE BankTransactions SET {', '.join(update_fields)} WHERE id = ?"
+        cursor.execute(query, params)
+        
+        if cursor.rowcount > 0:
+            conn.commit()
+            logger.info(f"تراکنش {transaction_id} با موفقیت به‌روزرسانی شد")
+            return True
+        else:
+            logger.warning(f"تراکنشی با شناسه {transaction_id} یافت نشد")
+            return False
+    except Exception as e:
+        logger.error(f"خطا در به‌روزرسانی تراکنش {transaction_id}: {str(e)}")
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        if conn:
+            conn.close()
+
 def delete_transaction(transaction_id):
     """حذف تراکنش"""
     conn = None

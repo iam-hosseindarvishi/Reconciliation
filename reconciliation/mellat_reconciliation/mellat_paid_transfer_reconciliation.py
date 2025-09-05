@@ -9,7 +9,7 @@ from tkinter import messagebox
 from utils.logger_config import setup_logger
 
 from utils.compare_tracking_numbers import compare_tracking_numbers
-from database.accounting_repository import get_transactions_by_date_amount_type, get_transactions_by_date_less_than_amount_type, create_accounting_transaction, update_accounting_transaction_reconciliation_status
+from database.accounting_repository import get_transactions_by_date_amount_type, get_transactions_by_date_less_than_amount_type, get_transactions_by_date_type, create_accounting_transaction, update_accounting_transaction_reconciliation_status
 from reconciliation.save_reconciliation_result import success_reconciliation_result, fail_reconciliation_result
 
 logger = setup_logger('reconciliation.mellat_paid_transfer_reconciliation')
@@ -58,34 +58,66 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
         bank_id = bank_record['bank_id']
         transaction_type = 'Paid Transfer'
 
-        # Exact Match
+        # 1. ابتدا رکوردهای همسان در جدول حسابداری جستجو می‌شود
         exact_matches = get_transactions_by_date_amount_type(bank_id, bank_date, bank_amount, transaction_type)
         if len(exact_matches) == 1:
+            # اگر یک رکورد با مبلغ دقیقاً یکسان پیدا شد، مغایرت‌گیری انجام می‌شود
             success_reconciliation_result(bank_record['id'], exact_matches[0]['id'], None, 'Exact match', transaction_type)
             logger.info(f"Reconciled Bank Transfer {bank_record['id']} with accounting doc {exact_matches[0]['id']}")
             return
 
-        # Fixed Fee Match
-        for fee in [450, 360]:
-            potential_matches = get_transactions_by_date_amount_type(bank_id, bank_date, bank_amount - fee, transaction_type)
-            if len(potential_matches) == 1:
-                match = potential_matches[0]
-                fee_transaction_data = {
-                    'bank_id': bank_id,
-                    'transaction_amount': fee,
-                    'due_date': bank_date,
-                    'transaction_type': 'Fee',
-                    'description': f"Fee for transaction {match['transaction_number']}",
-                }
-                fee_transaction_id = create_accounting_transaction(fee_transaction_data)
-                update_accounting_transaction_reconciliation_status(fee_transaction_id, True)
+        # 2. اگر رکورد دقیقاً مشابه پیدا نشد، تمام رکوردهای حسابداری در تاریخ مورد نظر را بررسی می‌کنیم
+        all_accounting_records = get_transactions_by_date_type(bank_id, bank_date, transaction_type)
+        
+        if all_accounting_records and len(all_accounting_records) > 0:
+            # بررسی شماره پیگیری
+            bank_tracking_number = bank_record.get('extracted_tracking_number', '')
+            
+            for acc_record in all_accounting_records:
+                acc_tracking_number = acc_record.get('transaction_number', '')
+                
+                # مقایسه شماره پیگیری با استفاده از تابع compare_tracking_numbers
+                if acc_tracking_number and bank_tracking_number:
+                    # تبدیل به رشته برای اطمینان
+                    bank_tracking_str = str(bank_tracking_number)
+                    acc_tracking_str = str(acc_tracking_number)
+                    
+                    # استفاده از تابع compare_tracking_numbers برای مقایسه شماره‌های پیگیری
+                    if compare_tracking_numbers(bank_tracking_str, acc_tracking_str) and float(acc_record['transaction_amount']) < float(bank_amount):
+                        # کارمزد را محاسبه می‌کنیم
+                        fee_amount = float(bank_amount) - float(acc_record['transaction_amount'])
+                        
+                        # ایجاد تراکنش کارمزد در حسابداری
+                        fee_transaction_data = {
+                            'bank_id': bank_id,
+                            'transaction_amount': fee_amount,
+                            'due_date': bank_date,
+                            'transaction_type': 'Fee',
+                            'description': f"Fee for transaction {acc_record['transaction_number']} - Bank tracking number: {bank_tracking_number}",
+                        }
+                        fee_transaction_id = create_accounting_transaction(fee_transaction_data)
+                        
+                        # به‌روزرسانی مبلغ رکورد بانک (کارمزد از آن کسر شده)
+                        bank_record['amount'] = acc_record['transaction_amount'] 
+                        
+                        # ذخیره رکورد بانک پس از بروزرسانی مبلغ
+                        from database.bank_transaction_repository import update_bank_transaction
+                        update_bank_transaction(bank_record['id'], {'amount': acc_record['transaction_amount']})
+                        
+                        # تنظیم فیلد is_reconciled برای هر دو رکورد بانک و حسابداری
+                        update_bank_transaction(bank_record['id'], {'is_reconciled': 1})
+                        update_accounting_transaction_reconciliation_status(acc_record['id'], 1)
+                        
+                        # ثبت نتیجه مغایرت‌گیری
+                        success_reconciliation_result(bank_record['id'], acc_record['id'], None, 
+                                                    f'Automatic fee reconciliation with tracking number match. Fee: {fee_amount}', 
+                                                    transaction_type)
+                        logger.info(f"Automatically reconciled Bank Transfer {bank_record['id']} with tracking number match. Fee: {fee_amount}")
+                        return
 
-                bank_record['amount'] = match['transaction_amount']
-                success_reconciliation_result(bank_record['id'], match['id'], None, f'Automatic fee reconciliation with fee: {fee}', transaction_type)
-                logger.info(f"Automatically reconciled Bank Transfer {bank_record['id']} with fee {fee}")
-                return
+        # روش قبلی برای مغایرت‌گیری با کارمزد ثابت حذف شد
 
-        # Manual Reconciliation Dialog
+        # 3. مغایرت‌گیری دستی
         potential_matches = get_transactions_by_date_less_than_amount_type(bank_id, bank_date, bank_amount, transaction_type)
         
         # فقط در صورتی که رکورد حسابداری مغایرت‌یابی نشده وجود داشته باشد، دیالوگ را نمایش می‌دهیم
@@ -103,7 +135,10 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
                 logger.info(f"Skipping manual reconciliation dialog as per settings for Bank Transfer {bank_record['id']}")
                 result = None
         else:
+            # در تاریخ رکورد بانک، رکوردی در حسابداری موجود نیست
             logger.warning(f"No unreconciled accounting records found for Bank Transfer {bank_record['id']}")
+            # این رکورد بانک را به عنوان مغایرت در جدول result ثبت می‌کنیم
+            fail_reconciliation_result(bank_record['id'], None, None, 'No accounting records found on this date', transaction_type)
             result = None
 
         if result:
