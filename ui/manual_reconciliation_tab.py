@@ -714,7 +714,7 @@ class ManualReconciliationTab(ttk.Frame):
             
             if confirm:
                 # استفاده از Helper برای کسر کارمزد و ایجاد رکورد جدید
-                from database.Helper import deduct_fee
+                from database.Helper.db_helpers import deduct_fee
                 
                 try:
                     # کسر کارمزد از مبلغ تراکنش و ایجاد رکورد جدید برای کارمزد
