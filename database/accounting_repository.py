@@ -178,6 +178,11 @@ def get_transactions_by_date_less_than_amount_type(bank_id, transaction_date, am
 
 def get_transactions_by_date_amount_type(bank_id, transaction_date, amount, transaction_type):
     """Get transactions by date, amount and transaction type"""
+    new_system_type='';
+    if(transaction_type in ['Pos','Received Transfer']):
+        new_system_type='Pos / Received Transfer'
+    elif(transaction_type =='Paid Transfer') :
+        new_system_type='Pos / Paid Transfer'
     conn = None
     try:
         conn = create_connection()
@@ -187,8 +192,8 @@ def get_transactions_by_date_amount_type(bank_id, transaction_date, amount, tran
             WHERE bank_id = ? 
             AND due_date = ?
             AND transaction_amount = ?
-            AND transaction_type = ?
-        """, (bank_id, transaction_date, amount, transaction_type))
+            AND (transaction_type = ? OR transaction_type=?)
+        """, (bank_id, transaction_date, amount, transaction_type,new_system_type))
         columns = [description[0] for description in cursor.description]
         result = [dict(zip(columns, row)) for row in cursor.fetchall()]
         logger.info(f"Found {len(result)} transactions of type {transaction_type} with amount {amount} on date {transaction_date}")
