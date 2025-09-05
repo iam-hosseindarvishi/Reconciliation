@@ -9,7 +9,7 @@ from tkinter import messagebox
 from utils.logger_config import setup_logger
 
 from utils.compare_tracking_numbers import compare_tracking_numbers
-from database.accounting_repository import get_transactions_by_date_amount_type, get_transactions_by_date_less_than_amount_type, get_transactions_by_date_type, create_accounting_transaction, update_accounting_transaction_reconciliation_status
+from database.accounting_repository import get_transactions_by_date_amount_type, get_transactions_by_date_less_than_amount_type, get_transactions_by_date_type, get_transactions_by_amount_tracking, create_accounting_transaction, update_accounting_transaction_reconciliation_status
 from reconciliation.save_reconciliation_result import success_reconciliation_result, fail_reconciliation_result
 
 logger = setup_logger('reconciliation.mellat_paid_transfer_reconciliation')
@@ -69,6 +69,13 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
         # 2. اگر رکورد دقیقاً مشابه پیدا نشد، تمام رکوردهای حسابداری در تاریخ مورد نظر را بررسی می‌کنیم
         all_accounting_records = get_transactions_by_date_type(bank_id, bank_date, transaction_type)
         
+        # اگر تراکنش‌های بازیافتی 0 بود، بر اساس مبلغ و شماره پیگیری در حسابداری جستجو کن
+        if not all_accounting_records or len(all_accounting_records) == 0:
+            bank_tracking_number = bank_record.get('extracted_tracking_number', '')
+            if bank_tracking_number:
+                all_accounting_records = get_transactions_by_amount_tracking(bank_id, bank_amount, bank_tracking_number, transaction_type)
+                logger.info(f"Searching by amount and tracking number due to no date matches. Found {len(all_accounting_records)} potential matches.")
+        
         if all_accounting_records and len(all_accounting_records) > 0:
             # بررسی شماره پیگیری
             bank_tracking_number = bank_record.get('extracted_tracking_number', '')
@@ -114,7 +121,7 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
                                                     transaction_type)
                         logger.info(f"Automatically reconciled Bank Transfer {bank_record['id']} with tracking number match. Fee: {fee_amount}")
                         return
-
+            
         # روش قبلی برای مغایرت‌گیری با کارمزد ثابت حذف شد
 
         # 3. مغایرت‌گیری دستی

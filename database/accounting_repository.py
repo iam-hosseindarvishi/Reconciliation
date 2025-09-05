@@ -247,6 +247,47 @@ def get_transactions_by_date_type(bank_id, transaction_date, transaction_type):
         if conn:
             conn.close()
 
+def get_transactions_by_amount_tracking(bank_id, amount, tracking_number, transaction_type):
+    """جستجوی تراکنش‌های حسابداری بر اساس مبلغ و شماره پیگیری
+    
+    این تابع برای حل مشکل ثبت رکوردهای بانکی در تاریخ اشتباه استفاده می‌شود.
+    
+    Args:
+        bank_id: شناسه بانک
+        amount: مبلغ تراکنش
+        tracking_number: شماره پیگیری بانک
+        transaction_type: نوع تراکنش (مثلاً 'Paid Transfer')
+        
+    Returns:
+        لیستی از تراکنش‌های حسابداری که مبلغ آنها دقیقاً برابر با مبلغ ورودی است
+    """
+    new_system_type=''
+    if(transaction_type in ['Pos','Received Transfer']):
+        new_system_type='Pos / Received Transfer'
+    elif(transaction_type =='Paid Transfer') :
+        new_system_type='Pos / Paid Transfer'
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM AccountingTransactions 
+            WHERE bank_id = ? 
+            AND transaction_amount = ?
+            AND (transaction_type = ? OR transaction_type=?)
+            AND is_reconciled = 0
+        """, (bank_id, amount, transaction_type, new_system_type))
+        columns = [description[0] for description in cursor.description]
+        result = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        logger.info(f"Found {len(result)} transactions of type {transaction_type} with amount {amount}")
+        return result
+    except Exception as e:
+        logger.error(f"Error getting transactions by amount and tracking number: {str(e)}")
+        raise
+    finally:
+        if conn:
+            conn.close()
+
 
 def get_transactions_by_bank(bank_id):
     """دریافت تمام تراکنش‌های یک بانک"""
