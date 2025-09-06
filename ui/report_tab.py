@@ -143,11 +143,11 @@ class ReportTab(ttk.Frame):
         
         # === بخش نمایش داده‌ها ===
         data_frame = ttk.Frame(main_frame)
-        data_frame.pack(fill="both", expand=False, pady=5)  # کاهش expand و pady برای فضای بیشتر
+        data_frame.pack(fill="both", expand=True, pady=5)  # اجازه گسترش برای فضای کافی برای جدول
         
         # جدول نمایش داده‌ها
-        self.table_frame = ttk.Frame(data_frame, height=400)  # تنظیم ارتفاع ثابت برای جدول
-        self.table_frame.pack(fill="both", expand=False)  # عدم گسترش برای حفظ ارتفاع ثابت
+        self.table_frame = ttk.Frame(data_frame, height=500)  # افزایش ارتفاع برای فونت و سطرهای بزرگتر
+        self.table_frame.pack(fill="both", expand=True)  # اجازه گسترش برای فضای بیشتر
         
         # وضعیت
         status_frame = ttk.Frame(main_frame)
@@ -477,14 +477,14 @@ class ReportTab(ttk.Frame):
             dataindex_to_colindex = {}
             
             for i, col in enumerate(self.columns):
-                # تنظیم عرض مناسب برای هر ستون بر اساس نوع داده
-                width = 150  # عرض پیش‌فرض بیشتر برای خوانایی بهتر
+                # تنظیم عرض مناسب برای هر ستون بر اساس نوع داده و فونت بزرگتر
+                width = 200  # عرض پیش‌فرض بیشتر برای خوانایی بهتر با فونت بزرگتر
                 if col["dataindex"] in ["description", "customer_name"]:
-                    width = 200  # عرض بیشتر برای ستون‌های توضیحات و نام مشتری
+                    width = 300  # عرض بیشتر برای ستون‌های توضیحات و نام مشتری
                 elif col["dataindex"] in ["amount", "transaction_amount", "bank_amount", "accounting_amount", "pos_amount"]:
-                    width = 150  # عرض مناسب برای ستون‌های مبلغ
+                    width = 180  # عرض مناسب برای ستون‌های مبلغ
                 elif col["dataindex"] in ["id", "is_reconciled", "is_new_system"]:
-                    width = 100  # عرض کمتر برای ستون‌های کوتاه
+                    width = 120  # عرض کمتر برای ستون‌های کوتاه
                 
                 coldata.append({"text": col["text"], "stretch": True, "width": width})
                 dataindex_to_colindex[col["dataindex"]] = i
@@ -538,9 +538,9 @@ class ReportTab(ttk.Frame):
                 bootstyle="primary",
                 stripecolor=("#f5f5f5", None),
                 autofit=False,
-                pagesize=20,  # افزایش تعداد رکوردها در هر صفحه
+                pagesize=15,  # کاهش تعداد رکوردها در هر صفحه برای فونت بزرگتر
                 # تنظیمات اضافی برای نمایش بهتر متن فارسی
-                height=15  # کاهش بیشتر ارتفاع کلی جدول برای نمایش دکمه‌های عملیاتی
+                height=20  # افزایش ارتفاع برای فونت و سطرهای بزرگتر
             )
             # تنظیم پکینگ جدول با ارتفاع محدود برای نمایش بهتر دکمه‌های عملیاتی
             table.pack(fill="both", expand=False, padx=5, pady=5)
@@ -550,10 +550,10 @@ class ReportTab(ttk.Frame):
                 # تلاش برای تنظیم فونت از طریق تغییر استایل
                 style = ttk.Style()
                 # استفاده از روش‌های استاندارد برای تنظیم فونت در ttkbootstrap
-                style.configure("Treeview", font=("Vazir", 11))  # افزایش اندازه فونت
-                style.configure("Treeview.Heading", font=("Vazir", 11, "bold"))  # افزایش اندازه فونت هدر
+                style.configure("Treeview", font=("Vazir", 16))  # افزایش قابل توجه اندازه فونت
+                style.configure("Treeview.Heading", font=("Vazir", 18, "bold"))  # افزایش قابل توجه اندازه فونت هدر
                 # تنظیم ارتفاع سطرها برای نمایش بهتر متن فارسی
-                style.configure("Treeview", rowheight=40)  # افزایش ارتفاع سطرها
+                style.configure("Treeview", rowheight=45)  # افزایش ارتفاع سطرها
             except Exception as e:
                 self.logger.warning(f"تنظیم فونت فارسی با خطا مواجه شد: {str(e)}")
                 # ادامه اجرا بدون توقف
