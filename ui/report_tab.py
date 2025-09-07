@@ -581,9 +581,33 @@ class ReportTab(ttk.Frame):
             if not file_path:
                 return
             
-            # تبدیل داده‌ها به دیتافریم پانداس با نام ستون‌های مناسب
+            # فیلتر کردن داده‌ها برای حذف کارمزدها از شیت اصلی
+            filtered_data = []
+            for row in self.table_data:
+                # بررسی نوع تراکنش در ستون مربوطه
+                transaction_type_index = None
+                transaction_type_column_names = ["نوع تراکنش بانک", "نوع تراکنش", "transaction_type"]
+                
+                for i, col in enumerate(self.columns):
+                    if col["text"] in transaction_type_column_names:
+                        transaction_type_index = i
+                        break
+                
+                # اگر ستون نوع تراکنش پیدا شد
+                if transaction_type_index is not None:
+                    transaction_type = row[transaction_type_index] if transaction_type_index < len(row) else None
+                    # اگر نوع تراکنش کارمزد نیست، به لیست فیلتر شده اضافه کن
+                    if transaction_type not in ["bank_fee", "BANK_FEES", "کارمزد بانکی"]:
+                        filtered_data.append(row)
+                else:  # اگر ستون نوع تراکنش پیدا نشد، همه رکوردها را اضافه کن
+                    filtered_data.append(row)
+                    
+                # لاگ کردن برای اشکال‌زدایی
+                self.logger.debug(f"نوع تراکنش: {row[transaction_type_index] if transaction_type_index is not None and transaction_type_index < len(row) else 'نامشخص'}, اضافه شده به لیست: {transaction_type_index is None or row[transaction_type_index] not in ['bank_fee', 'BANK_FEES', 'کارمزد بانکی']}")
+            
+            # تبدیل داده‌های فیلتر شده به دیتافریم پانداس با نام ستون‌های مناسب
             column_names = [col["text"] for col in self.columns]
-            df = pd.DataFrame(self.table_data, columns=column_names)
+            df = pd.DataFrame(filtered_data, columns=column_names)
             
             # تنظیم فونت و استایل برای فایل اکسل
             from openpyxl import Workbook
