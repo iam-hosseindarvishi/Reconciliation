@@ -634,6 +634,9 @@ class ReportTab(ttk.Frame):
                     # تنظیم عرض ستون با توجه به محتوا
                     adjusted_width = max(max_length + 4, 15)  # حداقل عرض 15 کاراکتر
                     worksheet.column_dimensions[column_letter].width = adjusted_width
+                
+                # اضافه کردن شیت کارمزدها
+                self.add_bank_fees_sheet(writer)
             
             self.logger.info(f"داده‌ها با موفقیت به فایل {file_path} صادر شدند")
             self.status_var.set(f"داده‌ها با موفقیت به فایل اکسل صادر شدند")
@@ -642,6 +645,154 @@ class ReportTab(ttk.Frame):
             self.logger.error(f"خطا در صدور به اکسل: {str(e)}")
             self.status_var.set(f"خطا در صدور به اکسل: {str(e)}")
             messagebox.showerror("خطا", f"خطا در صدور به اکسل: {str(e)}")
+    
+    def add_bank_fees_sheet(self, writer):
+        """اضافه کردن شیت کارمزدهای بانکی به فایل اکسل با جمع‌بندی روزانه"""
+        try:
+            import sqlite3
+            from config.settings import DB_PATH
+            
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # دریافت کارمزدهای بانکی
+            query = """SELECT bt.*, b.bank_name 
+                       FROM BankTransactions bt 
+                       JOIN Banks b ON bt.bank_id = b.id 
+                       WHERE bt.transaction_type IN ('bank_fee', 'BANK_FEES')"""
+            
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            
+            # اگر کارمزدی وجود نداشت، شیت اضافه نشود
+            if not rows:
+                self.logger.info("هیچ کارمزد بانکی یافت نشد")
+                return
+            
+            # تبدیل نتایج به لیست دیکشنری
+            fees_data = [dict(row) for row in rows]
+            
+            # تبدیل تاریخ‌ها به شمسی و گروه‌بندی بر اساس تاریخ
+            from utils.helpers import gregorian_to_persian
+            
+            # گروه‌بندی کارمزدها بر اساس تاریخ
+            daily_fees = {}
+            for item in fees_data:
+                if 'transaction_date' in item and item['transaction_date']:
+                    try:
+                        # تبدیل تاریخ به شمسی
+                        persian_date = gregorian_to_persian(str(item['transaction_date']))
+                        
+                        # اضافه کردن به دیکشنری گروه‌بندی شده
+                        if persian_date not in daily_fees:
+                            daily_fees[persian_date] = {
+                                'date': persian_date,
+                                'total_amount': 0,
+                                'bank_name': item['bank_name'],
+                                'count': 0
+                            }
+                        
+                        # جمع کردن مبلغ کارمزد
+                        if 'amount' in item and item['amount'] is not None:
+                            daily_fees[persian_date]['total_amount'] += float(item['amount'])
+                            daily_fees[persian_date]['count'] += 1
+                    except Exception as e:
+                        self.logger.error(f"خطا در پردازش تاریخ: {str(e)}")
+            
+            # تبدیل دیکشنری به لیست برای ایجاد دیتافریم
+            daily_fees_list = list(daily_fees.values())
+            
+            # اگر داده‌ای برای نمایش وجود نداشت
+            if not daily_fees_list:
+                self.logger.info("هیچ داده‌ای برای نمایش در شیت کارمزدها وجود ندارد")
+                return
+            
+            # ستون‌های مورد نیاز برای نمایش
+            columns = [
+                {"text": "تاریخ", "dataindex": "date"},
+                {"text": "بانک", "dataindex": "bank_name"},
+                {"text": "جمع کارمزد (ریال)", "dataindex": "total_amount"},
+                {"text": "تعداد تراکنش", "dataindex": "count"}
+            ]
+            
+            # آماده‌سازی داده‌ها برای دیتافریم
+            rows_data = []
+            for item in daily_fees_list:
+                row = []
+                for col in columns:
+                    key = col["dataindex"]
+                    if key in item:
+                        if key == "total_amount":
+                            try:
+                                if item[key] is not None:
+                                    amount_value = float(item[key])
+                                    row.append(f"{int(amount_value):,}")
+                                else:
+                                    row.append("")
+                            except:
+                                row.append(str(item[key]) if item[key] is not None else "")
+                        else:
+                            row.append(str(item[key]) if item[key] is not None else "")
+                rows_data.append(row)
+            
+            # ایجاد دیتافریم
+            column_names = [col["text"] for col in columns]
+            df_fees = pd.DataFrame(rows_data, columns=column_names)
+            
+            # مرتب‌سازی بر اساس تاریخ
+            df_fees = df_fees.sort_values(by="تاریخ")
+            
+            # اضافه کردن به اکسل
+            df_fees.to_excel(writer, sheet_name='کارمزدها', index=False)
+            
+            # تنظیم استایل‌ها
+            worksheet = writer.sheets['کارمزدها']
+            
+            # تنظیم راست به چپ بودن کل شیت
+            worksheet.sheet_view.rightToLeft = True
+            
+            # تنظیم استایل هدر
+            from openpyxl.styles import Font, Alignment, PatternFill
+            from openpyxl.utils import get_column_letter
+            
+            header_fill = PatternFill(start_color='E6E6E6', end_color='E6E6E6', fill_type='solid')
+            header_font = Font(name='Tahoma', size=12, bold=True)
+            
+            for cell in worksheet[1]:
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            
+            # تنظیم فونت و راست به چپ بودن برای داده‌ها
+            for row in worksheet.iter_rows(min_row=2):
+                for cell in row:
+                    cell.font = Font(name='Tahoma', size=11)
+                    cell.alignment = Alignment(horizontal='right', vertical='center')
+            
+            # تنظیم عرض ستون‌ها
+            for i, column in enumerate(worksheet.columns):
+                max_length = 0
+                column_letter = get_column_letter(i+1)
+                
+                # بررسی طول محتوای سلول‌ها
+                for cell in column:
+                    try:
+                        if cell.value:
+                            cell_length = len(str(cell.value))
+                            if cell_length > max_length:
+                                max_length = cell_length
+                    except:
+                        pass
+                
+                # تنظیم عرض ستون با توجه به محتوا
+                adjusted_width = max(max_length + 4, 15)  # حداقل عرض 15 کاراکتر
+                worksheet.column_dimensions[column_letter].width = adjusted_width
+                
+            self.logger.info("شیت کارمزدها با موفقیت اضافه شد")
+            conn.close()
+        except Exception as e:
+            self.logger.error(f"خطا در اضافه کردن شیت کارمزدها: {str(e)}")
     
     def print_report(self):
         """چاپ گزارش"""

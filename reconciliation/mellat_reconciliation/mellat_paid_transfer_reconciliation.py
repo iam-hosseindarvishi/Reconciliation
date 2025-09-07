@@ -94,15 +94,25 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
                         # کارمزد را محاسبه می‌کنیم
                         fee_amount = float(bank_amount) - float(acc_record['transaction_amount'])
                         
-                        # ایجاد تراکنش کارمزد در حسابداری
+                        # کارمزد به عنوان یک تراکنش جداگانه در جدول بانک ثبت می‌شود، نه در جدول حسابداری
+                        from database.bank_transaction_repository import create_bank_transaction
+                        
+                        # ایجاد تراکنش کارمزد در جدول بانک
                         fee_transaction_data = {
                             'bank_id': bank_id,
-                            'transaction_amount': fee_amount,
-                            'due_date': bank_date,
-                            'transaction_type': 'Fee',
-                            'description': f"Fee for transaction {acc_record['transaction_number']} - Bank tracking number: {bank_tracking_number}",
+                            'transaction_date': bank_record['transaction_date'],
+                            'transaction_time': bank_record['transaction_time'],
+                            'amount': fee_amount,
+                            'description': f"کارمزد برای تراکنش {acc_record['transaction_number']} - شماره پیگیری بانک: {bank_tracking_number}",
+                            'reference_number': bank_record['reference_number'],
+                            'extracted_terminal_id': bank_record['extracted_terminal_id'],
+                            'extracted_tracking_number': bank_record['extracted_tracking_number'],
+                            'transaction_type': 'bank_fee',
+                            'source_card_number': bank_record['source_card_number'],
+                            'is_reconciled': 1
                         }
-                        fee_transaction_id = create_accounting_transaction(fee_transaction_data)
+                        
+                        create_bank_transaction(fee_transaction_data)
                         
                         # به‌روزرسانی مبلغ رکورد بانک (کارمزد از آن کسر شده)
                         bank_record['amount'] = acc_record['transaction_amount'] 
@@ -155,17 +165,25 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
             if 'fee_amount' in bank_record and bank_record['fee_amount'] > 0:
                 fee = bank_record['fee_amount']
                 
-                # ایجاد تراکنش کارمزد در حسابداری
+                # کارمزد به عنوان یک تراکنش جداگانه در جدول بانک ثبت می‌شود، نه در جدول حسابداری
+                from database.bank_transaction_repository import create_bank_transaction
+                
+                # ایجاد تراکنش کارمزد در جدول بانک
                 fee_transaction_data = {
-                    'transaction_date': bank_date,
-                    'transaction_amount': fee,
-                    'transaction_type': 'Bank_Fee',
-                    'description': f'Bank fee for transfer {bank_record.get("extracted_tracking_number", bank_record["id"])}',
-                    'bank_id': bank_id
+                    'bank_id': bank_record['bank_id'],
+                    'transaction_date': bank_record['transaction_date'],
+                    'transaction_time': bank_record['transaction_time'],
+                    'amount': fee,
+                    'description': f"کارمزد برای تراکنش دستی - شماره پیگیری بانک: {bank_record['extracted_tracking_number']}",
+                    'reference_number': bank_record['reference_number'],
+                    'extracted_terminal_id': bank_record['extracted_terminal_id'],
+                    'extracted_tracking_number': bank_record['extracted_tracking_number'],
+                    'transaction_type': 'bank_fee',
+                    'source_card_number': bank_record['source_card_number'],
+                    'is_reconciled': 1
                 }
                 
-                fee_transaction_id = create_accounting_transaction(fee_transaction_data)
-                update_accounting_transaction_reconciliation_status(fee_transaction_id, True)
+                create_bank_transaction(fee_transaction_data)
                 
                 notes = f'Manual reconciliation with fee: {fee}'
                 logger.info(f"Fee of {fee} recorded for Bank Transfer {bank_record['id']}")
