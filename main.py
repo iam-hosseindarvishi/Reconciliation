@@ -16,6 +16,7 @@ from ui.reconciliation_tab import ReconciliationTab
 from ui.manual_reconciliation_tab import ManualReconciliationTab
 from ui.dashboard_tab import DashboardTab
 from ui.report_tab import ReportTab
+from ui.bank_fees_tab import BankFeesTab
 from utils.logger_config import setup_logger
 
 # تنظیم کدگذاری کنسول برای نمایش درست متون فارسی
@@ -151,6 +152,16 @@ def main():
             logger.info("تب گزارش‌گیری با موفقیت بارگذاری شد")
         except Exception as e:
             logger.error(f"خطا در بارگذاری تب گزارش‌گیری: {str(e)}")
+            raise
+            
+        try:
+            # افزودن تب جمع‌آوری کارمزد
+            logger.info("در حال بارگذاری تب جمع‌آوری کارمزد...")
+            bank_fees_tab = BankFeesTab(notebook)
+            notebook.add(bank_fees_tab, text="جمع آوری کارمزد")
+            logger.info("تب جمع‌آوری کارمزد با موفقیت بارگذاری شد")
+        except Exception as e:
+            logger.error(f"خطا در بارگذاری تب جمع‌آوری کارمزد: {str(e)}")
             raise
 
         logger.info("رابط کاربری با موفقیت راه‌اندازی شد")

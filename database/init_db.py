@@ -116,6 +116,20 @@ def init_db():
                 FOREIGN KEY (bank_record_id) REFERENCES BankTransactions(id)
             )
         """)
+        
+        # جدول کارمزدهای تجمیع شده
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS BankFees (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bank_id INTEGER NOT NULL,
+                fee_date TEXT NOT NULL,
+                total_amount FLOAT NOT NULL,
+                transaction_count INTEGER NOT NULL,
+                description TEXT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (bank_id) REFERENCES Banks(id)
+            )
+        """)
         conn.commit()
     except Exception as e:
         logger.error(f"خطا در ایجاد جداول دیتابیس: {str(e)}")
