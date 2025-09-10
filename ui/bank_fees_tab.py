@@ -156,15 +156,22 @@ class BankFeesTab(ttk.Frame):
             # دریافت کارمزدهای تجمیع شده برای بانک انتخاب شده
             fees = get_bank_fees(self.selected_bank_id)
             
+            # وارد کردن ماژول تبدیل تاریخ
+            from utils.helpers import gregorian_to_persian
+            
             # افزودن به لیست
             for fee in fees:
+                # تبدیل تاریخ‌ها به شمسی
+                persian_fee_date = gregorian_to_persian(fee['fee_date'])
+                persian_created_at = gregorian_to_persian(fee['created_at'])
+                
                 self.fees_list.insert("", END, values=(
                     fee['id'],
                     fee['bank_name'],
-                    fee['fee_date'],
+                    persian_fee_date,
                     f"{fee['total_amount']:,} ریال",
                     fee['transaction_count'],
-                    fee['created_at']
+                    persian_created_at
                 ))
                 
             self.logger.debug(f"لیست کارمزدها با موفقیت به‌روزرسانی شد. {len(fees)} رکورد نمایش داده شد.")

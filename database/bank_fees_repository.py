@@ -5,6 +5,93 @@ from utils.logger_config import setup_logger
 # راه‌اندازی لاگر
 logger = setup_logger('database.bank_fees_repository')
 
+def identify_bank_fees(bank_id):
+    """
+    شناسایی تراکنش‌های کارمزد بانکی براساس توضیحات تراکنش
+    
+    Args:
+        bank_id: شناسه بانک
+        
+    Returns:
+        تعداد رکوردهای به‌روزرسانی شده
+    """
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        
+        # کلمات کلیدی برای شناسایی کارمزدهای بانکی در توضیحات تراکنش
+        fee_keywords = [
+            '%کارمزد%', '%کارمزد انتقال%', '%کارمزد خدمات%', '%کارمزد پایا%', '%کارمزد ساتنا%',
+            '%کارمزد کارت%', '%کارمزد برداشت%', '%کارمزد تراکنش%', '%کارمزد سرویس%',
+            '%هزینه خدمات%', '%هزینه تراکنش%', '%هزینه کارمزد%', '%هزینه سرویس%',
+            '%fee%', '%service fee%', '%transaction fee%', '%bank fee%'
+        ]
+        
+        # ساخت شرط SQL برای جستجوی کلمات کلیدی
+        like_conditions = ' OR '.join([f"description LIKE '{keyword}'" for keyword in fee_keywords])
+        
+        # به‌روزرسانی نوع تراکنش برای تراکنش‌های کارمزد
+        update_query = f"""
+            UPDATE BankTransactions 
+            SET transaction_type = 'BANK_FEE' 
+            WHERE bank_id = ? AND ({like_conditions}) AND (transaction_type IS NULL OR transaction_type != 'BANK_FEE')
+        """
+        
+        cursor.execute(update_query, (bank_id,))
+        rows_updated = cursor.rowcount
+        
+        conn.commit()
+        logger.info(f"تعداد {rows_updated} تراکنش کارمزد برای بانک با شناسه {bank_id} شناسایی شد.")
+        return rows_updated
+        
+    except sqlite3.Error as e:
+        logger.error(f"خطا در شناسایی کارمزدهای بانکی: {str(e)}")
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        if conn:
+            conn.close()
+
+def identify_bank_fees_by_amount(bank_id):
+    """
+    شناسایی تراکنش‌های کارمزد بانکی براساس مقدار منفی
+    
+    Args:
+        bank_id: شناسه بانک
+        
+    Returns:
+        تعداد رکوردهای به‌روزرسانی شده
+    """
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        
+        # به‌روزرسانی نوع تراکنش برای تراکنش‌های با مقدار منفی به عنوان کارمزد
+        update_query = """
+            UPDATE BankTransactions 
+            SET transaction_type = 'BANK_FEE' 
+            WHERE bank_id = ? AND amount < 0 AND (transaction_type IS NULL OR transaction_type != 'BANK_FEE')
+        """
+        
+        cursor.execute(update_query, (bank_id,))
+        rows_updated = cursor.rowcount
+        
+        conn.commit()
+        logger.info(f"تعداد {rows_updated} تراکنش کارمزد با مقدار منفی برای بانک با شناسه {bank_id} شناسایی شد.")
+        return rows_updated
+        
+    except sqlite3.Error as e:
+        logger.error(f"خطا در شناسایی کارمزدهای بانکی: {str(e)}")
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        if conn:
+            conn.close()
+
 def collect_bank_fees(bank_id):
     """
     جمع‌آوری کارمزدهای بانکی براساس تاریخ برای بانک مشخص شده
@@ -17,11 +104,14 @@ def collect_bank_fees(bank_id):
     """
     conn = None
     try:
+        # ابتدا تراکنش‌های کارمزد را شناسایی می‌کنیم (با استفاده از کلمات کلیدی و مقدار منفی)
+        identified_fees_keywords = identify_bank_fees(bank_id)
+        identified_fees_amount = identify_bank_fees_by_amount(bank_id)
+        
+        logger.info(f"مجموعاً {identified_fees_keywords + identified_fees_amount} تراکنش کارمزد شناسایی شد.")
+        
         conn = create_connection()
         cursor = conn.cursor()
-        
-        # حذف کارمزدهای قبلی برای این بانک (اختیاری)
-        # cursor.execute("DELETE FROM BankFees WHERE bank_id = ?", (bank_id,))
         
         # استخراج کارمزدها براساس تاریخ و ثبت در جدول BankFees
         cursor.execute("""

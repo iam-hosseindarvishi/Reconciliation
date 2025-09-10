@@ -8,7 +8,7 @@ logger = setup_logger('utils.helpers')
 def gregorian_to_persian(gregorian_date_str):
     """
     تبدیل تاریخ میلادی به شمسی با فرمت YYYY/MM/DD
-    پشتیبانی از فرمت‌های: yyyy-mm-dd
+    پشتیبانی از فرمت‌های: yyyy-mm-dd و yyyy-mm-dd HH:MM:SS
     در صورت خطا رشته خالی برمی‌گرداند
     """
     if not gregorian_date_str:
@@ -16,8 +16,14 @@ def gregorian_to_persian(gregorian_date_str):
         return ''
     
     try:
+        # استخراج بخش تاریخ در صورتی که شامل زمان باشد
+        if ' ' in gregorian_date_str:
+            date_part = gregorian_date_str.split(' ')[0]
+        else:
+            date_part = gregorian_date_str
+            
         # تبدیل رشته تاریخ میلادی به شیء تاریخ
-        gdate = datetime.strptime(gregorian_date_str, '%Y-%m-%d')
+        gdate = datetime.strptime(date_part, '%Y-%m-%d')
         # تبدیل به تاریخ شمسی
         jdate = jdatetime.date.fromgregorian(date=gdate.date())
         # فرمت‌بندی تاریخ شمسی
@@ -26,10 +32,10 @@ def gregorian_to_persian(gregorian_date_str):
         return result
     except ValueError as e:
         logger.error(f"خطا در تبدیل تاریخ {gregorian_date_str}: {str(e)}")
-        return ''
+        return gregorian_date_str
     except Exception as e:
         logger.error(f"خطای غیرمنتظره در تبدیل تاریخ {gregorian_date_str}: {str(e)}")
-        return ''
+        return gregorian_date_str
 
 def persian_to_gregorian(jalali_date_str):
     """
