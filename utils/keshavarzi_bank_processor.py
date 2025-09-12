@@ -171,8 +171,8 @@ def extract_terminal_id(fulldesc):
         str: شماره ترمینال استخراج شده یا رشته خالی
     """
     # الگوی جستجو برای یافتن یک رشته هفت رقمی بعد از توالی صفرها
-    pattern = r'0+([0-9]{7})'
-    match = re.search(pattern, fulldesc)
+
+    match = re.search(r'0{3,}([0-9]{7})', fulldesc)
     if match:
         return match.group(1)
     return ''
@@ -189,8 +189,7 @@ def extract_tracking_number(fulldesc):
     """
     # الگوی جستجو برای شماره پیگیری سوئیچ
     if "شماره پيگيري سوئيچ:" in fulldesc:
-        pattern = r'شماره پيگيري سوئيچ:\s*(\d+)'
-        match = re.search(pattern, fulldesc)
+        match = re.search(r'شماره پیگیری سوئیچ:\s*(\d+)', fulldesc, re.IGNORECASE)
         if match:
             return match.group(1)
     
@@ -213,17 +212,12 @@ def extract_source_card_number(fulldesc):
     Returns:
         str: شماره کارت مبدأ استخراج شده یا رشته خالی
     """
-    # الگوی جستجو برای کارت بانک [نام بانک]
-    pattern = r'کارت بانک [^\s]+\s+(\d+)'
+    # Extract card number between pipes after "کارت بانک" followed by any bank name
+    pattern = r'\|کارت بانک [^:]+:\s*(\d{16})\|'
     match = re.search(pattern, fulldesc)
     if match:
-        return match.group(1)
-    
-    # اگر الگوی بالا پیدا نشد، اولین شماره کارت موجود را استخراج می‌کنیم
-    # الگوی جستجو برای شماره کارت (۱۶ رقمی)
-    pattern = r'(\d{16})'
-    match = re.search(pattern, fulldesc)
-    if match:
-        return match.group(1)
+        card_number = match.group(1)
+        # Return last 4 digits
+        return card_number[-4:]
     
     return ''
