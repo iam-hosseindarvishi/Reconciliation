@@ -74,6 +74,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS PosTransactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 terminal_number TEXT NOT NULL,
+                terminal_id TEXT,
                 bank_id INTEGER NOT NULL,
                 card_number TEXT,
                 transaction_date TEXT,

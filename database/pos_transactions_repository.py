@@ -13,11 +13,12 @@ def create_pos_transaction(transaction_data):
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO PosTransactions (
-                terminal_number, bank_id, card_number, transaction_date, 
+                terminal_number, terminal_id, bank_id, card_number, transaction_date, 
                 transaction_amount, tracking_number, is_reconciled
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             transaction_data.get('terminal_number'),
+            transaction_data.get('terminal_id'),
             transaction_data.get('bank_id'),
             transaction_data.get('card_number'),
             transaction_data.get('transaction_date'),

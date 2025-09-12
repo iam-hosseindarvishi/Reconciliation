@@ -389,6 +389,7 @@ class ReportTab(ttk.Frame):
                 {"text": "شناسه", "dataindex": "id"},
                 {"text": "بانک", "dataindex": "bank_name"},
                 {"text": "شماره ترمینال", "dataindex": "terminal_number"},
+                {"text": "شماره پایانه", "dataindex": "terminal_id"},
                 {"text": "شماره کارت", "dataindex": "card_number"},
                 {"text": "تاریخ تراکنش", "dataindex": "transaction_date"},
                 {"text": "مبلغ تراکنش", "dataindex": "transaction_amount"},
