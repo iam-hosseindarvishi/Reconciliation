@@ -105,8 +105,10 @@ def reconcile_single_pos(bank_transaction):
         )
         
         if accounting_match:
-            # اگر مبلغ برابر است، مغایرت‌گیری را انجام دهیم
-            if accounting_match.get('transaction_amount') == bank_transaction.get('amount'):
+            # بررسی برابری مبلغ با احتساب مقادیر منفی/مثبت
+            acc_amount = abs(float(accounting_match.get('transaction_amount', 0)))
+            bank_amount = abs(float(bank_transaction.get('amount', 0)))
+            if acc_amount == bank_amount:
                 # مغایرت‌گیری رکورد بانک و حسابداری
                 result = perform_reconciliation(
                     bank_transaction, accounting_match, None, 'Pos'
@@ -173,13 +175,16 @@ def find_accounting_by_terminal_id(bank_id, terminal_id, amount):
         conn = create_connection()
         cursor = conn.cursor()
         
+        # تبدیل مبلغ منفی به مثبت برای مقایسه
+        abs_amount = abs(float(amount))
+        
         cursor.execute("""
             SELECT * FROM AccountingTransactions 
             WHERE bank_id = ? 
             AND transaction_number = ? 
-            AND transaction_amount = ?
+            AND ABS(transaction_amount) = ?
             AND is_reconciled = 0
-        """, (bank_id, str(terminal_id), amount))
+        """, (bank_id, str(terminal_id), abs_amount))
         
         columns = [description[0] for description in cursor.description]
         result = cursor.fetchone()
@@ -300,8 +305,8 @@ def reconcile_individual_pos_transaction(pos_transaction, bank_id):
         pos_amount = pos_transaction.get('transaction_amount')
         pos_date = pos_transaction.get('transaction_date')
         
-        # جستجوی تراکنش حسابداری بر اساس تاریخ و مبلغ
-        accounting_transactions = get_transactions_by_date_amount_type(
+        # جستجوی تراکنش حسابداری بر اساس تاریخ و مبلغ (با مقایسه مطلق)
+        accounting_transactions = get_transactions_by_date_amount_type_pos_abs(
             bank_id, pos_date, pos_amount, 'Pos'
         )
         
@@ -390,6 +395,48 @@ def find_accounting_by_tracking_number_pos(pos_transaction, accounting_transacti
                 return acc_transaction
     
     return None
+
+def get_transactions_by_date_amount_type_pos_abs(bank_id, transaction_date, amount, transaction_type):
+    """
+    دریافت تراکنش‌های حسابداری با مقایسه مبلغ مطلق برای POS
+    (برای حل مشکل مبالغ منفی در بانک)
+    """
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        
+        # تبدیل مبلغ منفی به مثبت برای مقایسه
+        abs_amount = abs(float(amount))
+        
+        # تعیین نوع سیستم جدید
+        new_system_type = ''
+        if transaction_type in ['Pos', 'Received Transfer']:
+            new_system_type = 'Pos / Received Transfer'
+        elif transaction_type == 'Paid Transfer':
+            new_system_type = 'Pos / Paid Transfer'
+        
+        cursor.execute("""
+            SELECT * FROM AccountingTransactions 
+            WHERE bank_id = ? 
+            AND due_date = ?
+            AND ABS(transaction_amount) = ?
+            AND (transaction_type = ? OR transaction_type = ?)
+            AND is_reconciled = 0
+        """, (bank_id, transaction_date, abs_amount, transaction_type, new_system_type))
+        
+        columns = [description[0] for description in cursor.description]
+        result = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        
+        logger.info(f"یافت شد {len(result)} تراکنش از نوع {transaction_type} با مبلغ مطلق {abs_amount} در تاریخ {transaction_date}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"خطا در دریافت تراکنش‌ها با مبلغ مطلق: {str(e)}")
+        return []
+    finally:
+        if conn:
+            conn.close()
 
 def perform_reconciliation(bank_transaction, accounting_transaction, pos_transaction, transaction_type):
     """

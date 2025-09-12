@@ -135,15 +135,18 @@ def get_transactions_by_collection_date_and_amount(bank_id, collection_date, amo
         conn = create_connection()
         cursor = conn.cursor()
         
+        # تبدیل مبلغ منفی به مثبت برای مقایسه (مبالغ پرداختی در بانک منفی هستند)
+        abs_amount = abs(float(amount))
+        
         # برای نوع چک، از collection_date استفاده می‌کنیم
         cursor.execute("""
             SELECT * FROM AccountingTransactions 
             WHERE bank_id = ? 
             AND collection_date = ?
-            AND transaction_amount = ?
+            AND ABS(transaction_amount) = ?
             AND transaction_type = ?
             AND is_reconciled = 0
-        """, (bank_id, collection_date, amount, transaction_type))
+        """, (bank_id, collection_date, abs_amount, transaction_type))
         
         columns = [description[0] for description in cursor.description]
         result = [dict(zip(columns, row)) for row in cursor.fetchall()]

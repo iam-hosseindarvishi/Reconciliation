@@ -24,7 +24,7 @@ def import_accounting_excel(accounting_file_path, bank_id):
                 'transaction_number': str(row.get('شماره', '')),
                 'transaction_amount': float(row.get('مبلغ', 0)),
                 'due_date': persian_to_gregorian(normalize_shamsi_date(str(row.get('تاريخ سررسيد', '')))),
-                'collection_date': persian_to_gregorian(collection_date),
+                'collection_date': persian_to_gregorian(normalize_shamsi_date(collection_date)),
                 'transaction_type': transaction_type,
                 'customer_name': str(row.get('نام مشتري', '')),
                 "description": str(row.get('توضیحات', '')),
