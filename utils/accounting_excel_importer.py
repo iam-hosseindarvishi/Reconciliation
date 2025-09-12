@@ -18,13 +18,13 @@ def import_accounting_excel(accounting_file_path, bank_id):
             transaction_type = TRANSACTION_TYPE_MAP.get(str(row.get('نوع')).strip(), None)
             if not transaction_type:
                 continue  # نوع تراکنش نامعتبر، رد شود
-            collection_date=str(row.get('تاريخ وصول', ''))
+            collection_date=str(row.get('تاریخ وصول', ''))
             transaction_data = {
                 'bank_id': bank_id,
                 'transaction_number': str(row.get('شماره', '')),
                 'transaction_amount': float(row.get('مبلغ', 0)),
-                'due_date': persian_to_gregorian(normalize_shamsi_date(str(row.get('تاريخ سررسيد', '')))),
-                'collection_date': persian_to_gregorian(normalize_shamsi_date(collection_date)),
+                'due_date': persian_to_gregorian(normalize_shamsi_date(str(row.get('تاریخ سررسید', '')))),
+                'collection_date': persian_to_gregorian(collection_date),  # حذف normalize_shamsi_date برای فرمت 1404/02/05
                 'transaction_type': transaction_type,
                 'customer_name': str(row.get('نام مشتري', '')),
                 "description": str(row.get('توضیحات', '')),
