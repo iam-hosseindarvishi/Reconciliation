@@ -15,8 +15,8 @@ def create_bank_transaction(data):
             INSERT INTO BankTransactions (
                 bank_id, transaction_date, transaction_time, amount, description, 
                 reference_number, extracted_terminal_id, extracted_tracking_number, 
-                transaction_type, source_card_number, is_reconciled
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                transaction_type, source_card_number, depositor_name, is_reconciled
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data.get('bank_id'),
             data.get('transaction_date'),
@@ -28,6 +28,7 @@ def create_bank_transaction(data):
             data.get('extracted_tracking_number'),
             data.get('transaction_type'),
             data.get('source_card_number', ''),
+            data.get('depositor_name'),
             data.get('is_reconciled', 0)
         ))
         conn.commit()

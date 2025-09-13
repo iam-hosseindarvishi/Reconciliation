@@ -52,6 +52,7 @@ def process_mellat_bank_file(mellat_file_path, bank_id):
                     'extracted_terminal_id': '',  # خالی برای بانک ملت
                     'extracted_tracking_number': str(row['شماره سریال']),
                     'transaction_type': transaction_type,
+                    'depositor_name': str(row['واریز کننده/ ذیتفع']) if 'واریز کننده/ ذیتفع' in row and pd.notna(row['واریز کننده/ ذیتفع']) else None,
                     'is_reconciled': 0
                 }
                 

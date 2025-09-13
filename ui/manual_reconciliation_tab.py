@@ -103,7 +103,7 @@ class ManualReconciliationTab(ttk.Frame):
         
         # ستون‌های Treeview بانک
         self.bank_tree = ttk.Treeview(bank_tree_frame, 
-                                     columns=("id", "tracking_number", "date", "amount", "description", "type", "status"),
+                                     columns=("id", "tracking_number", "date", "amount", "description", "type", "depositor", "status"),
                                      show="headings",
                                      yscrollcommand=bank_scrollbar_y.set,
                                      xscrollcommand=bank_scrollbar_x.set)
@@ -119,6 +119,7 @@ class ManualReconciliationTab(ttk.Frame):
         self.bank_tree.heading("amount", text="مبلغ")
         self.bank_tree.heading("description", text="توضیحات")
         self.bank_tree.heading("type", text="نوع تراکنش")
+        self.bank_tree.heading("depositor", text="واریز کننده")
         self.bank_tree.heading("status", text="وضعیت")
         
         # تنظیم عرض ستون‌ها
@@ -126,8 +127,9 @@ class ManualReconciliationTab(ttk.Frame):
         self.bank_tree.column("tracking_number", width=120, anchor=tk.CENTER)
         self.bank_tree.column("date", width=100, anchor=tk.CENTER)
         self.bank_tree.column("amount", width=120, anchor=tk.CENTER)
-        self.bank_tree.column("description", width=200)
+        self.bank_tree.column("description", width=180)
         self.bank_tree.column("type", width=100, anchor=tk.CENTER)
+        self.bank_tree.column("depositor", width=120, anchor=tk.CENTER)
         self.bank_tree.column("status", width=100, anchor=tk.CENTER)
         
         self.bank_tree.pack(fill=tk.BOTH, expand=True)
@@ -353,6 +355,7 @@ class ManualReconciliationTab(ttk.Frame):
                     amount,
                     record.get('description', ''),
                     transaction_type,
+                    record.get('depositor_name', ''),
                     status
                 ))
             

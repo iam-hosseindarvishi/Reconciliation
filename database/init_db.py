@@ -57,6 +57,7 @@ def init_db():
                 extracted_tracking_number TEXT,
                 transaction_type TEXT,
                 source_card_number TEXT,
+                depositor_name TEXT NULL,
                 is_reconciled BOOLEAN DEFAULT 0,
                 FOREIGN KEY (bank_id) REFERENCES Banks(id)
             )

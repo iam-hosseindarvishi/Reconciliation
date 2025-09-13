@@ -11,6 +11,7 @@ from utils.logger_config import setup_logger
 from utils.compare_tracking_numbers import compare_tracking_numbers
 from database.accounting_repository import get_transactions_by_date_amount_type, get_transactions_by_date_less_than_amount_type, get_transactions_by_date_type, get_transactions_by_amount_tracking, create_accounting_transaction, update_accounting_transaction_reconciliation_status
 from reconciliation.save_reconciliation_result import success_reconciliation_result, fail_reconciliation_result
+from utils.compare_tracking_numbers import compare_tracking_numbers
 
 logger = setup_logger('reconciliation.mellat_paid_transfer_reconciliation')
 
@@ -89,7 +90,18 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
         bank_id = bank_record['bank_id']
         transaction_type = 'Paid Transfer'
 
-        # 1. ابتدا رکوردهای همسان در جدول حسابداری جستجو می‌شود
+        # ۰. بررسی ویژه برای تراکنش‌های Paid_Transfer با کلمه "حقوق" و نام واریز کننده
+        if ('حقوق' in bank_record.get('description', '') and 
+            bank_record.get('depositor_name') and 
+            bank_record.get('depositor_name').strip()):
+            
+            salary_result = _handle_salary_payment_reconciliation(
+                bank_record, ui_handler, manual_reconciliation_queue, bank_id, bank_date, bank_amount, transaction_type
+            )
+            if salary_result is not None:
+                return salary_result
+        
+        # ۱. ابتدا رکوردهای همسان در جدول حسابداری جستجو می‌شود
         exact_matches = get_transactions_by_date_amount_type(bank_id, bank_date, bank_amount, transaction_type)
         if len(exact_matches) == 1:
             # اگر یک رکورد با مبلغ دقیقاً یکسان پیدا شد، مغایرت‌گیری انجام می‌شود
@@ -231,5 +243,202 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
     except Exception as e:
         logger.error(f"Error reconciling Bank Transfer {bank_record['id']}: {e}", exc_info=True)
         fail_reconciliation_result(bank_record['id'], None, None, f"Processing error: {str(e)}", transaction_type)
+        return False
+
+
+def _handle_salary_payment_reconciliation(bank_record, ui_handler, manual_reconciliation_queue, 
+                                        bank_id, bank_date, bank_amount, transaction_type):
+    """
+    هندل مغایرت‌یابی مخصوص پرداخت حقوق بر اساس نام واریز کننده
+    
+    Returns:
+        True: اگر مغایرت‌یابی موفق بود
+        False: اگر مغایرت‌یابی ناموفق بود
+        None: اگر نیاز به ادامه روند عادی است
+    """
+    try:
+        depositor_name = bank_record.get('depositor_name', '').strip()
+        logger.info(f"بررسی پرداخت حقوق برای نام واریز کننده: {depositor_name}")
+        
+        # جستجوی رکوردهای حسابداری بر اساس نام مشتری و تاریخ
+        from database.accounting_repository import get_transactions_by_customer_name_and_date
+        
+        # تلاش برای گرفتن تابع جستجوی جدید یا استفاده از تابع موجود
+        try:
+            accounting_matches = get_transactions_by_customer_name_and_date(
+                bank_id, depositor_name, bank_date, transaction_type
+            )
+        except AttributeError:
+            # اگر تابع موجود نیست، از تابع کلی استفاده کنیم
+            logger.warning("تابع get_transactions_by_customer_name_and_date یافت نشد، از جستجوی کلی استفاده می‌شود")
+            accounting_matches = _search_accounting_by_customer_name(bank_id, depositor_name, bank_date, transaction_type)
+        
+        if not accounting_matches:
+            logger.info(f"هیچ رکورد حسابداری برای نام {depositor_name} و تاریخ {bank_date} یافت نشد")
+            return None  # ادامه روند عادی
+        
+        # فیلتر کردن رکوردهایی که مبلغشان کمتر از مبلغ بانک است
+        smaller_amount_matches = [
+            match for match in accounting_matches
+            if float(match.get('transaction_amount', 0)) < float(bank_amount)
+        ]
+        
+        if not smaller_amount_matches:
+            logger.info(f"هیچ رکورد حسابداری با مبلغ کمتر از {bank_amount} یافت نشد")
+            return None  # ادامه روند عادی
+        
+        # اگر یک رکورد پیدا شد، مستقیم مغایرت‌یابی کنیم
+        if len(smaller_amount_matches) == 1:
+            return _process_single_salary_match(
+                bank_record, smaller_amount_matches[0], bank_amount, transaction_type
+            )
+        
+        # اگر بیش از یک رکورد پیدا شد، بر اساس شماره پیگیری فیلتر کنیم
+        elif len(smaller_amount_matches) > 1:
+            tracking_matches = _filter_by_tracking_number(
+                bank_record, smaller_amount_matches
+            )
+            
+            if len(tracking_matches) == 1:
+                return _process_single_salary_match(
+                    bank_record, tracking_matches[0], bank_amount, transaction_type
+                )
+            else:
+                logger.warning(f"بیش از یک رکورح مطابق پیدا شد: {len(tracking_matches)}")
+                return None  # ادامه روند عادی
+        
+        return None  # ادامه روند عادی
+        
+    except Exception as e:
+        logger.error(f"خطا در مغایرت‌یابی پرداخت حقوق: {str(e)}")
+        return None
+
+
+def _search_accounting_by_customer_name(bank_id, customer_name, transaction_date, transaction_type):
+    """جستجوی دستی رکوردهای حسابداری بر اساس نام مشتری"""
+    from database.init_db import create_connection
+    
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        
+        # جستجوی رکوردهای حسابداری بر اساس نام مشتری
+        cursor.execute("""
+            SELECT * FROM AccountingTransactions 
+            WHERE bank_id = ? 
+            AND customer_name LIKE ? 
+            AND due_date = ?
+            AND transaction_type = ?
+            AND is_reconciled = 0
+        """, (bank_id, f"%{customer_name}%", transaction_date, transaction_type))
+        
+        columns = [description[0] for description in cursor.description]
+        result = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        
+        logger.info(f"یافت شد {len(result)} رکورد حسابداری با نام {customer_name}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"خطا در جستجوی رکوردهای حسابداری: {str(e)}")
+        return []
+    finally:
+        if conn:
+            conn.close()
+
+
+def _filter_by_tracking_number(bank_record, accounting_matches):
+    """فیلتر کردن رکوردها بر اساس شماره پیگیری"""
+    bank_tracking = bank_record.get('extracted_tracking_number', '')
+    
+    if not bank_tracking:
+        logger.warning("شماره پیگیری بانک خالی است")
+        return accounting_matches
+    
+    matching_records = []
+    for acc_record in accounting_matches:
+        acc_tracking = acc_record.get('transaction_number', '')
+        
+        if acc_tracking and _compare_tracking_digits(bank_tracking, acc_tracking):
+            matching_records.append(acc_record)
+    
+    logger.info(f"بعد از فیلتر شماره پیگیری: {len(matching_records)} رکورد")
+    return matching_records
+
+
+def _compare_tracking_digits(bank_tracking, acc_tracking):
+    """مقایسه رقم‌های انتهایی شماره‌های پیگیری"""
+    try:
+        # حذف فضاهای خالی و کاراکترهای غیرعددی
+        bank_digits = ''.join(filter(str.isdigit, str(bank_tracking)))
+        acc_digits = ''.join(filter(str.isdigit, str(acc_tracking)))
+        
+        # طول رقم‌های حسابداری
+        acc_length = len(acc_digits)
+        
+        if acc_length == 0 or len(bank_digits) < acc_length:
+            return False
+        
+        # مقایسه آخرین رقم‌ها
+        return bank_digits[-acc_length:] == acc_digits
+        
+    except Exception as e:
+        logger.warning(f"خطا در مقایسه شماره‌های پیگیری: {str(e)}")
+        return False
+
+
+def _process_single_salary_match(bank_record, accounting_record, bank_amount, transaction_type):
+    """پردازش مغایرت‌یابی یک رکورد حقوق"""
+    try:
+        accounting_amount = float(accounting_record.get('transaction_amount', 0))
+        fee_amount = float(bank_amount) - accounting_amount
+        
+        logger.info(f"پردازش مغایرت‌یابی حقوق: مبلغ بانک={bank_amount}, مبلغ حسابداری={accounting_amount}, کارمزد={fee_amount}")
+        
+        # ایجاد رکورد کارمزد جدید
+        from database.bank_transaction_repository import create_bank_transaction
+        
+        fee_transaction_data = {
+            'bank_id': bank_record['bank_id'],
+            'transaction_date': bank_record['transaction_date'],
+            'transaction_time': bank_record.get('transaction_time'),
+            'amount': fee_amount,
+            'description': f"کارمزد برای رکورد شماره {bank_record['id']} بانک - حقوق {bank_record.get('depositor_name', '')}",
+            'reference_number': bank_record.get('reference_number'),
+            'extracted_terminal_id': bank_record.get('extracted_terminal_id'),
+            'extracted_tracking_number': bank_record.get('extracted_tracking_number'),
+            'transaction_type': 'bank_fee',
+            'source_card_number': bank_record.get('source_card_number'),
+            'depositor_name': bank_record.get('depositor_name'),
+            'is_reconciled': 0  # کارمزد مغایرت‌یابی نمی‌شود
+        }
+        
+        create_bank_transaction(fee_transaction_data)
+        
+        # به‌روزرسانی مبلغ رکورد بانک اصلی
+        from database.bank_transaction_repository import update_bank_transaction
+        update_bank_transaction(bank_record['id'], {'amount': accounting_amount})
+        
+        # علامت‌گذاری هر دو رکورد به عنوان مغایرت‌یابی شده
+        from database.bank_transaction_repository import update_bank_transaction_reconciliation_status
+        from database.accounting_repository import update_accounting_transaction_reconciliation_status
+        
+        update_bank_transaction_reconciliation_status(bank_record['id'], 1)
+        update_accounting_transaction_reconciliation_status(accounting_record['id'], 1)
+        
+        # ثبت نتیجه مغایرت‌یابی
+        success_reconciliation_result(
+            bank_record['id'], 
+            accounting_record['id'], 
+            None, 
+            f'مغایرت‌یابی خودکار حقوق با کارمزد {fee_amount} - {bank_record.get("depositor_name", "")}', 
+            transaction_type
+        )
+        
+        logger.info(f"مغایرت‌یابی خودکار حقوق برای رکورد {bank_record['id']} با کارمزد {fee_amount} موفق بود")
+        return True
+        
+    except Exception as e:
+        logger.error(f"خطا در پردازش مغایرت‌یابی حقوق: {str(e)}")
         return False
    
