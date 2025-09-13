@@ -34,20 +34,52 @@ def _reconcile_in_thread(pos_transactions, ui_handler, manual_reconciliation_que
     """
     logger.info(f"Starting POS reconciliation for {len(pos_transactions)} transactions.")
     total_transactions = len(pos_transactions)
+    
+    # Initialize counters for tracking reconciliation results
+    successful_reconciliations = 0
+    failed_reconciliations = 0
+    
     for i, tx in enumerate(pos_transactions):
-        _reconcile_single_pos(tx, ui_handler, manual_reconciliation_queue)
+        try:
+            result = _reconcile_single_pos(tx, ui_handler, manual_reconciliation_queue)
+            if result:
+                successful_reconciliations += 1
+            else:
+                failed_reconciliations += 1
+        except Exception as e:
+            logger.error(f"Error processing POS transaction {tx.get('id', 'unknown')}: {e}")
+            failed_reconciliations += 1
 
+        # Update progress with thread-safe UI updates
         progress_percentage = (i + 1) / total_transactions * 100
-        ui_handler.update_progress(progress_percentage)
-        ui_handler.update_detailed_status(f"Reconciled {i + 1} of {total_transactions} POS transactions.")
+        try:
+            # Use after_idle to ensure UI updates are thread-safe
+            if hasattr(ui_handler, 'parent'):
+                ui_handler.parent.after_idle(lambda p=progress_percentage: ui_handler.update_progress(p))
+                ui_handler.parent.after_idle(lambda i=i, t=total_transactions: ui_handler.update_detailed_status(f"مغایرت‌یابی {i + 1} از {t} تراکنش POS انجام شد."))
+            else:
+                ui_handler.update_progress(progress_percentage)
+                ui_handler.update_detailed_status(f"مغایرت‌یابی {i + 1} از {total_transactions} تراکنش POS انجام شد.")
+        except Exception as e:
+            logger.warning(f"UI update failed: {e}")
 
-    logger.info("Finished POS reconciliation.")
-    ui_handler.update_status("Finished POS reconciliation.")
+    # Final status update
+    final_message = f"مغایرت‌یابی POS تکمیل شد. موفق: {successful_reconciliations}, ناموفق: {failed_reconciliations}"
+    logger.info(final_message)
+    
+    try:
+        if hasattr(ui_handler, 'parent'):
+            ui_handler.parent.after_idle(lambda: ui_handler.update_status(final_message))
+        else:
+            ui_handler.update_status(final_message)
+    except Exception as e:
+        logger.warning(f"Final UI update failed: {e}")
 
 
 def _reconcile_single_pos(bank_record, ui_handler, manual_reconciliation_queue):
     """
     Reconciles a single POS transaction with a more optimized logic.
+    Returns True if reconciliation was successful, False otherwise.
     """
     try:
         bank_date = get_pos_date_from_bank(bank_record['transaction_date'])
@@ -59,11 +91,12 @@ def _reconcile_single_pos(bank_record, ui_handler, manual_reconciliation_queue):
         def handle_success(accounting_doc):
             success_reconciliation_result(bank_record['id'], accounting_doc['id'], None, 'Exact match', 'Pos')
             logger.info(f"Reconciled POS transaction {bank_record['id']} with accounting doc {accounting_doc['id']}")
+            return True
 
         if matches:
             if len(matches)==1:
                 handle_success(matches[0])
-                return
+                return True
             tracking_matches = [
                 match for match in matches
                 if compare_tracking_numbers(bank_tracking_num, match['transaction_number'])
@@ -71,12 +104,13 @@ def _reconcile_single_pos(bank_record, ui_handler, manual_reconciliation_queue):
 
             if len(tracking_matches) == 1:
                 handle_success(tracking_matches[0])
-                return
+                return True
             elif len(tracking_matches) > 1:
                 matches = tracking_matches
 
         if len(matches) == 1:
             handle_success(matches[0])
+            return True
         elif len(matches) > 1:
             logger.warning(f"Multiple matches found for POS transaction {bank_record['id']}. Requesting manual reconciliation.")
             # فقط در صورتی که رکورد حسابداری مغایرت‌یابی نشده وجود داشته باشد، دیالوگ را نمایش می‌دهیم
@@ -99,19 +133,25 @@ def _reconcile_single_pos(bank_record, ui_handler, manual_reconciliation_queue):
 
                     if selected_match:
                         handle_success(selected_match)
+                        return True
                     else:
                         fail_reconciliation_result(bank_record['id'], None, None, 'Manual reconciliation cancelled', 'Pos')
+                        return False
                 else:
                     logger.info(f"Skipping manual reconciliation dialog as per settings for POS transaction {bank_record['id']}")
                     fail_reconciliation_result(bank_record['id'], None, None, 'Manual reconciliation skipped by settings', 'Pos')
+                    return False
             else:
                 logger.warning(f"No unreconciled accounting records found for POS transaction {bank_record['id']}")
                 fail_reconciliation_result(bank_record['id'], None, None, 'No unreconciled match found', 'Pos')
+                return False
         else:
             logger.warning(f"No matching accounting document found for POS transaction {bank_record['id']}.")
             fail_reconciliation_result(bank_record['id'], None, None, 'No match found', 'Pos')
+            return False
 
     except Exception as e:
         logger.error(f"Error reconciling POS transaction {bank_record['id']}: {e}", exc_info=True)
         fail_reconciliation_result(bank_record['id'], None, None, f"Processing error: {str(e)}", 'Pos')
+        return False
 

@@ -197,25 +197,55 @@ class ReconciliationTab(ttk.Frame):
             self.parent = parent
             self.logger = parent.logger
         
+        def _safe_ui_update(self, update_func):
+            """Thread-safe UI update wrapper"""
+            try:
+                if hasattr(self.parent, 'after_idle'):
+                    self.parent.after_idle(update_func)
+                else:
+                    update_func()
+            except Exception as e:
+                self.logger.warning(f"UI update failed: {e}")
+        
         def update_status(self, message):
             """بروزرسانی وضعیت کلی"""
-            self.parent.status_var.set(message)
-            self.parent.update_idletasks()
+            def _update():
+                try:
+                    self.parent.status_var.set(message)
+                    self.parent.update_idletasks()
+                except Exception as e:
+                    self.logger.warning(f"Status update failed: {e}")
+            self._safe_ui_update(_update)
         
         def update_detailed_status(self, message):
             """بروزرسانی وضعیت جزئی"""
-            self.parent.detailed_status_var.set(message)
-            self.parent.update_idletasks()
+            def _update():
+                try:
+                    self.parent.detailed_status_var.set(message)
+                    self.parent.update_idletasks()
+                except Exception as e:
+                    self.logger.warning(f"Detailed status update failed: {e}")
+            self._safe_ui_update(_update)
         
         def update_progress(self, value):
             """بروزرسانی نوار پیشرفت کلی"""
-            self.parent.overall_progressbar['value'] = value
-            self.parent.update_idletasks()
+            def _update():
+                try:
+                    self.parent.overall_progressbar['value'] = min(100, max(0, value))
+                    self.parent.update_idletasks()
+                except Exception as e:
+                    self.logger.warning(f"Progress update failed: {e}")
+            self._safe_ui_update(_update)
         
         def update_detailed_progress(self, value):
             """بروزرسانی نوار پیشرفت جزئی"""
-            self.parent.detailed_progressbar['value'] = value
-            self.parent.update_idletasks()
+            def _update():
+                try:
+                    self.parent.detailed_progressbar['value'] = min(100, max(0, value))
+                    self.parent.update_idletasks()
+                except Exception as e:
+                    self.logger.warning(f"Detailed progress update failed: {e}")
+            self._safe_ui_update(_update)
         
         def log_info(self, message):
             """ثبت پیام اطلاعاتی در لاگ"""

@@ -36,21 +36,52 @@ def _reconcile_in_thread(bank_transactions, ui_handler, manual_reconciliation_qu
     """
     logger.info(f"Starting Paid_Transfer reconciliation for {len(bank_transactions)} transactions.")
     total_transactions = len(bank_transactions)
+    
+    # Initialize counters for tracking reconciliation results
+    successful_reconciliations = 0
+    failed_reconciliations = 0
+    
     for i, bank_record in enumerate(bank_transactions):
-        _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_queue)
+        try:
+            result = _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_queue)
+            if result:
+                successful_reconciliations += 1
+            else:
+                failed_reconciliations += 1
+        except Exception as e:
+            logger.error(f"Error processing Paid Transfer transaction {bank_record.get('id', 'unknown')}: {e}")
+            failed_reconciliations += 1
 
-        # Update UI progress
+        # Update progress with thread-safe UI updates
         progress_percentage = (i + 1) / total_transactions * 100
-        ui_handler.update_progress(progress_percentage)
-        ui_handler.update_detailed_status(f"Reconciled {i + 1} of {total_transactions} transfer transactions.")
+        try:
+            # Use after_idle to ensure UI updates are thread-safe
+            if hasattr(ui_handler, 'parent'):
+                ui_handler.parent.after_idle(lambda p=progress_percentage: ui_handler.update_progress(p))
+                ui_handler.parent.after_idle(lambda i=i, t=total_transactions: ui_handler.update_detailed_status(f"مغایرت‌یابی {i + 1} از {t} تراکنش انتقال پرداختی انجام شد."))
+            else:
+                ui_handler.update_progress(progress_percentage)
+                ui_handler.update_detailed_status(f"مغایرت‌یابی {i + 1} از {total_transactions} تراکنش انتقال پرداختی انجام شد.")
+        except Exception as e:
+            logger.warning(f"UI update failed: {e}")
 
-    logger.info("Finished Paid_Transfer reconciliation.")
-    ui_handler.update_status("Finished Paid_Transfer reconciliation.")
+    # Final status update
+    final_message = f"مغایرت‌یابی انتقال پرداختی تکمیل شد. موفق: {successful_reconciliations}, ناموفق: {failed_reconciliations}"
+    logger.info(final_message)
+    
+    try:
+        if hasattr(ui_handler, 'parent'):
+            ui_handler.parent.after_idle(lambda: ui_handler.update_status(final_message))
+        else:
+            ui_handler.update_status(final_message)
+    except Exception as e:
+        logger.warning(f"Final UI update failed: {e}")
 
 
 def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_queue):
     """
     Reconciles a single Paid_Transfer transaction.
+    Returns True if reconciliation was successful, False otherwise.
     """
     try:
         bank_date = bank_record['transaction_date']
@@ -64,7 +95,7 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
             # اگر یک رکورد با مبلغ دقیقاً یکسان پیدا شد، مغایرت‌گیری انجام می‌شود
             success_reconciliation_result(bank_record['id'], exact_matches[0]['id'], None, 'Exact match', transaction_type)
             logger.info(f"Reconciled Bank Transfer {bank_record['id']} with accounting doc {exact_matches[0]['id']}")
-            return
+            return True
 
         # 2. اگر رکورد دقیقاً مشابه پیدا نشد، تمام رکوردهای حسابداری در تاریخ مورد نظر را بررسی می‌کنیم
         all_accounting_records = get_transactions_by_date_type(bank_id, bank_date, transaction_type)
@@ -130,7 +161,7 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
                                                     f'Automatic fee reconciliation with tracking number match. Fee: {fee_amount}', 
                                                     transaction_type)
                         logger.info(f"Automatically reconciled Bank Transfer {bank_record['id']} with tracking number match. Fee: {fee_amount}")
-                        return
+                        return True
             
         # روش قبلی برای مغایرت‌گیری با کارمزد ثابت حذف شد
 
@@ -156,7 +187,7 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
             logger.warning(f"No unreconciled accounting records found for Bank Transfer {bank_record['id']}")
             # این رکورد بانک را به عنوان مغایرت در جدول result ثبت می‌کنیم
             fail_reconciliation_result(bank_record['id'], None, None, 'No accounting records found on this date', transaction_type)
-            result = None
+            return False
 
         if result:
             notes = 'Manual reconciliation'
@@ -191,11 +222,14 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
             # ثبت نتیجه مغایرت‌گیری
             success_reconciliation_result(bank_record['id'], result['id'], None, notes, transaction_type)
             logger.info(f"Manually reconciled Bank Transfer {bank_record['id']} with accounting doc {result['id']}")
+            return True
         else:
             fail_reconciliation_result(bank_record['id'], None, None, 'No match found', transaction_type)
             logger.warning(f"Manual reconciliation failed for Bank Transfer {bank_record['id']}. No match selected.")
+            return False
 
     except Exception as e:
         logger.error(f"Error reconciling Bank Transfer {bank_record['id']}: {e}", exc_info=True)
         fail_reconciliation_result(bank_record['id'], None, None, f"Processing error: {str(e)}", transaction_type)
+        return False
    
