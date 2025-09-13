@@ -123,6 +123,7 @@ class ReportTab(ttk.Frame):
         
         ttk.Label(row2_frame, text="نوع تراکنش:", style='Default.TLabel').pack(side="right", padx=PADX)
         transaction_type_combobox = Combobox(row2_frame, textvariable=self.selected_transaction_type_var, font=self.default_font, state="readonly")
+        # Map Persian to English values for database compatibility
         transaction_type_combobox['values'] = ("همه موارد", "دریافتی", "پرداختی", "پوز", "چک")
         transaction_type_combobox.pack(side="right", padx=PADX)
         
@@ -190,6 +191,17 @@ class ReportTab(ttk.Frame):
         ui_handler.setLevel(logging.INFO)
         self.logger.addHandler(ui_handler)
     
+    def map_persian_transaction_type_to_english(self, persian_type):
+        """تبدیل نوع تراکنش فارسی به انگلیسی برای واکشی دیتابیس"""
+        mapping = {
+            "همه موارد": None,  # None means no filter
+            "دریافتی": "received",
+            "پرداختی": "paid", 
+            "پوز": "pos",
+            "چک": "check"
+        }
+        return mapping.get(persian_type, None)
+    
     def load_banks_to_combobox(self):
         """بارگذاری لیست بانک‌ها در کامبوباکس"""
         try:
@@ -214,7 +226,8 @@ class ReportTab(ttk.Frame):
             # دریافت پارامترهای گزارش
             selected_bank = self.selected_bank_var.get()
             selected_table = self.selected_table_var.get()
-            selected_transaction_type = self.selected_transaction_type_var.get()
+            selected_transaction_type_persian = self.selected_transaction_type_var.get()
+            selected_transaction_type = self.map_persian_transaction_type_to_english(selected_transaction_type_persian)
             selected_reconciliation_status = self.selected_reconciliation_status_var.get()
             
             # تبدیل وضعیت مغایرت‌گیری به مقدار عددی
@@ -275,7 +288,7 @@ class ReportTab(ttk.Frame):
                 query += " AND bt.bank_id = ?"
                 params.append(bank_id)
             
-            if transaction_type != "همه موارد":
+            if transaction_type is not None:
                 query += " AND bt.transaction_type = ?"
                 params.append(transaction_type)
             
@@ -326,7 +339,7 @@ class ReportTab(ttk.Frame):
                 query += " AND at.bank_id = ?"
                 params.append(bank_id)
             
-            if transaction_type != "همه موارد":
+            if transaction_type is not None:
                 query += " AND at.transaction_type = ?"
                 params.append(transaction_type)
             
@@ -478,14 +491,16 @@ class ReportTab(ttk.Frame):
             dataindex_to_colindex = {}
             
             for i, col in enumerate(self.columns):
-                # تنظیم عرض مناسب برای هر ستون بر اساس نوع داده و فونت بزرگتر
-                width = 200  # عرض پیش‌فرض بیشتر برای خوانایی بهتر با فونت بزرگتر
+                # تنظیم عرض مناسب برای هر ستون با در نظر گرفتن متن فارسی
+                width = 150  # عرض پیش‌فرض مناسب
                 if col["dataindex"] in ["description", "customer_name"]:
-                    width = 300  # عرض بیشتر برای ستون‌های توضیحات و نام مشتری
+                    width = 250  # عرض بیشتر برای ستون‌های توضیحات و نام مشتری
                 elif col["dataindex"] in ["amount", "transaction_amount", "bank_amount", "accounting_amount", "pos_amount"]:
-                    width = 180  # عرض مناسب برای ستون‌های مبلغ
+                    width = 140  # عرض مناسب برای ستون‌های مبلغ
                 elif col["dataindex"] in ["id", "is_reconciled", "is_new_system"]:
-                    width = 120  # عرض کمتر برای ستون‌های کوتاه
+                    width = 100  # عرض کمتر برای ستون‌های کوتاه
+                elif col["dataindex"] in ["transaction_date", "due_date", "collection_date", "date_time", "bank_date", "accounting_date", "pos_date"]:
+                    width = 120  # عرض مناسب برای تاریخ‌ها
                 
                 coldata.append({"text": col["text"], "stretch": True, "width": width})
                 dataindex_to_colindex[col["dataindex"]] = i
@@ -529,7 +544,7 @@ class ReportTab(ttk.Frame):
                             row[col_index] = str(item[key]) if item[key] is not None else ""
                 rowdata.append(tuple(row))
             
-            # ایجاد جدول
+            # ایجاد جدول با تنظیمات بهتر برای متن فارسی
             table = Tableview(
                 master=self.table_frame,
                 coldata=coldata,
@@ -537,24 +552,34 @@ class ReportTab(ttk.Frame):
                 paginated=True,
                 searchable=True,
                 bootstyle="primary",
-                stripecolor=("#f5f5f5", None),
+                stripecolor=("#f8f9fa", "#ffffff"),  # رنگ‌های بهتر برای خوانایی
                 autofit=False,
-                pagesize=15,  # کاهش تعداد رکوردها در هر صفحه برای فونت بزرگتر
-                # تنظیمات اضافی برای نمایش بهتر متن فارسی
-                height=20  # افزایش ارتفاع برای فونت و سطرهای بزرگتر
+                pagesize=12,  # تعداد مناسب برای نمایش بهتر
+                height=18  # ارتفاع مناسب برای خوانایی
             )
-            # تنظیم پکینگ جدول با ارتفاع محدود برای نمایش بهتر دکمه‌های عملیاتی
-            table.pack(fill="both", expand=False, padx=5, pady=5)
+            # تنظیم پکینگ جدول
+            table.pack(fill="both", expand=True, padx=5, pady=5)
             
             # تنظیم فونت فارسی برای جدول با استفاده از روش غیرمستقیم
             try:
                 # تلاش برای تنظیم فونت از طریق تغییر استایل
                 style = ttk.Style()
-                # استفاده از روش‌های استاندارد برای تنظیم فونت در ttkbootstrap
-                style.configure("Treeview", font=("Vazir", 16))  # افزایش قابل توجه اندازه فونت
-                style.configure("Treeview.Heading", font=("Vazir", 18, "bold"))  # افزایش قابل توجه اندازه فونت هدر
+                
+                # تنظیم فونت برای جدول با فونت مناسب برای فارسی
+                # استفاده از Tahoma به عنوان فونت پشتیبان چون بهتر با فارسی کار می‌کند
+                table_font = ("Tahoma", 12)
+                header_font = ("Tahoma", 13, "bold")
+                
+                style.configure("Treeview", font=table_font)
+                style.configure("Treeview.Heading", font=header_font)
+                
                 # تنظیم ارتفاع سطرها برای نمایش بهتر متن فارسی
-                style.configure("Treeview", rowheight=45)  # افزایش ارتفاع سطرها
+                style.configure("Treeview", rowheight=30)
+                
+                # تنظیم ترازبندی برای متن فارسی (راست به چپ)
+                style.configure("Treeview.Heading", anchor="center")
+                style.configure("Treeview", anchor="e")  # Right align for RTL text
+                
             except Exception as e:
                 self.logger.warning(f"تنظیم فونت فارسی با خطا مواجه شد: {str(e)}")
                 # ادامه اجرا بدون توقف
@@ -958,8 +983,44 @@ class ReportTab(ttk.Frame):
                 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
                 from reportlab.pdfbase import pdfmetrics
                 from reportlab.pdfbase.ttfonts import TTFont
-                from reportlab.lib.enums import TA_RIGHT
+                from reportlab.lib.enums import TA_RIGHT, TA_CENTER
+                from reportlab.pdfgen import canvas
                 import os
+                
+                # Import for RTL text handling
+                try:
+                    from bidi.algorithm import get_display
+                    from arabic_reshaper import reshape
+                    bidi_available = True
+                except ImportError:
+                    bidi_available = False
+                    self.logger.warning("کتابخانه‌های bidi و arabic-reshaper یافت نشد. متن فارسی ممکن است به درستی نمایش داده نشود")
+                
+                def format_persian_text(text):
+                    """تنظیم متن فارسی برای نمایش صحیح در PDF"""
+                    if not text or not isinstance(text, str):
+                        return str(text) if text is not None else ""
+                    
+                    if bidi_available:
+                        try:
+                            # Reshape Arabic/Persian characters
+                            reshaped_text = reshape(text)
+                            # Apply bidirectional algorithm
+                            display_text = get_display(reshaped_text)
+                            return display_text
+                        except Exception as e:
+                            self.logger.warning(f"خطا در تنظیم متن فارسی: {str(e)}")
+                            return text
+                    else:
+                        # Fallback: at least reverse the string for basic RTL support
+                        try:
+                            # Simple reversal for Persian text (not perfect but better than nothing)
+                            import re
+                            if re.search(r'[\u0600-\u06FF]', text):
+                                return text[::-1]  # Simple reversal for Persian characters
+                            return text
+                        except:
+                            return text
                 
                 # ثبت فونت فارسی
                 font_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "fonts", "Vazir.ttf")
@@ -992,7 +1053,8 @@ class ReportTab(ttk.Frame):
                 if self.selected_bank_var.get() != "همه موارد":
                     report_title += f" - بانک {self.selected_bank_var.get()}"
                 
-                elements.append(Paragraph(report_title, title_style))
+                formatted_title = format_persian_text(report_title)
+                elements.append(Paragraph(formatted_title, title_style))
                 elements.append(Spacer(1, 20))
                 
                 # تاریخ گزارش
@@ -1008,14 +1070,15 @@ class ReportTab(ttk.Frame):
                 gregorian_date = datetime.now()
                 jalali_date = jdatetime.datetime.fromgregorian(datetime=gregorian_date)
                 report_date = jalali_date.strftime("%Y/%m/%d %H:%M:%S")
-                elements.append(Paragraph(f"تاریخ گزارش: {report_date}", date_style))
+                formatted_date_text = format_persian_text(f"تاریخ گزارش: {report_date}")
+                elements.append(Paragraph(formatted_date_text, date_style))
                 elements.append(Spacer(1, 20))
                 
                 # ایجاد داده‌های جدول
                 table_data = []
                 
                 # هدر جدول
-                header_row = [col['text'] for col in self.columns]
+                header_row = [format_persian_text(col['text']) for col in self.columns]
                 table_data.append(header_row)
                 
                 # ردیف‌های جدول
@@ -1023,7 +1086,8 @@ class ReportTab(ttk.Frame):
                     data_row = []
                     # چون self.table_data یک لیست از تاپل‌هاست، مستقیماً از عناصر آن استفاده می‌کنیم
                     for value in row:
-                        data_row.append(str(value) if value is not None else "")
+                        formatted_value = format_persian_text(str(value) if value is not None else "")
+                        data_row.append(formatted_value)
                     table_data.append(data_row)
                 
                 # ایجاد جدول
@@ -1051,7 +1115,8 @@ class ReportTab(ttk.Frame):
                     alignment=TA_RIGHT,
                     fontSize=10
                 )
-                elements.append(Paragraph(f"تعداد رکوردها: {len(self.table_data)}", footer_style))
+                formatted_footer_text = format_persian_text(f"تعداد رکوردها: {len(self.table_data)}")
+                elements.append(Paragraph(formatted_footer_text, footer_style))
                 
                 # ساخت PDF
                 doc.build(elements)
@@ -1061,9 +1126,13 @@ class ReportTab(ttk.Frame):
                 messagebox.showinfo("موفقیت", "گزارش با موفقیت به PDF صادر شد")
             except ImportError:
                 # اگر کتابخانه reportlab نصب نشده باشد
-                self.logger.error("کتابخانه reportlab نصب نشده است")
-                self.status_var.set("خطا: کتابخانه reportlab نصب نشده است")
-                messagebox.showerror("خطا", "برای صدور به PDF نیاز به نصب کتابخانه reportlab دارید. لطفاً با دستور 'pip install reportlab' آن را نصب کنید.")
+                self.logger.error("کتابخانه‌های مورد نیاز برای PDF نصب نشده است")
+                self.status_var.set("خطا: کتابخانه‌های مورد نیاز PDF نصب نشده است")
+                error_msg = ("برای صدور به PDF با پشتیبانی فارسی نیاز به نصب کتابخانه‌های زیر دارید:\n\n"
+                             "pip install -r requirements_pdf_persian.txt\n\n"
+                             "یا:\n\n"
+                             "pip install reportlab python-bidi arabic-reshaper jdatetime")
+                messagebox.showerror("خطا", error_msg)
         except Exception as e:
             self.logger.error(f"خطا در صدور به PDF: {str(e)}")
             self.status_var.set(f"خطا در صدور به PDF: {str(e)}")
