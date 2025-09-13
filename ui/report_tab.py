@@ -624,15 +624,32 @@ class ReportTab(ttk.Frame):
                     transaction_type = row[transaction_type_index] if transaction_type_index < len(row) else None
                     # اگر نوع تراکنش کارمزد نیست، به لیست فیلتر شده اضافه کن
                     if transaction_type not in ["bank_fee", "BANK_FEES", "کارمزد بانکی"]:
-                        filtered_data.append(row)
+                        filtered_data.append(list(row))  # تبدیل تاپل به لیست
                 else:  # اگر ستون نوع تراکنش پیدا نشد، همه رکوردها را اضافه کن
-                    filtered_data.append(row)
+                    filtered_data.append(list(row))  # تبدیل تاپل به لیست
                     
                 # لاگ کردن برای اشکال‌زدایی
                 self.logger.debug(f"نوع تراکنش: {row[transaction_type_index] if transaction_type_index is not None and transaction_type_index < len(row) else 'نامشخص'}, اضافه شده به لیست: {transaction_type_index is None or row[transaction_type_index] not in ['bank_fee', 'BANK_FEES', 'کارمزد بانکی']}")
             
-            # تبدیل داده‌های فیلتر شده به دیتافریم پانداس با نام ستون‌های مناسب
+            # اضافه کردن ستون اضافی بر اساس نوع گزارش
             column_names = [col["text"] for col in self.columns]
+            
+            # تعیین نوع ستون اضافی بر اساس نوع گزارش
+            selected_table = self.selected_table_var.get()
+            if selected_table == "بانک":
+                additional_column_name = "acc_id"
+            elif selected_table == "حسابداری":
+                additional_column_name = "bank_rec_id"
+            else:
+                additional_column_name = None  # برای پوز و نتایج مغایرت گیری ستون اضافی نداریم
+            
+            # اضافه کردن نام ستون اضافی
+            if additional_column_name:
+                column_names.append(additional_column_name)
+                # اضافه کردن ستون خالی به داده‌های فیلتر شده
+                for row in filtered_data:
+                    row.append("")  # ستون خالی
+            
             df = pd.DataFrame(filtered_data, columns=column_names)
             
             # تنظیم فونت و استایل برای فایل اکسل
