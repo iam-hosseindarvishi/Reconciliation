@@ -67,7 +67,11 @@ class EditAccountingRecordDialog(tk.Toplevel):
         # نوع تراکنش
         ttk.Label(main_frame, text="نوع تراکنش:", font=self.default_font).grid(row=4, column=1, sticky="e", padx=5, pady=5)
         self.transaction_type_var = tk.StringVar()
-        ttk.Entry(main_frame, textvariable=self.transaction_type_var, font=self.default_font).grid(row=4, column=0, sticky="ew", padx=5, pady=5)
+        self.transaction_type_combo = ttk.Combobox(main_frame, textvariable=self.transaction_type_var,
+                                                  font=self.default_font, state="readonly")
+        self.transaction_type_combo['values'] = ['Pos', 'Received Transfer', 'Paid Transfer',
+                                                'Received Check', 'Paid Check', 'Bank Fees']
+        self.transaction_type_combo.grid(row=4, column=0, sticky="ew", padx=5, pady=5)
         
         # توضیحات
         ttk.Label(main_frame, text="توضیحات:", font=self.default_font).grid(row=5, column=1, sticky="ne", padx=5, pady=5)
@@ -87,15 +91,21 @@ class EditAccountingRecordDialog(tk.Toplevel):
         self.id_var.set(str(self.accounting_record['id']))
         
         # شماره پیگیری
-        if self.accounting_record.get('tracking_number'):
+        if self.accounting_record.get('transaction_number'):
+            self.tracking_number_var.set(str(self.accounting_record['transaction_number']))
+        elif self.accounting_record.get('tracking_number'):
             self.tracking_number_var.set(str(self.accounting_record['tracking_number']))
         
         # تاریخ (تبدیل به شمسی)
-        shamsi_date = gregorian_to_persian(self.accounting_record['date'])
-        self.date_var.set(shamsi_date)
+        date_field = self.accounting_record.get('due_date') or self.accounting_record.get('transaction_date') or self.accounting_record.get('date')
+        if date_field:
+            shamsi_date = gregorian_to_persian(date_field)
+            self.date_var.set(shamsi_date)
         
         # مبلغ
-        self.amount_var.set(str(self.accounting_record['amount']))
+        amount_field = self.accounting_record.get('transaction_amount') or self.accounting_record.get('amount')
+        if amount_field:
+            self.amount_var.set(str(amount_field))
         
         # نوع تراکنش
         if self.accounting_record.get('transaction_type'):
@@ -141,9 +151,9 @@ class EditAccountingRecordDialog(tk.Toplevel):
             
             # ایجاد دیکشنری برای به‌روزرسانی
             updated_data = {
-                'tracking_number': tracking_number if tracking_number else None,
-                'date': gregorian_date,
-                'amount': amount,
+                'transaction_number': tracking_number if tracking_number else None,
+                'due_date': gregorian_date,
+                'transaction_amount': amount,
                 'transaction_type': transaction_type if transaction_type else None,
                 'description': description if description else None
             }

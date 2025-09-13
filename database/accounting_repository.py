@@ -346,25 +346,50 @@ def get_transactions_by_collection_date_and_bank(bank_id, start_date, end_date):
         if conn:
             conn.close()
 
-def update_accounting_transaction_reconciliation_status(transaction_id, status):
-    """به‌روزرسانی وضعیت تطبیق تراکنش"""
+def update_accounting_transaction_reconciliation_status(transaction_id, status_or_data):
+    """به‌روزرسانی وضعیت تطبیق تراکنش یا به‌روزرسانی کامل تراکنش"""
     conn = None
     try:
         conn = create_connection()
         cursor = conn.cursor()
-        status_int = int(bool(status))
-        cursor.execute("""
-            UPDATE AccountingTransactions 
-            SET is_reconciled = ? 
-            WHERE id = ?
-        """, (status_int, transaction_id))
-        if cursor.rowcount > 0:
-            conn.commit()
-            logger.info(f"وضعیت تطبیق تراکنش {transaction_id} به {status_int} تغییر کرد")
+        
+        # بررسی نوع پارامتر دوم
+        if isinstance(status_or_data, dict):
+            # به‌روزرسانی کامل با دیکشنری
+            update_fields = []
+            params = []
+            
+            for key, value in status_or_data.items():
+                if key != 'id':  # شناسه را به‌روزرسانی نمی‌کنیم
+                    update_fields.append(f"{key} = ?")
+                    params.append(value)
+            
+            # افزودن شناسه به پارامترها
+            params.append(transaction_id)
+            
+            query = f"UPDATE AccountingTransactions SET {', '.join(update_fields)} WHERE id = ?"
+            cursor.execute(query, params)
+            
+            if cursor.rowcount > 0:
+                conn.commit()
+                logger.info(f"تراکنش حسابداری {transaction_id} با موفقیت به‌روزرسانی شد")
+            else:
+                logger.warning(f"تراکنشی با شناسه {transaction_id} یافت نشد")
         else:
-            logger.warning(f"تراکنشی با شناسه {transaction_id} یافت نشد")
+            # به‌روزرسانی فقط وضعیت تطبیق
+            status_int = int(bool(status_or_data))
+            cursor.execute("""
+                UPDATE AccountingTransactions 
+                SET is_reconciled = ? 
+                WHERE id = ?
+            """, (status_int, transaction_id))
+            if cursor.rowcount > 0:
+                conn.commit()
+                logger.info(f"وضعیت تطبیق تراکنش {transaction_id} به {status_int} تغییر کرد")
+            else:
+                logger.warning(f"تراکنشی با شناسه {transaction_id} یافت نشد")
     except Exception as e:
-        logger.error(f"خطا در به‌روزرسانی وضعیت تطبیق تراکنش {transaction_id}: {str(e)}")
+        logger.error(f"خطا در به‌روزرسانی تراکنش {transaction_id}: {str(e)}")
         if conn:
             conn.rollback()
         raise

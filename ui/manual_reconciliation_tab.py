@@ -13,8 +13,6 @@ from database.banks_repository import get_all_banks
 from database.bank_transaction_repository import get_unreconciled_transactions_by_bank as get_unreconciled_bank_records
 from database.accounting_repository import get_transactions_by_date_and_type as get_unreconciled_accounting_records_by_date
 from database.reconciliation_results_repository import create_reconciliation_result as save_reconciliation_result
-from database.bank_transaction_repository import delete_transaction as delete_bank_transaction
-from database.accounting_repository import delete_transaction as delete_accounting_transaction
 from ui.dialog.manual_reconciliation_dialog import ManualReconciliationDialog
 from ui.dialog.edit_bank_record_dialog import EditBankRecordDialog
 from ui.dialog.edit_accounting_record_dialog import EditAccountingRecordDialog
@@ -251,13 +249,6 @@ class ManualReconciliationTab(ttk.Frame):
         self.print_report_button = ttk.Button(operations_frame, text="چاپ گزارش", command=self.print_report)
         self.print_report_button.pack(side=tk.RIGHT, padx=5)
         
-        # دکمه حذف رکورد حسابداری
-        self.delete_accounting_button = ttk.Button(operations_frame, text="حذف رکورد حسابداری", command=self.delete_accounting_record)
-        self.delete_accounting_button.pack(side=tk.RIGHT, padx=5)
-        
-        # دکمه حذف رکورد بانک
-        self.delete_bank_button = ttk.Button(operations_frame, text="حذف رکورد بانک", command=self.delete_bank_record)
-        self.delete_bank_button.pack(side=tk.RIGHT, padx=5)
         
         # دکمه ویرایش رکورد حسابداری
         self.edit_accounting_button = ttk.Button(operations_frame, text="ویرایش رکورد حسابداری", command=self.edit_accounting_record)
@@ -406,7 +397,6 @@ class ManualReconciliationTab(ttk.Frame):
         
         # فعال کردن دکمه‌های مربوطه
         self.edit_bank_button.config(state=tk.NORMAL)
-        self.delete_bank_button.config(state=tk.NORMAL)
         self.search_button.config(state=tk.NORMAL)
         
         # پاک کردن لیست رکوردهای حسابداری
@@ -434,9 +424,8 @@ class ManualReconciliationTab(ttk.Frame):
             self.deduct_fee_button.config(state=tk.NORMAL)
             self.print_report_button.config(state=tk.NORMAL)
         
-        # فعال کردن دکمه‌های ویرایش و حذف رکورد حسابداری
+        # فعال کردن دکمه ویرایش رکورد حسابداری
         self.edit_accounting_button.config(state=tk.NORMAL)
-        self.delete_accounting_button.config(state=tk.NORMAL)
         
         logging.info(f"رکورد حسابداری با شناسه {record_id} انتخاب شد")
     
@@ -611,7 +600,6 @@ class ManualReconciliationTab(ttk.Frame):
             # فعال کردن دکمه‌های عملیات
             if self.accounting_records:
                 self.edit_accounting_button.config(state=tk.NORMAL)
-                self.delete_accounting_button.config(state=tk.NORMAL)
                 logging.info(f"تعداد {len(self.accounting_records)} رکورد حسابداری یافت شد")
             else:
                 messagebox.showinfo("اطلاعات", "هیچ رکورد حسابداری مغایرت‌گیری نشده‌ای با شرایط مورد نظر یافت نشد")
@@ -648,13 +636,26 @@ class ManualReconciliationTab(ttk.Frame):
             if confirm:
                 # ثبت مغایرت‌گیری
                 from reconciliation.save_reconciliation_result import success_reconciliation_result
-                success_reconciliation_result(
-                    bank_id,  # bank_record_id
-                    accounting_id,  # acc_record_id
-                    None,  # pos_record_id
-                    "مغایرت‌گیری دستی از طریق تب مغایرت‌یابی دستی",
-                    'manual_match'
-                )
+                from database.bank_transaction_repository import update_bank_transaction_reconciliation_status
+                from database.accounting_repository import update_accounting_transaction_reconciliation_status
+                
+                try:
+                    # ابتدا وضعیت is_reconciled را به‌روزرسانی کنیم
+                    update_bank_transaction_reconciliation_status(bank_id, 1)
+                    update_accounting_transaction_reconciliation_status(accounting_id, 1)
+                    
+                    # سپس نتیجه مغایرت‌گیری را ثبت کنیم
+                    success_reconciliation_result(
+                        bank_id,  # bank_record_id
+                        accounting_id,  # acc_record_id
+                        None,  # pos_record_id
+                        "مغایرت‌گیری دستی از طریق تب مغایرت‌یابی دستی",
+                        'manual_match'
+                    )
+                except Exception as update_error:
+                    logging.error(f"خطا در به‌روزرسانی وضعیت مغایرت‌یابی: {str(update_error)}")
+                    messagebox.showerror("خطا", f"خطا در به‌روزرسانی وضعیت مغایرت‌یابی: {str(update_error)}")
+                    return
                 
                 messagebox.showinfo("اطلاعات", "مغایرت‌گیری با موفقیت انجام شد")
                 logging.info(f"مغایرت‌گیری بین رکورد بانک {bank_id} و رکورد حسابداری {accounting_id} انجام شد")
@@ -842,71 +843,7 @@ class ManualReconciliationTab(ttk.Frame):
             logging.error(f"{error_message}\n{traceback.format_exc()}")
             messagebox.showerror("خطا", error_message)
     
-    def delete_accounting_record(self):
-        """حذف رکورد حسابداری انتخاب شده"""
-        try:
-            selected_item = self.accounting_tree.selection()
-            if not selected_item:
-                messagebox.showwarning("هشدار", "لطفاً یک رکورد حسابداری را انتخاب کنید")
-                return
-            
-            # دریافت آیتم انتخاب شده
-            item = self.accounting_tree.item(selected_item[0])
-            record_id = item['values'][0]
-            
-            # تأیید از کاربر
-            confirm = messagebox.askyesno(
-                "تأیید حذف", 
-                "آیا از حذف این رکورد حسابداری اطمینان دارید؟\n" +
-                "این عملیات غیرقابل بازگشت است!"
-            )
-            
-            if confirm:
-                # حذف رکورد
-                delete_accounting_transaction(record_id)
-                
-                messagebox.showinfo("اطلاعات", "رکورد حسابداری با موفقیت حذف شد")
-                logging.info(f"رکورد حسابداری با شناسه {record_id} حذف شد")
-                
-                # به‌روزرسانی لیست
-                self.search_accounting_records()
-        except Exception as e:
-            error_message = f"خطا در حذف رکورد حسابداری: {str(e)}"
-            logging.error(f"{error_message}\n{traceback.format_exc()}")
-            messagebox.showerror("خطا", error_message)
     
-    def delete_bank_record(self):
-        """حذف رکورد بانک انتخاب شده"""
-        try:
-            selected_item = self.bank_tree.selection()
-            if not selected_item:
-                messagebox.showwarning("هشدار", "لطفاً یک رکورد بانک را انتخاب کنید")
-                return
-            
-            # دریافت آیتم انتخاب شده
-            item = self.bank_tree.item(selected_item[0])
-            record_id = item['values'][0]
-            
-            # تأیید از کاربر
-            confirm = messagebox.askyesno(
-                "تأیید حذف", 
-                "آیا از حذف این رکورد بانک اطمینان دارید؟\n" +
-                "این عملیات غیرقابل بازگشت است!"
-            )
-            
-            if confirm:
-                # حذف رکورد
-                delete_bank_transaction(record_id)
-                
-                messagebox.showinfo("اطلاعات", "رکورد بانک با موفقیت حذف شد")
-                logging.info(f"رکورد بانک با شناسه {record_id} حذف شد")
-                
-                # به‌روزرسانی لیست
-                self.show_bank_records()
-        except Exception as e:
-            error_message = f"خطا در حذف رکورد بانک: {str(e)}"
-            logging.error(f"{error_message}\n{traceback.format_exc()}")
-            messagebox.showerror("خطا", error_message)
     
     def edit_bank_record(self):
         """ویرایش رکورد بانک انتخاب شده"""
@@ -991,6 +928,4 @@ class ManualReconciliationTab(ttk.Frame):
         self.quick_reconcile_button.config(state=tk.DISABLED)
         self.deduct_fee_button.config(state=tk.DISABLED)
         self.print_report_button.config(state=tk.DISABLED)
-        self.delete_accounting_button.config(state=tk.DISABLED)
-        self.delete_bank_button.config(state=tk.DISABLED)
         self.search_button.config(state=tk.DISABLED)

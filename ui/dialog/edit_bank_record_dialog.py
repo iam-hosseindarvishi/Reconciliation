@@ -64,14 +64,23 @@ class EditBankRecordDialog(tk.Toplevel):
         self.amount_var = tk.StringVar()
         ttk.Entry(main_frame, textvariable=self.amount_var, font=self.default_font).grid(row=3, column=0, sticky="ew", padx=5, pady=5)
         
+        # نوع تراکنش
+        ttk.Label(main_frame, text="نوع تراکنش:", font=self.default_font).grid(row=4, column=1, sticky="e", padx=5, pady=5)
+        self.transaction_type_var = tk.StringVar()
+        self.transaction_type_combo = ttk.Combobox(main_frame, textvariable=self.transaction_type_var, 
+                                                  font=self.default_font, state="readonly")
+        self.transaction_type_combo['values'] = ['received_pos', 'paid_transfer', 'received_transfer', 
+                                                'received_check', 'paid_check', 'bank_fee']
+        self.transaction_type_combo.grid(row=4, column=0, sticky="ew", padx=5, pady=5)
+        
         # توضیحات
-        ttk.Label(main_frame, text="توضیحات:", font=self.default_font).grid(row=4, column=1, sticky="ne", padx=5, pady=5)
+        ttk.Label(main_frame, text="توضیحات:", font=self.default_font).grid(row=5, column=1, sticky="ne", padx=5, pady=5)
         self.description_text = tk.Text(main_frame, height=5, width=30, font=self.default_font)
-        self.description_text.grid(row=4, column=0, sticky="ew", padx=5, pady=5)
+        self.description_text.grid(row=5, column=0, sticky="ew", padx=5, pady=5)
         
         # === دکمه‌ها ===
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=5, column=0, columnspan=2, pady=10)
+        button_frame.grid(row=6, column=0, columnspan=2, pady=10)
         
         ttk.Button(button_frame, text="ذخیره", command=self.save_changes, style='Default.TButton').pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="انصراف", command=self.cancel, style='Default.TButton').pack(side=tk.LEFT, padx=5)
@@ -82,7 +91,9 @@ class EditBankRecordDialog(tk.Toplevel):
         self.id_var.set(str(self.bank_record['id']))
         
         # شماره پیگیری
-        if self.bank_record.get('tracking_number'):
+        if self.bank_record.get('extracted_tracking_number'):
+            self.tracking_number_var.set(str(self.bank_record['extracted_tracking_number']))
+        elif self.bank_record.get('tracking_number'):
             self.tracking_number_var.set(str(self.bank_record['tracking_number']))
         
         # تاریخ (تبدیل به شمسی)
@@ -92,6 +103,10 @@ class EditBankRecordDialog(tk.Toplevel):
         
         # مبلغ
         self.amount_var.set(str(self.bank_record['amount']))
+        
+        # نوع تراکنش
+        if self.bank_record.get('transaction_type'):
+            self.transaction_type_var.set(self.bank_record['transaction_type'])
         
         # توضیحات
         if self.bank_record.get('description'):
@@ -104,6 +119,7 @@ class EditBankRecordDialog(tk.Toplevel):
             tracking_number = self.tracking_number_var.get().strip()
             shamsi_date = self.date_var.get().strip()
             amount_str = self.amount_var.get().strip()
+            transaction_type = self.transaction_type_var.get().strip()
             description = self.description_text.get("1.0", "end-1c").strip()
             
             # اعتبارسنجی داده‌ها
@@ -132,9 +148,10 @@ class EditBankRecordDialog(tk.Toplevel):
             
             # ایجاد دیکشنری برای به‌روزرسانی
             updated_data = {
-                'tracking_number': tracking_number if tracking_number else None,
-                'date': gregorian_date,
+                'extracted_tracking_number': tracking_number if tracking_number else None,
+                'transaction_date': gregorian_date,
                 'amount': amount,
+                'transaction_type': transaction_type if transaction_type else None,
                 'description': description if description else None
             }
             
