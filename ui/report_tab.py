@@ -83,19 +83,22 @@ class ReportTab(ttk.Frame):
         PADX = 8
         PADY = 8
 
-        # تنظیم فونت‌ها
-        self.default_font = (DEFAULT_FONT, DEFAULT_FONT_SIZE, 'bold')
-        self.header_font = (DEFAULT_FONT, HEADER_FONT_SIZE, 'bold')
-        self.button_font = (DEFAULT_FONT, BUTTON_FONT_SIZE, 'bold')
-        self.log_font = (DEFAULT_FONT, DEFAULT_FONT_SIZE - 1, 'bold')  # کمی کوچکتر برای لاگ‌ها
+        # تنظیم فونت‌ها - حذف bold برای ظاهر لایتتر
+        self.default_font = (DEFAULT_FONT, DEFAULT_FONT_SIZE)
+        self.header_font = (DEFAULT_FONT, HEADER_FONT_SIZE)
+        self.button_font = (DEFAULT_FONT, BUTTON_FONT_SIZE)
+        self.log_font = (DEFAULT_FONT, DEFAULT_FONT_SIZE - 1)  # کمی کوچکتر برای لاگ‌ها
 
-        # تنظیم استایل‌ها
+        # تنظیم استایل‌ها - برای یکپارچگی و حل مشکل نمایش
         style = ttk.Style()
         style.configure('Header.TLabelframe', font=self.header_font)
         style.configure('Header.TLabelframe.Label', font=self.header_font)
         style.configure('Default.TLabel', font=self.default_font)
         style.configure('Default.TEntry', font=self.default_font)
         style.configure('Bold.TButton', font=self.button_font)
+        
+        # اطمینان از اعمال تغییرات
+        self.update_idletasks()
 
         main_frame = ttk.Frame(self)
         main_frame.pack(fill="both", expand=True, padx=10, pady=10)

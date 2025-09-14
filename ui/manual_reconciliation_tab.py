@@ -1,12 +1,17 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+from tkinter import StringVar, messagebox
+from tkinter.ttk import Combobox
+from datetime import datetime, timedelta
+import logging
 import os
 import queue
 import threading
 import decimal
-from tkinter.ttk import Combobox
-from datetime import datetime, timedelta
-import logging
+import tempfile
+import subprocess
+import traceback
 from utils.helpers import gregorian_to_persian, persian_to_gregorian
 from utils.constants import MELLAT_TRANSACTION_TYPES, KESHAVARZI_TRANSACTION_TYPES
 from database.banks_repository import get_all_banks
@@ -20,9 +25,10 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-import tempfile
-import subprocess
-import traceback
+from config.settings import (
+    DEFAULT_FONT, DEFAULT_FONT_SIZE,
+    HEADER_FONT_SIZE, BUTTON_FONT_SIZE
+)
 
 class ManualReconciliationTab(ttk.Frame):
     """تب مغایرت‌یابی دستی"""
@@ -31,19 +37,26 @@ class ManualReconciliationTab(ttk.Frame):
         super().__init__(parent)
         self.parent = parent
         
-        # تنظیم فونت‌ها
-        self.default_font = ('B Nazanin', 11)
-        self.header_font = ('B Nazanin', 12, 'bold')
+        # تنظیم فونت‌ها - استفاده از تنظیمات یکپارچه بدون bold برای ظاهر لایت
+        self.default_font = (DEFAULT_FONT, DEFAULT_FONT_SIZE)
+        self.header_font = (DEFAULT_FONT, HEADER_FONT_SIZE)
+        self.button_font = (DEFAULT_FONT, BUTTON_FONT_SIZE)
+        
+        # تنظیم استایل‌ها برای حل مشکل نمایش
+        self.setup_styles()
         
         # ایجاد متغیرهای مورد نیاز
-        self.selected_bank_var = tk.StringVar()
+        self.selected_bank_var = StringVar()
         self.show_fees_var = tk.BooleanVar(value=False)
         
         # ایجاد ویجت‌ها
         self.create_widgets()
         
-        # بارگذاری لیست بانک‌ها
+            # بارگذاری لیست بانک‌ها
         self.load_banks_to_combobox()
+        
+        # به‌روزرسانی اولیه UI برای اطمینان از نمایش صحیح
+        self.after(100, self.refresh_ui)  # تأخیر کوتاه برای اطمینان از بارگذاری کامل
         
         # متغیرهای داده
         self.bank_records = []
@@ -53,6 +66,55 @@ class ManualReconciliationTab(ttk.Frame):
         
         # ثبت لاگ
         logging.info("تب مغایرت‌یابی دستی ایجاد شد")
+    
+    def setup_styles(self):
+        """تنظیم استایل‌های یکپارچه برای رفع مشکلات نمایش"""
+        try:
+            style = ttk.Style()
+            
+            # تنظیم استایل‌های اصلی
+            style.configure('Header.TLabelframe', font=self.header_font)
+            style.configure('Header.TLabelframe.Label', font=self.header_font)
+            style.configure('Default.TLabel', font=self.default_font)
+            style.configure('Default.TEntry', font=self.default_font)
+            style.configure('Default.TButton', font=self.button_font)
+            
+            # استایل ویژه برای دکمه‌های عملیاتی
+            style.configure('Operation.TButton', font=self.button_font, padding=(10, 5))
+            
+            # تنظیم استایل برای Treeview
+            style.configure('Treeview', font=self.default_font, rowheight=25)
+            style.configure('Treeview.Heading', font=self.header_font)
+            
+            # تنظیم استایل برای Combobox
+            style.configure('TCombobox', font=self.default_font)
+            style.configure('TCheckbutton', font=self.default_font)
+            
+            # اطمینان از اعمال تغییرات
+            self.update_idletasks()
+            
+        except Exception as e:
+            logging.warning(f"خطا در تنظیم استایل‌ها: {str(e)}")
+    
+    def refresh_ui(self):
+        """به‌روزرسانی اجباری UI برای حل مشکل نمایش دکمه‌ها"""
+        try:
+            # اجبار به‌روزرسانی و بازنمایی تمام ویجت‌ها
+            self.update_idletasks()
+            self.update()
+            
+            # اعمال مجدد استایل‌ها
+            self.setup_styles()
+            
+            # اطمینان از نمایش دکمه‌های عملیاتی
+            for button in [self.show_data_button, self.edit_bank_button, self.search_button,
+                          self.quick_reconcile_button, self.deduct_fee_button, 
+                          self.print_report_button, self.edit_accounting_button]:
+                if button.winfo_exists():
+                    button.configure(style='Operation.TButton')
+                    
+        except Exception as e:
+            logging.warning(f"خطا در به‌روزرسانی UI: {str(e)}")
     
     def create_widgets(self):
         """ایجاد ویجت‌های تب مغایرت‌یابی دستی"""
@@ -67,12 +129,11 @@ class ManualReconciliationTab(ttk.Frame):
         # انتخاب بانک
         ttk.Label(top_frame, text="انتخاب بانک:", style='Default.TLabel').pack(side=tk.RIGHT, padx=5)
         self.bank_combobox = Combobox(top_frame, textvariable=self.selected_bank_var, state="readonly", width=30)
-        self.bank_combobox.configure(font=self.default_font)
         self.bank_combobox.pack(side=tk.RIGHT, padx=5)
         self.bank_combobox.bind("<<ComboboxSelected>>", lambda event: self.show_bank_records())
         
         # دکمه نمایش اطلاعات
-        self.show_data_button = ttk.Button(top_frame, text="نمایش اطلاعات", command=self.show_bank_records)
+        self.show_data_button = ttk.Button(top_frame, text="نمایش اطلاعات", style='Operation.TButton', command=self.show_bank_records)
         self.show_data_button.pack(side=tk.RIGHT, padx=5)
         
         # چک باکس نمایش کارمزدها
@@ -141,7 +202,7 @@ class ManualReconciliationTab(ttk.Frame):
         bank_buttons_frame = ttk.Frame(bank_frame)
         bank_buttons_frame.pack(fill=tk.X, pady=5)
         
-        self.edit_bank_button = ttk.Button(bank_buttons_frame, text="ویرایش رکورد", command=self.edit_bank_record)
+        self.edit_bank_button = ttk.Button(bank_buttons_frame, text="ویرایش رکورد", style='Operation.TButton', command=self.edit_bank_record)
         self.edit_bank_button.pack(side=tk.RIGHT, padx=5)
         
         # === بخش جستجو ===
@@ -181,7 +242,7 @@ class ManualReconciliationTab(ttk.Frame):
         self.transaction_type_combobox.pack(side=tk.RIGHT, padx=5)
         
         # دکمه جستجو
-        self.search_button = ttk.Button(search_frame, text="جستجوی رکوردهای حسابداری", command=self.search_accounting_records)
+        self.search_button = ttk.Button(search_frame, text="جستجوی رکوردهای حسابداری", style='Operation.TButton', command=self.search_accounting_records)
         self.search_button.pack(side=tk.LEFT, padx=5)
         
         # === بخش پایینی - لیست رکوردهای حسابداری ===
@@ -240,20 +301,19 @@ class ManualReconciliationTab(ttk.Frame):
         operations_frame.pack(fill=tk.X, pady=5)
         
         # دکمه مغایرت‌گیری سریع
-        self.quick_reconcile_button = ttk.Button(operations_frame, text="مغایرت‌گیری سریع", command=self.quick_reconcile)
+        self.quick_reconcile_button = ttk.Button(operations_frame, text="مغایرت‌گیری سریع", style='Operation.TButton', command=self.quick_reconcile)
         self.quick_reconcile_button.pack(side=tk.RIGHT, padx=5)
         
         # دکمه کسر کارمزد
-        self.deduct_fee_button = ttk.Button(operations_frame, text="کسر کارمزد", command=self.deduct_fee)
+        self.deduct_fee_button = ttk.Button(operations_frame, text="کسر کارمزد", style='Operation.TButton', command=self.deduct_fee)
         self.deduct_fee_button.pack(side=tk.RIGHT, padx=5)
         
         # دکمه چاپ گزارش
-        self.print_report_button = ttk.Button(operations_frame, text="چاپ گزارش", command=self.print_report)
+        self.print_report_button = ttk.Button(operations_frame, text="چاپ گزارش", style='Operation.TButton', command=self.print_report)
         self.print_report_button.pack(side=tk.RIGHT, padx=5)
         
-        
         # دکمه ویرایش رکورد حسابداری
-        self.edit_accounting_button = ttk.Button(operations_frame, text="ویرایش رکورد حسابداری", command=self.edit_accounting_record)
+        self.edit_accounting_button = ttk.Button(operations_frame, text="ویرایش رکورد حسابداری", style='Operation.TButton', command=self.edit_accounting_record)
         self.edit_accounting_button.pack(side=tk.RIGHT, padx=5)
         
         # غیرفعال کردن دکمه‌های عملیات در ابتدا
@@ -374,8 +434,8 @@ class ManualReconciliationTab(ttk.Frame):
                 else:
                     self.records_count_var.set(f"تعداد {filtered_count} رکورد مغایرت‌گیری نشده برای بانک {selected_bank} یافت شد")
                 
-            # به‌روزرسانی UI برای نمایش تغییرات
-            self.update()
+            # به‌روزرسانی UI برای نمایش تغییرات و اطمینان از نمایش دکمه‌ها
+            self.refresh_ui()
             
             logging.info(f"تعداد {len(filtered_records)} رکورد بانک نمایش داده شد")
         except Exception as e:
