@@ -1,5 +1,5 @@
 import pandas as pd
-from database.accounting_repository import create_accounting_transaction
+from database.repositories.accounting import create_accounting_transaction
 from utils.helpers import persian_to_gregorian,normalize_shamsi_date
 from utils.constants import TRANSACTION_TYPE_MAP
 

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from tkinter import messagebox
 from utils.helpers import persian_to_gregorian
 from utils.constants import TransactionTypes
-from database.accounting_repository import (
+from database.repositories.accounting import get_transactions_advanced_search
     get_transactions_by_date_and_type as get_unreconciled_accounting_records_by_date,
     get_transactions_advanced_search
 )

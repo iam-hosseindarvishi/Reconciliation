@@ -6,7 +6,7 @@ from tkinter import messagebox
 from utils.logger_config import setup_logger
 from utils.helpers import get_pos_date_from_bank
 from utils.compare_tracking_numbers import compare_tracking_numbers
-from database.accounting_repository import get_transactions_by_date_amount_type
+from database.repositories.accounting import get_transactions_by_date_amount_type
 from reconciliation.save_reconciliation_result import success_reconciliation_result, fail_reconciliation_result
 
 logger = setup_logger('reconciliation.mellat_pos_reconciliation')

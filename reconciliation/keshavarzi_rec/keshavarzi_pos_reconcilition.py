@@ -5,7 +5,7 @@
 import logging
 from datetime import datetime, timedelta
 from database.init_db import create_connection
-from database.accounting_repository import get_transactions_by_date_amount_type
+from database.repositories.accounting import get_transactions_by_date_amount_type
 from database.bank_transaction_repository import update_bank_transaction_reconciliation_status
 from database.pos_transactions_repository import (
     get_transactions_by_terminal, 

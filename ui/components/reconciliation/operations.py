@@ -7,7 +7,7 @@ import decimal
 from tkinter import messagebox
 from reconciliation.save_reconciliation_result import success_reconciliation_result
 from database.bank_transaction_repository import update_bank_transaction_reconciliation_status
-from database.accounting_repository import update_accounting_transaction_reconciliation_status
+from database.repositories.accounting import update_accounting_transaction_reconciliation_status
 from database.Helper.db_helpers import deduct_fee
 
 

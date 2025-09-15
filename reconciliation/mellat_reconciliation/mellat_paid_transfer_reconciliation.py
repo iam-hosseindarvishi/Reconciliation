@@ -9,7 +9,14 @@ from tkinter import messagebox
 from utils.logger_config import setup_logger
 
 from utils.compare_tracking_numbers import compare_tracking_numbers
-from database.accounting_repository import get_transactions_by_date_amount_type, get_transactions_by_date_less_than_amount_type, get_transactions_by_date_type, get_transactions_by_amount_tracking, create_accounting_transaction, update_accounting_transaction_reconciliation_status
+from database.repositories.accounting import (
+    get_transactions_by_date_amount_type,
+    get_transactions_by_date_less_than_amount_type,
+    get_transactions_by_date_type,
+    get_transactions_by_amount_tracking,
+    create_accounting_transaction,
+    update_accounting_transaction_reconciliation_status
+)
 from reconciliation.save_reconciliation_result import success_reconciliation_result, fail_reconciliation_result
 from utils.compare_tracking_numbers import compare_tracking_numbers
 
@@ -261,16 +268,22 @@ def _handle_salary_payment_reconciliation(bank_record, ui_handler, manual_reconc
         logger.info(f"بررسی پرداخت حقوق برای نام واریز کننده: {depositor_name}")
         
         # جستجوی رکوردهای حسابداری بر اساس نام مشتری و تاریخ
-        from database.accounting_repository import get_transactions_by_customer_name_and_date
+        # استفاده از ماژول جدید
+        from database.repositories.accounting import search_transactions_by_customer_name
         
-        # تلاش برای گرفتن تابع جستجوی جدید یا استفاده از تابع موجود
+        # استفاده از تابع جستجوی جدید
         try:
-            accounting_matches = get_transactions_by_customer_name_and_date(
-                bank_id, depositor_name, bank_date, transaction_type
+            accounting_matches = search_transactions_by_customer_name(
+                bank_id, depositor_name, transaction_type
             )
-        except AttributeError:
+            # فیلتر کردن بر اساس تاریخ
+            accounting_matches = [
+                match for match in accounting_matches
+                if match.get('due_date') == bank_date
+            ]
+        except Exception as e:
             # اگر تابع موجود نیست، از تابع کلی استفاده کنیم
-            logger.warning("تابع get_transactions_by_customer_name_and_date یافت نشد، از جستجوی کلی استفاده می‌شود")
+            logger.warning(f"خطا در استفاده از تابع جستجو: {str(e)}")
             accounting_matches = _search_accounting_by_customer_name(bank_id, depositor_name, bank_date, transaction_type)
         
         if not accounting_matches:
@@ -421,7 +434,7 @@ def _process_single_salary_match(bank_record, accounting_record, bank_amount, tr
         
         # علامت‌گذاری هر دو رکورد به عنوان مغایرت‌یابی شده
         from database.bank_transaction_repository import update_bank_transaction_reconciliation_status
-        from database.accounting_repository import update_accounting_transaction_reconciliation_status
+        from database.repositories.accounting import update_accounting_transaction_reconciliation_status
         
         update_bank_transaction_reconciliation_status(bank_record['id'], 1)
         update_accounting_transaction_reconciliation_status(accounting_record['id'], 1)

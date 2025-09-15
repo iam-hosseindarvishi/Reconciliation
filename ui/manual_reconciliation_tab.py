@@ -16,7 +16,7 @@ from utils.helpers import gregorian_to_persian, persian_to_gregorian
 from utils.constants import MELLAT_TRANSACTION_TYPES, KESHAVARZI_TRANSACTION_TYPES
 from database.banks_repository import get_all_banks
 from database.bank_transaction_repository import get_unreconciled_transactions_by_bank as get_unreconciled_bank_records
-from database.accounting_repository import get_transactions_by_date_and_type as get_unreconciled_accounting_records_by_date
+from database.repositories.accounting import get_transactions_by_date_and_type as get_unreconciled_accounting_records_by_date
 from database.reconciliation_results_repository import create_reconciliation_result as save_reconciliation_result
 from ui.dialog.manual_reconciliation_dialog import ManualReconciliationDialog
 from ui.dialog.edit_bank_record_dialog import EditBankRecordDialog
@@ -566,7 +566,7 @@ class ManualReconciliationTab(ttk.Frame):
                     search_params['tracking_number'] = self.selected_bank_record.get('extracted_tracking_number')
                 
                 # استفاده از تابع جستجوی پیشرفته
-                from database.accounting_repository import get_transactions_advanced_search
+                from database.repositories.accounting import get_transactions_advanced_search
                 self.accounting_records = get_transactions_advanced_search(search_params)
                 
             else:
@@ -700,7 +700,7 @@ class ManualReconciliationTab(ttk.Frame):
                 # ثبت مغایرت‌گیری
                 from reconciliation.save_reconciliation_result import success_reconciliation_result
                 from database.bank_transaction_repository import update_bank_transaction_reconciliation_status
-                from database.accounting_repository import update_accounting_transaction_reconciliation_status
+                from database.repositories.accounting import update_accounting_transaction_reconciliation_status
                 
                 try:
                     # ابتدا وضعیت is_reconciled را به‌روزرسانی کنیم

@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import decimal
 from utils.helpers import gregorian_to_persian, persian_to_gregorian, normalize_shamsi_date
-from database.accounting_repository import update_accounting_transaction_reconciliation_status
+from database.repositories.accounting import update_accounting_transaction_reconciliation_status
 
 class EditAccountingRecordDialog(tk.Toplevel):
     """دیالوگ ویرایش رکورد حسابداری"""

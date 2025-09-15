@@ -1,6 +1,6 @@
 from database.reconciliation_results_repository import create_reconciliation_result
 from database.pos_transactions_repository import update_reconciliation_status
-from database.accounting_repository import update_accounting_transaction_reconciliation_status
+from database.repositories.accounting import update_accounting_transaction_reconciliation_status
 from database.bank_transaction_repository import update_bank_transaction_reconciliation_status
 from utils.logger_config import setup_logger
 logger = setup_logger('save_reconciliation_result')

@@ -11,7 +11,7 @@ from ttkbootstrap.tableview import Tableview
 from database.banks_repository import get_all_banks
 from database.bank_transaction_repository import get_transactions_by_bank
 from database.pos_transactions_repository import get_transactions_by_bank as get_pos_transactions_by_bank
-from database.accounting_repository import get_transactions_by_bank as get_accounting_transactions_by_bank
+from database.repositories.accounting import get_transactions_by_bank
 from database.reconciliation_results_repository import get_reconciliation_results
 from config.settings import (
     DATA_DIR, DEFAULT_FONT, DEFAULT_FONT_SIZE,
