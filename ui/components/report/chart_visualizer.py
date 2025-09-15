@@ -5,7 +5,7 @@ Chart Visualization Module
 import logging
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from matplotlib.backends.backend_tkagg import FigureCanvasTkinter
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import tkinter as tk
 from tkinter import messagebox
 import jdatetime
