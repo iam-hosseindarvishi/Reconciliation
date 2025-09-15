@@ -105,3 +105,42 @@ def delete_reconciliation_result(result_id):
         finally:
             conn.close()
     return False
+
+def get_reconciliation_results():
+    """
+    Fetches all reconciliation results from the database with detailed information.
+
+    Returns:
+        list: A list of dictionaries containing all results with joined data from related tables.
+    """
+    conn = create_connection()
+    if conn:
+        try:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    r.*, 
+                    b.bank_name,
+                    bt.amount as bank_amount,
+                    bt.transaction_date as bank_date,
+                    bt.transaction_type as bank_transaction_type,
+                    at.transaction_amount as accounting_amount,
+                    at.due_date as accounting_date,
+                    at.transaction_type as accounting_transaction_type,
+                    pt.transaction_amount as pos_amount,
+                    pt.transaction_date as pos_date
+                FROM ReconciliationResults r
+                LEFT JOIN BankTransactions bt ON r.bank_record_id = bt.id
+                LEFT JOIN AccountingTransactions at ON r.acc_id = at.id
+                LEFT JOIN PosTransactions pt ON r.pos_id = pt.id
+                LEFT JOIN Banks b ON bt.bank_id = b.id
+            """)
+            results = cursor.fetchall()
+            return [dict(row) for row in results]
+        except sqlite3.Error as e:
+            print(f"Error fetching reconciliation results: {e}")
+            return []
+        finally:
+            conn.close()
+    return []

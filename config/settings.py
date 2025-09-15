@@ -4,8 +4,8 @@ import sys
 
 # تنظیمات پنجره
 WINDOW_WIDTH = 1400
-WINDOW_HEIGHT = 800
-WINDOW_RESIZABLE = False
+WINDOW_HEIGHT = 900
+WINDOW_RESIZABLE = True
 
 # تنظیمات مسیرها
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -15,10 +15,11 @@ DB_PATH = os.path.join(DATA_DIR, 'app.db')
 # تنظیمات فونت
 if sys.platform.startswith('win'):
     # فونت‌های پیش‌فرض برای ویندوز
-    DEFAULT_FONT = 'B Nazanin'
-    DEFAULT_FONT_SIZE = 14
-    HEADER_FONT_SIZE = 16
-    BUTTON_FONT_SIZE = 14
+    DEFAULT_FONT = 'Vazir'
+    # DEFAULT_FONT = 'Microsoft Uighur'
+    DEFAULT_FONT_SIZE = 18
+    HEADER_FONT_SIZE = 20
+    BUTTON_FONT_SIZE = 16
 else:
     # فونت‌های پیش‌فرض برای لینوکس/مک
     DEFAULT_FONT = 'Vazir'

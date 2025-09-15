@@ -101,6 +101,7 @@ def process_pos_files(pos_folder_path, bank_id):
 
                     transaction_data = {
                         'terminal_number': terminal_number,
+                        'terminal_id': str(row.get('شناسه پایانه', '')),
                         'bank_id': bank_id,
                         'card_number': str(row.get('شماره کارت', '')),
                         'transaction_date': transaction_date,

@@ -1,3 +1,4 @@
+import sqlite3
 from database.init_db import create_connection
 from utils.logger_config import setup_logger
 

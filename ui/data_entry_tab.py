@@ -17,7 +17,6 @@ from config.settings import (
 )
 
 
-
 # کلاس برای نمایش لاگ‌ها در UI
 class UIHandler(logging.Handler):
     def __init__(self, text_widget):
@@ -112,6 +111,10 @@ class DataEntryTab(ttk.Frame):
         acc_entry = ttk.Entry(acc_frame, textvariable=self.accounting_file_var, width=ENTRY_WIDTH, state="readonly", style='Default.TEntry')
         acc_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
         ttk.Button(acc_frame, text="انتخاب فایل", command=self.select_accounting_file, bootstyle=PRIMARY, width=14, style='Bold.TButton').grid(row=0, column=2, padx=5, pady=5)
+        
+        # چک باکس سیستم جدید
+        self.new_system_var = ttk.BooleanVar(value=False)
+        ttk.Checkbutton(acc_frame, text="سیستم جدید", variable=self.new_system_var, style='Default.TCheckbutton').grid(row=1, column=0, sticky="w", padx=5, pady=5)
 
         # === بخش بانک ===
         bank_frame = ttk.LabelFrame(self, text="ورود اطلاعات بانک", style='Header.TLabelframe')
@@ -270,7 +273,16 @@ class DataEntryTab(ttk.Frame):
                 try:
                     self.logger.info("شروع پردازش فایل حسابداری...")
                     self.update_progress_bars((current_step / total_steps) * 100, 0)
-                    acc_result = import_accounting_excel(self.accounting_file_var.get(), bank_id)
+                    
+                    # بررسی وضعیت چک باکس سیستم جدید
+                    if self.new_system_var.get():
+                        # استفاده از پردازشگر جدید
+                        from utils.accounting_excel_importer_v2 import import_accounting_excel_v2
+                        acc_result = import_accounting_excel_v2(self.accounting_file_var.get(), bank_id)
+                    else:
+                        # استفاده از پردازشگر قدیمی
+                        acc_result = import_accounting_excel(self.accounting_file_var.get(), bank_id)
+                        
                     self.logger.info(f"پردازش حسابداری: {acc_result['transactions_saved']} تراکنش ذخیره شد")
                     current_step += 1
                     self.update_progress_bars((current_step / total_steps) * 100, 100)
@@ -310,37 +322,62 @@ class DataEntryTab(ttk.Frame):
         """به‌روزرسانی وضعیت در thread اصلی"""
         self.after(0, lambda: self.status_var.set(status))
 
+
+
     def start_process(self):
-        """شروع فرآیند پردازش"""
+        """شروع فرآیند پردازش ورود اطلاعات"""
         if not self.validate_inputs():
             return
-
+        self.processing_thread = threading.Thread(target=self.process_thread)
+        self.processing_thread.start()
         # غیرفعال کردن دکمه‌ها
-        for widget in self.winfo_children():
-            if isinstance(widget, ttk.Button):
-                widget.configure(state='disabled')
-
+        self.disable_buttons()
+        
         # تنظیم وضعیت اولیه
         self.status_var.set("در حال پردازش...")
         self.overall_progressbar['value'] = 0
         self.detailed_progressbar['value'] = 0
+        
+       
+        # بررسی وضعیت ترد و فعال‌سازی مجدد دکمه‌ها
+        self.after(100, self.check_thread_status)
 
-        # شروع thread جدید
-        process_thread = threading.Thread(target=self.process_thread)
-        process_thread.daemon = True  # thread با بسته شدن برنامه متوقف می‌شود
-        process_thread.start()
+    def check_thread_status(self):
+        """بررسی وضعیت ترد و به‌روزرسانی UI"""
+        if self.processing_thread.is_alive():
+            # ترد هنوز در حال اجراست، بررسی مجدد بعد از 100 میلی‌ثانیه
+            self.after(100, self.check_thread_status)
+        else:
+            # پایان فرآیند
+            self.status_var.set("فرآیند ورود اطلاعات به پایان رسید")
+            self.overall_progressbar['value'] = 100
+            self.detailed_progressbar['value'] = 100
+            self.enable_buttons()
+            self.logger.info("فرآیند ورود اطلاعات با موفقیت به پایان رسید")
 
-        # چک کردن وضعیت thread و فعال کردن مجدد دکمه‌ها
-        def check_thread():
-            if process_thread.is_alive():
-                self.after(100, check_thread)
-            else:
-                # فعال کردن مجدد دکمه‌ها
-                for widget in self.winfo_children():
+    def disable_buttons(self):
+        """غیرفعال کردن دکمه‌های اصلی"""
+        for child in self.winfo_children():
+            if isinstance(child, ttk.LabelFrame):
+                for widget in child.winfo_children():
+                    if isinstance(widget, ttk.Button):
+                        widget.configure(state='disabled')
+            elif isinstance(child, ttk.Frame):
+                for widget in child.winfo_children():
+                     if isinstance(widget, ttk.Button):
+                        widget.configure(state='disabled')
+
+    def enable_buttons(self):
+        """فعال کردن دکمه‌های اصلی"""
+        for child in self.winfo_children():
+            if isinstance(child, ttk.LabelFrame):
+                for widget in child.winfo_children():
                     if isinstance(widget, ttk.Button):
                         widget.configure(state='normal')
-
-        self.after(100, check_thread)
+            elif isinstance(child, ttk.Frame):
+                for widget in child.winfo_children():
+                     if isinstance(widget, ttk.Button):
+                        widget.configure(state='normal')
 
     def clear_entries(self):
         """پاک کردن تمام ورودی‌ها"""

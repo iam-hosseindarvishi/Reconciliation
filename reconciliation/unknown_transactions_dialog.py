@@ -2,7 +2,7 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from tkinter import StringVar, Toplevel
 from tkinter.ttk import Combobox
-from utils.constants import MELLAT_TRANSACTION_TYPES, KESHAVARZI_TRANSACTION_TYPES
+from utils.constants import MELLAT_TRANSACTION_TYPES, KESHAVARZI_TRANSACTION_TYPES, MELLAT_BANK_NAME, KESHAVARZI_BANK_NAME
 from database.reconciliation.reconciliation_repository import update_transaction_type
 from utils.logger_config import setup_logger
 from utils.helpers import gregorian_to_persian
@@ -28,9 +28,9 @@ class UnknownTransactionsDialog:
         self.result = False  # نتیجه دیالوگ (آیا تغییرات ذخیره شده‌اند یا خیر)
         
         # تعیین انواع تراکنش‌های مجاز بر اساس بانک
-        if 'ملت' in bank_name:
+        if bank_name == MELLAT_BANK_NAME:
             self.available_types = MELLAT_TRANSACTION_TYPES
-        elif 'کشاورزی' in bank_name:
+        elif bank_name == KESHAVARZI_BANK_NAME:
             self.available_types = KESHAVARZI_TRANSACTION_TYPES
         else:
             # حالت پیش‌فرض

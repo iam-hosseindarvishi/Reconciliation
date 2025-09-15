@@ -1,6 +1,7 @@
 import os
 import logging
 import threading
+import queue
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from tkinter import StringVar
@@ -36,6 +37,7 @@ class ReconciliationTab(ttk.Frame):
         self.detailed_status_var = StringVar(value="")
         self.create_widgets()
         self.load_banks_to_combobox()
+        
         
     def setup_logging(self):
         """راه‌اندازی سیستم لاگینگ"""
@@ -98,10 +100,18 @@ class ReconciliationTab(ttk.Frame):
         self.bank_combobox = Combobox(control_frame, textvariable=self.selected_bank_var, state="readonly", width=30)
         self.bank_combobox.configure(font=self.default_font)
         self.bank_combobox.grid(row=0, column=1, sticky="w", padx=5, pady=5)
+        
+        # دکمه مغایرت‌یابی از اکسل
+        self.excel_reconciliation_button = ttk.Button(
+            control_frame,
+            text="مغایرت‌یابی از اکسل",
+            style='Bold.TButton'
+        )
+        self.excel_reconciliation_button.grid(row=0, column=2, sticky="w", padx=5, pady=5)
 
         # === دکمه شروع ===
         btn_frame = ttk.Frame(control_frame)
-        btn_frame.grid(row=0, column=2, sticky="e", padx=5, pady=5)
+        btn_frame.grid(row=0, column=3, sticky="e", padx=5, pady=5)
         ttk.Button(btn_frame, text="شروع مغایرت‌گیری", command=self.start_reconciliation, bootstyle=SUCCESS, width=16, style='Bold.TButton').pack(side="left", padx=5)
 
         # === فریم وضعیت و نوارهای پیشرفت ===
@@ -178,25 +188,55 @@ class ReconciliationTab(ttk.Frame):
             self.parent = parent
             self.logger = parent.logger
         
+        def _safe_ui_update(self, update_func):
+            """Thread-safe UI update wrapper"""
+            try:
+                if hasattr(self.parent, 'after_idle'):
+                    self.parent.after_idle(update_func)
+                else:
+                    update_func()
+            except Exception as e:
+                self.logger.warning(f"UI update failed: {e}")
+        
         def update_status(self, message):
             """بروزرسانی وضعیت کلی"""
-            self.parent.status_var.set(message)
-            self.parent.update_idletasks()
+            def _update():
+                try:
+                    self.parent.status_var.set(message)
+                    self.parent.update_idletasks()
+                except Exception as e:
+                    self.logger.warning(f"Status update failed: {e}")
+            self._safe_ui_update(_update)
         
         def update_detailed_status(self, message):
             """بروزرسانی وضعیت جزئی"""
-            self.parent.detailed_status_var.set(message)
-            self.parent.update_idletasks()
+            def _update():
+                try:
+                    self.parent.detailed_status_var.set(message)
+                    self.parent.update_idletasks()
+                except Exception as e:
+                    self.logger.warning(f"Detailed status update failed: {e}")
+            self._safe_ui_update(_update)
         
         def update_progress(self, value):
             """بروزرسانی نوار پیشرفت کلی"""
-            self.parent.overall_progressbar['value'] = value
-            self.parent.update_idletasks()
+            def _update():
+                try:
+                    self.parent.overall_progressbar['value'] = min(100, max(0, value))
+                    self.parent.update_idletasks()
+                except Exception as e:
+                    self.logger.warning(f"Progress update failed: {e}")
+            self._safe_ui_update(_update)
         
         def update_detailed_progress(self, value):
             """بروزرسانی نوار پیشرفت جزئی"""
-            self.parent.detailed_progressbar['value'] = value
-            self.parent.update_idletasks()
+            def _update():
+                try:
+                    self.parent.detailed_progressbar['value'] = min(100, max(0, value))
+                    self.parent.update_idletasks()
+                except Exception as e:
+                    self.logger.warning(f"Detailed progress update failed: {e}")
+            self._safe_ui_update(_update)
         
         def log_info(self, message):
             """ثبت پیام اطلاعاتی در لاگ"""
@@ -278,8 +318,8 @@ class ReconciliationTab(ttk.Frame):
                     # اگر تغییرات ذخیره شد، فرآیند را مجدد اجرا کنید
                     self.run_reconciliation_process(bank_id, bank_name, ui_handler)
                     return
-            # ایجاد و اجرای فرآیند مغایرت‌گیری
-            process = ReconciliationProcess(self, bank_id, bank_name, ui_handler)
+            # ایجاد و شروع فرآیند مغایرت‌گیری بدون مغایرت‌یابی دستی
+            process = ReconciliationProcess(self, bank_id, bank_name, ui_handler, None)
             result = process.start()
             
             # فعال کردن مجدد دکمه‌ها
@@ -299,3 +339,4 @@ class ReconciliationTab(ttk.Frame):
             for widget in self.winfo_children():
                 if isinstance(widget, ttk.Button):
                     widget.configure(state='normal')
+    

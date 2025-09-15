@@ -13,11 +13,12 @@ def create_pos_transaction(transaction_data):
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO PosTransactions (
-                terminal_number, bank_id, card_number, transaction_date, 
+                terminal_number, terminal_id, bank_id, card_number, transaction_date, 
                 transaction_amount, tracking_number, is_reconciled
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             transaction_data.get('terminal_number'),
+            transaction_data.get('terminal_id'),
             transaction_data.get('bank_id'),
             transaction_data.get('card_number'),
             transaction_data.get('transaction_date'),
@@ -138,6 +139,23 @@ def delete_transaction(transaction_id):
         logger.error(f"خطا در حذف تراکنش {transaction_id}: {str(e)}")
         if conn:
             conn.rollback()
+        raise
+    finally:
+        if conn:
+            conn.close()
+
+def get_transactions_by_bank(bank_id):
+    """دریافت تراکنش‌های یک بانک"""
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM PosTransactions WHERE bank_id = ?", (bank_id,))
+        result = cursor.fetchall()
+        logger.info(f"تعداد {len(result)} تراکنش برای بانک با شناسه {bank_id} یافت شد")
+        return result
+    except Exception as e:
+        logger.error(f"خطا در دریافت تراکنش‌های بانک با شناسه {bank_id}: {str(e)}")
         raise
     finally:
         if conn:

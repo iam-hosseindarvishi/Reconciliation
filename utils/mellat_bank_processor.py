@@ -52,6 +52,7 @@ def process_mellat_bank_file(mellat_file_path, bank_id):
                     'extracted_terminal_id': '',  # خالی برای بانک ملت
                     'extracted_tracking_number': str(row['شماره سریال']),
                     'transaction_type': transaction_type,
+                    'depositor_name': str(row['واریز کننده/ ذیتفع']) if 'واریز کننده/ ذیتفع' in row and pd.notna(row['واریز کننده/ ذیتفع']) else None,
                     'is_reconciled': 0
                 }
                 
@@ -80,7 +81,7 @@ def determine_transaction_type(row):
     has_debit = float(row['مبلغ گردش بدهکار'] or 0) != 0
     
     # پیش شرط برای مشخص شدن پایا
-    if(branch == 'خیابان شیخ آباد' and ('از اینترنت' and 'پایا' in description) and has_debit):
+    if(branch == 'خیابان شیخ آباد' and (('از اینترنت' and 'پایا' in description) and ('کارمزد' not in description or 'کارمزد پایا' not in beneficiary)) and has_debit):
         return MELLAT_TRANSACTION_TYPES['PAID_TRANSFER']
     # شرط ۱: تراکنش‌های POS از طریق شاپرک
     if ((('شاپرک-پوز' in beneficiary and 

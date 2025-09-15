@@ -15,8 +15,8 @@ def create_bank_transaction(data):
             INSERT INTO BankTransactions (
                 bank_id, transaction_date, transaction_time, amount, description, 
                 reference_number, extracted_terminal_id, extracted_tracking_number, 
-                transaction_type, source_card_number, is_reconciled
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                transaction_type, source_card_number, depositor_name, is_reconciled
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data.get('bank_id'),
             data.get('transaction_date'),
@@ -28,6 +28,7 @@ def create_bank_transaction(data):
             data.get('extracted_tracking_number'),
             data.get('transaction_type'),
             data.get('source_card_number', ''),
+            data.get('depositor_name'),
             data.get('is_reconciled', 0)
         ))
         conn.commit()
@@ -113,12 +114,13 @@ def get_unreconciled_transactions_by_bank(bank_id):
     conn = None
     try:
         conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row  # برای دسترسی به نام ستون‌ها
         cursor = conn.cursor()
         cursor.execute("""
             SELECT * FROM BankTransactions 
             WHERE bank_id = ? AND is_reconciled = 0
         """, (bank_id,))
-        result = cursor.fetchall()
+        result = [dict(row) for row in cursor.fetchall()]
         logger.info(f"تعداد {len(result)} تراکنش تطبیق نشده برای بانک {bank_id} یافت شد")
         return result
     except Exception as e:
@@ -128,26 +130,92 @@ def get_unreconciled_transactions_by_bank(bank_id):
         if conn:
             conn.close()
 
-def update_bank_transaction_reconciliation_status(transaction_id, status):
-
-    """به‌روزرسانی وضعیت تطبیق تراکنش"""
+def update_bank_transaction_reconciliation_status(transaction_id, status_or_data):
+    """به‌روزرسانی وضعیت تطبیق تراکنش یا به‌روزرسانی کامل تراکنش"""
     conn = None
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        status_int = int(bool(status))
-        cursor.execute("""
-            UPDATE BankTransactions 
-            SET is_reconciled = ? 
-            WHERE id = ?
-        """, (status_int, transaction_id))
+        
+        # بررسی نوع پارامتر دوم
+        if isinstance(status_or_data, dict):
+            # به‌روزرسانی کامل با دیکشنری
+            update_fields = []
+            params = []
+            
+            for key, value in status_or_data.items():
+                if key != 'id':  # شناسه را به‌روزرسانی نمی‌کنیم
+                    update_fields.append(f"{key} = ?")
+                    params.append(value)
+            
+            # افزودن شناسه به پارامترها
+            params.append(transaction_id)
+            
+            query = f"UPDATE BankTransactions SET {', '.join(update_fields)} WHERE id = ?"
+            cursor.execute(query, params)
+            
+            if cursor.rowcount > 0:
+                conn.commit()
+                logger.info(f"تراکنش بانک {transaction_id} با موفقیت به‌روزرسانی شد")
+                return True
+            else:
+                logger.warning(f"تراکنشی با شناسه {transaction_id} یافت نشد")
+                return False
+        else:
+            # به‌روزرسانی فقط وضعیت تطبیق
+            status_int = int(bool(status_or_data))
+            cursor.execute("""
+                UPDATE BankTransactions 
+                SET is_reconciled = ? 
+                WHERE id = ?
+            """, (status_int, transaction_id))
+            if cursor.rowcount > 0:
+                conn.commit()
+                logger.info(f"وضعیت تطبیق تراکنش {transaction_id} به {status_int} تغییر کرد")
+                return True
+            else:
+                logger.warning(f"تراکنشی با شناسه {transaction_id} یافت نشد")
+                return False
+    except Exception as e:
+        logger.error(f"خطا در به‌روزرسانی تراکنش {transaction_id}: {str(e)}")
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        if conn:
+            conn.close()
+
+def update_bank_transaction(transaction_id, data):
+    """به‌روزرسانی اطلاعات تراکنش بانکی"""
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # ساخت پرس و جوی به‌روزرسانی بر اساس داده‌های ارسالی
+        update_fields = []
+        params = []
+        
+        for key, value in data.items():
+            if key != 'id':  # شناسه را به‌روزرسانی نمی‌کنیم
+                update_fields.append(f"{key} = ?")
+                params.append(value)
+        
+        # افزودن شناسه به پارامترها
+        params.append(transaction_id)
+        
+        query = f"UPDATE BankTransactions SET {', '.join(update_fields)} WHERE id = ?"
+        cursor.execute(query, params)
+        
         if cursor.rowcount > 0:
             conn.commit()
-            logger.info(f"وضعیت تطبیق تراکنش {transaction_id} به {status_int} تغییر کرد")
+            logger.info(f"تراکنش {transaction_id} با موفقیت به‌روزرسانی شد")
+            return True
         else:
             logger.warning(f"تراکنشی با شناسه {transaction_id} یافت نشد")
+            return False
     except Exception as e:
-        logger.error(f"خطا در به‌روزرسانی وضعیت تطبیق تراکنش {transaction_id}: {str(e)}")
+        logger.error(f"خطا در به‌روزرسانی تراکنش {transaction_id}: {str(e)}")
         if conn:
             conn.rollback()
         raise
