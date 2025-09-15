@@ -101,6 +101,8 @@ class EditAccountingRecordDialog(tk.Toplevel):
         if date_field:
             shamsi_date = gregorian_to_persian(date_field)
             self.date_var.set(shamsi_date)
+        else:
+            self.date_var.set('')  # اگر تاریخ وجود نداشت، خالی بگذار
         
         # مبلغ
         amount_field = self.accounting_record.get('transaction_amount') or self.accounting_record.get('amount')
@@ -149,13 +151,13 @@ class EditAccountingRecordDialog(tk.Toplevel):
                 messagebox.showerror("خطا", "مبلغ باید عدد باشد")
                 return
             
-            # ایجاد دیکشنری برای به‌روزرسانی
+            # ایجاد دیکشنری برای به‌روزرسانی - حفظ همه فیلدها حتی خالی‌ها
             updated_data = {
-                'transaction_number': tracking_number if tracking_number else None,
+                'transaction_number': tracking_number,
                 'due_date': gregorian_date,
                 'transaction_amount': amount,
-                'transaction_type': transaction_type if transaction_type else None,
-                'description': description if description else None
+                'transaction_type': transaction_type,
+                'description': description
             }
             
             # به‌روزرسانی رکورد در پایگاه داده

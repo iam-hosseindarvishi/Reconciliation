@@ -98,8 +98,11 @@ class EditBankRecordDialog(tk.Toplevel):
         
         # تاریخ (تبدیل به شمسی)
         date_key = 'transaction_date' if 'transaction_date' in self.bank_record else 'date'
-        shamsi_date = gregorian_to_persian(self.bank_record[date_key])
-        self.date_var.set(shamsi_date)
+        if self.bank_record.get(date_key):
+            shamsi_date = gregorian_to_persian(self.bank_record[date_key])
+            self.date_var.set(shamsi_date)
+        else:
+            self.date_var.set('')  # اگر تاریخ وجود نداشت، خالی بگذار
         
         # مبلغ
         self.amount_var.set(str(self.bank_record['amount']))
@@ -146,13 +149,13 @@ class EditBankRecordDialog(tk.Toplevel):
                 messagebox.showerror("خطا", "مبلغ باید عدد باشد")
                 return
             
-            # ایجاد دیکشنری برای به‌روزرسانی
+            # ایجاد دیکشنری برای به‌روزرسانی - حفظ همه فیلدها حتی خالی‌ها
             updated_data = {
-                'extracted_tracking_number': tracking_number if tracking_number else None,
+                'extracted_tracking_number': tracking_number,
                 'transaction_date': gregorian_date,
                 'amount': amount,
-                'transaction_type': transaction_type if transaction_type else None,
-                'description': description if description else None
+                'transaction_type': transaction_type,
+                'description': description
             }
             
             # به‌روزرسانی رکورد در پایگاه داده
