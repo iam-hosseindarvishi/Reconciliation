@@ -38,6 +38,7 @@ class TransactionTypes:
     RECEIVED_TRANSFER = 'Received_Transfer'
     BANK_FEES = 'Bank_Fees'
     POS = 'Pos'  # برای سیستم حسابداری
+    SHAPARAK = 'Shaparak'  # برای تراکنش‌های شاپرک
     UNKNOWN = 'Unknown'
     
     # لیست تمام انواع تراکنش‌ها
@@ -49,6 +50,7 @@ class TransactionTypes:
         RECEIVED_TRANSFER,
         BANK_FEES,
         POS,
+        SHAPARAK,
         UNKNOWN
     ]
     
@@ -75,6 +77,7 @@ MELLAT_TRANSACTION_TYPES = {
     'BANK_FEES': TransactionTypes.BANK_FEES,
     'PAID_TRANSFER': TransactionTypes.PAID_TRANSFER,
     'RECEIVED_TRANSFER': TransactionTypes.RECEIVED_TRANSFER,
+    'SHAPARAK': TransactionTypes.SHAPARAK,
     'UNKNOWN': TransactionTypes.UNKNOWN
 }
 

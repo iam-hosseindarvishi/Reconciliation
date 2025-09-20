@@ -8,6 +8,7 @@ from reconciliation.unknown_transactions_dialog import UnknownTransactionsDialog
 from reconciliation.mellat_reconciliation import reconcile_mellat_pos
 from reconciliation.mellat_reconciliation.mellat_received_transfer_reconciliation import reconcile_mellat_received_transfer
 from reconciliation.mellat_reconciliation.mellat_paid_transfer_reconciliation import reconcile_mellat_paid_transfer
+from reconciliation.mellat_reconciliation.mellat_shaparak_reconciliation import reconcile_mellat_shaparak
 from reconciliation.keshavarzi_rec import reconcile_keshavarzi_pos, reconcile_keshavarzi_checks, reconcile_keshavarzi_transfers
 from utils.logger_config import setup_logger
 from utils.constants import KESHAVARZI_TRANSACTION_TYPES, MELLAT_BANK, KESHAVARZI_BANK
@@ -180,6 +181,22 @@ class ReconciliationProcess:
             if transfer_transactions and self.bank_id == KESHAVARZI_BANK['id']:
                 self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های انتقال بانک کشاورزی...")
                 reconcile_keshavarzi_transfers(transfer_transactions, self.ui)
+            
+            # برای تراکنش‌های شاپرک (مخصوص بانک ملت)
+            from utils.constants import TransactionTypes
+            if TransactionTypes.SHAPARAK in categorized_transactions:
+                if self.bank_id == MELLAT_BANK['id']:
+                    self.ui.update_detailed_status("در حال مغایرت‌گیری تراکنش‌های شاپرک بانک ملت...")
+                    self.ui.update_detailed_progress(92)
+                    
+                    # بررسی وضعیت چک‌باکس مغایرت‌گیری دستی
+                    from utils import ui_state
+                    show_manual_reconciliation = ui_state.get_show_manual_reconciliation()
+                    self.ui.log_info(f"وضعیت مغایرت‌گیری دستی برای شاپرک: {show_manual_reconciliation}")
+                    
+                    # همیشه تابع را فراخوانی کن، اما پارامتر queue را بر اساس وضعیت چک‌باکس تنظیم کن
+                    queue_param = self.manual_reconciliation_queue if show_manual_reconciliation else None
+                    reconcile_mellat_shaparak(categorized_transactions[TransactionTypes.SHAPARAK], self.ui, queue_param)
             
             # برای کارمزدهای بانکی
             if KESHAVARZI_TRANSACTION_TYPES['BANK_FEES'] in categorized_transactions:

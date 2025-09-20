@@ -83,10 +83,12 @@ def determine_transaction_type(row):
     # پیش شرط برای مشخص شدن پایا
     if(branch == 'خیابان شیخ آباد' and (('از اینترنت' and 'پایا' in description) and ('کارمزد' not in description or 'کارمزد پایا' not in beneficiary)) and has_debit):
         return MELLAT_TRANSACTION_TYPES['PAID_TRANSFER']
-    # شرط ۱: تراکنش‌های POS از طریق شاپرک
-    if ((('شاپرک-پوز' in beneficiary and 
-        branch == 'شاپرک') or 'حواله شاپرک' in description ) and 
-        has_credit):
+    # شرط ۱: تراکنش‌های شاپرک
+    if ('حواله شاپرک' in description and has_credit):
+        return MELLAT_TRANSACTION_TYPES['SHAPARAK']
+        
+    # شرط ۲: سایر تراکنش‌های POS از طریق شاپرک
+    if (('شاپرک-پوز' in beneficiary and branch == 'شاپرک') and has_credit):
         return MELLAT_TRANSACTION_TYPES['RECEIVED_POS']
 
     # شرط حواله ها و واریز انتقالی
