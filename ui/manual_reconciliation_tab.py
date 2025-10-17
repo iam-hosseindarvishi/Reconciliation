@@ -13,7 +13,7 @@ import tempfile
 import subprocess
 import traceback
 from utils.helpers import gregorian_to_persian, persian_to_gregorian
-from utils.constants import MELLAT_TRANSACTION_TYPES, KESHAVARZI_TRANSACTION_TYPES
+from utils.constants import MELLAT_TRANSACTION_TYPES, KESHAVARZI_TRANSACTION_TYPES, TransactionTypes
 from database.banks_repository import get_all_banks
 from database.bank_transaction_repository import get_unreconciled_transactions_by_bank as get_unreconciled_bank_records
 from database.repositories.accounting import get_transactions_by_date_and_type as get_unreconciled_accounting_records_by_date
@@ -478,22 +478,22 @@ class ManualReconciliationTab(ttk.Frame):
             # دریافت نوع تراکنش بانک بر اساس نوع تراکنش موجود در رکورد بانک
             bank_transaction_type = self.selected_bank_record.get('transaction_type', '')
             
-            # تبدیل نوع تراکنش بانک به نوع تراکنش حسابداری
+            # تبدیل نوع تراکنش بانک به نوع تراکنش حسابداری (با استفاده از ثابت‌ها)
             if bank_transaction_type == MELLAT_TRANSACTION_TYPES['RECEIVED_POS'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['RECEIVED_POS'] or bank_transaction_type == 'received_pos':
-                transaction_type = 'Pos'
+                transaction_type = TransactionTypes.POS
             elif bank_transaction_type == MELLAT_TRANSACTION_TYPES['PAID_TRANSFER'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['PAID_TRANSFER'] or bank_transaction_type == 'paid_transfer':
-                transaction_type = 'Paid Transfer'
+                transaction_type = TransactionTypes.PAID_TRANSFER
             elif bank_transaction_type == MELLAT_TRANSACTION_TYPES['RECEIVED_TRANSFER'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['RECEIVED_TRANSFER'] or bank_transaction_type == 'received_transfer':
-                transaction_type = 'Received Transfer'
+                transaction_type = TransactionTypes.RECEIVED_TRANSFER
             elif bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['RECEIVED_CHECK'] or bank_transaction_type == 'received_check':
-                transaction_type = 'Received Check'
+                transaction_type = TransactionTypes.RECEIVED_CHECK
             elif bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['PAID_CHECK'] or bank_transaction_type == 'paid_check':
-                transaction_type = 'Paid Check'
+                transaction_type = TransactionTypes.PAID_CHECK
             elif bank_transaction_type == MELLAT_TRANSACTION_TYPES['BANK_FEES'] or bank_transaction_type == KESHAVARZI_TRANSACTION_TYPES['BANK_FEES'] or bank_transaction_type == 'bank_fee':
-                transaction_type = 'Bank Fees'
+                transaction_type = TransactionTypes.BANK_FEES
             else:
                 # اگر نوع تراکنش مشخص نبود، از مقدار استفاده می‌کنیم
-                transaction_type = 'Unknown'
+                transaction_type = TransactionTypes.UNKNOWN
             
             # اگر نوع تراکنش POS است، تاریخ را یک روز کاهش می‌دهیم
             search_date = bank_date
@@ -506,50 +506,31 @@ class ManualReconciliationTab(ttk.Frame):
                 search_date = prev_date_obj.strftime('%Y-%m-%d')
                 logging.info(f"تاریخ جستجو برای تراکنش POS از {bank_date} به {search_date} تغییر کرد")
             
-            try:
-                # جستجوی تمام رکوردهای حسابداری در تمام بانک‌ها با is_reconciled=0 و با تاریخ، مبلغ و نوع تراکنش مطابق
-                from database.repositories.accounting import get_all_unreconciled_accounting_records_by_criteria
-                
-                # جستجو در سیستم‌های جدید و قدیم
-                self.accounting_records = get_all_unreconciled_accounting_records_by_criteria(
-                    date=search_date,
-                    amount=bank_amount,
-                    transaction_type=transaction_type
-                )
-                
-            except ImportError:
-                # اگر تابع جدید وجود نداشت، از تابع قدیمی استفاده کنیم ولی بدون فیلتر بانک
-                try:
-                    from database.repositories.accounting import get_unreconciled_accounting_records_by_date
-                    
-                    # جستجو در تمام بانک‌ها (None به‌عنوان bank_id)
-                    self.accounting_records = get_unreconciled_accounting_records_by_date(
-                        bank_id=None,  # جستجو در تمام بانک‌ها
-                        start_date=search_date,
-                        end_date=search_date,
-                        transaction_type=transaction_type,
-                        amount=bank_amount  # فیلتر بر اساس مبلغ
-                    )
-                except TypeError:
-                    # اگر تابع قدیمی پارامتر amount را پشتیبانی نمی‌کند
-                    try:
-                        all_records = get_unreconciled_accounting_records_by_date(
-                            bank_id=None,
-                            start_date=search_date,
-                            end_date=search_date,
-                            transaction_type=transaction_type
-                        )
-                        # فیلتر دستی بر اساس مبلغ
-                        self.accounting_records = [r for r in all_records if r.get('transaction_amount') == bank_amount]
-                    except Exception as e:
-                        logging.error(f"خطا در جستجوی رکوردهای حسابداری: {str(e)}")
-                        self.accounting_records = []
+            # جستجوی تمام رکوردهای حسابداری با is_reconciled=0 و با تاریخ، مبلغ و نوع تراکنش مطابق
+            from database.repositories.accounting import get_transactions_advanced_search
+            
+            # لاگ پارامترهای جستجو برای دیباگ
+            logging.info(f"پارامترهای جستجو: تاریخ={search_date}, مبلغ={bank_amount}, نوع={transaction_type}")
+            logging.info(f"رکورد بانک انتخاب شده: تاریخ={bank_date}, نوع تراکنش بانک={bank_transaction_type}")
+            
+            # جستجو با تابع advanced_search موجود
+            self.accounting_records = get_transactions_advanced_search(
+                bank_id=None,  # جستجو در تمام بانک‌ها
+                start_date=search_date,
+                end_date=search_date,
+                transaction_type=transaction_type,
+                min_amount=bank_amount,
+                max_amount=bank_amount,
+                is_reconciled=False
+            )
+            
+            logging.info(f"تعداد رکوردهای یافت شده: {len(self.accounting_records)}")
             
             # نمایش رکوردها در Treeview (به جز رکوردهای کارمزد)
             for record in self.accounting_records:
                 # فیلتر کردن رکوردهای کارمزد
                 transaction_type = record.get('transaction_type', '')
-                if transaction_type == 'Bank Fees' or 'کارمزد' in record.get('description', ''):
+                if transaction_type == TransactionTypes.BANK_FEES or 'کارمزد' in record.get('description', ''):
                     continue  # پرش از نمایش رکوردهای کارمزد
                 
                 # تبدیل تاریخ میلادی به شمسی

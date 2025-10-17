@@ -15,7 +15,12 @@ class TransactionTypeMapper:
     TYPE_MAPPING = {
         'Pos': 'Pos / Received Transfer',
         'Received Transfer': 'Pos / Received Transfer',
-        'Paid Transfer': 'Pos / Paid Transfer'
+        'Received_Transfer': 'Pos / Received Transfer',  # پشتیبانی از underscore
+        'Paid Transfer': 'Pos / Paid Transfer',
+        'Paid_Transfer': 'Pos / Paid Transfer',  # پشتیبانی از underscore
+        'Received_Check': '',  # چک‌ها نگاشت جداگانه‌ای ندارند
+        'Paid_Check': '',
+        'Bank_Fees': ''
     }
     
     @classmethod
@@ -53,6 +58,8 @@ class TransactionTypeMapper:
         """
         ایجاد شرط SQL برای جستجوی بر اساس نوع تراکنش
         
+        پشتیبانی از هر دو فرمت space و underscore
+        
         Args:
             transaction_type: نوع تراکنش
             param_placeholder: placeholder برای پارامتر SQL (معمولاً "?")
@@ -60,16 +67,34 @@ class TransactionTypeMapper:
         Returns:
             tuple: (شرط SQL, لیست پارامترها)
         """
+        # تبدیل هر دو فرمت space و underscore
+        type_with_space = transaction_type.replace('_', ' ')
+        type_with_underscore = transaction_type.replace(' ', '_')
+        
+        # دریافت نوع جدید اگر وجود دارد
         original_type, new_type = cls.get_both_types(transaction_type)
         
+        # ساخت لیست تمام حالات ممکن
+        possible_types = [original_type]
+        
+        # اضافه کردن فرمت‌های مختلف
+        if type_with_space != original_type:
+            possible_types.append(type_with_space)
+        if type_with_underscore != original_type:
+            possible_types.append(type_with_underscore)
         if new_type:
-            # اگر نوع جدید وجود دارد، هر دو را در نظر بگیر
-            sql_condition = f"(transaction_type = {param_placeholder} OR transaction_type = {param_placeholder})"
-            params = [original_type, new_type]
-        else:
-            # اگر نوع جدید وجود ندارد، فقط نوع اصلی
+            possible_types.append(new_type)
+        
+        # حذف تکراری‌ها
+        possible_types = list(set(possible_types))
+        
+        if len(possible_types) == 1:
             sql_condition = f"transaction_type = {param_placeholder}"
-            params = [original_type]
+            params = possible_types
+        else:
+            placeholders = ' OR '.join([f"transaction_type = {param_placeholder}" for _ in possible_types])
+            sql_condition = f"({placeholders})"
+            params = possible_types
         
         logger.debug(f"شرط SQL ایجاد شد: {sql_condition} با پارامترها: {params}")
         return sql_condition, params

@@ -70,45 +70,89 @@ def get_transactions_by_date_and_type(bank_id, start_date, end_date, transaction
             conn.close()
 
 
-def get_transactions_advanced_search(search_params):
-    """جستجوی پیشرفته تراکنش‌های حسابداری با پارامترهای متنوع"""
+def get_transactions_advanced_search(
+    search_params=None,
+    bank_id=None,
+    start_date=None,
+    end_date=None,
+    transaction_type=None,
+    min_amount=None,
+    max_amount=None,
+    tracking_number=None,
+    is_reconciled=None
+):
+    """جستجوی پیشرفته تراکنش‌های حسابداری با پارامترهای متنوع
+    
+    می‌توان از dictionary یا named parameters استفاده کرد:
+    - get_transactions_advanced_search({'bank_id': 1, 'amount': 1000})
+    - get_transactions_advanced_search(bank_id=1, min_amount=1000, max_amount=1000)
+    """
     conn = None
     try:
         conn = create_connection()
         cursor = conn.cursor()
+        
+        # اگر search_params به عنوان dictionary ارسال شده، از آن استفاده کن
+        if search_params is not None and isinstance(search_params, dict):
+            bank_id = search_params.get('bank_id', bank_id)
+            start_date = search_params.get('custom_date', start_date)
+            end_date = search_params.get('custom_date', end_date)
+            transaction_type = search_params.get('transaction_type', transaction_type)
+            tracking_number = search_params.get('tracking_number', tracking_number)
+            
+            # Handle amount parameters
+            if search_params.get('amount'):
+                amount = float(search_params['amount'])
+                min_amount = amount - 1000
+                max_amount = amount + 1000
+            
+            # Handle reconciliation status
+            if 'include_reconciled' in search_params:
+                is_reconciled = None if search_params['include_reconciled'] else False
         
         # ساخت پرس و جو پایه
         query = "SELECT * FROM AccountingTransactions WHERE 1=1"
         params = []
         
         # اضافه کردن شرط‌ها بر اساس پارامترهای ورودی
-        if search_params.get('bank_id'):
+        if bank_id is not None:
             query += " AND bank_id = ?"
-            params.append(search_params['bank_id'])
+            params.append(bank_id)
             
-        if search_params.get('custom_date'):
-            query += " AND due_date = ?"
-            params.append(search_params['custom_date'])
+        if start_date is not None:
+            query += " AND due_date >= ?"
+            params.append(start_date)
+        
+        if end_date is not None:
+            query += " AND due_date <= ?"
+            params.append(end_date)
             
-        if search_params.get('transaction_type'):
-            transaction_type = search_params.get('transaction_type')
+        if transaction_type is not None:
             type_condition, type_params = TransactionTypeMapper.create_type_condition_sql(transaction_type)
             query += f" AND {type_condition}"
             params.extend(type_params)
             
-        if search_params.get('amount'):
-            # جستجو بر اساس مبلغ با تلرانس 1000 ریال
-            amount = float(search_params['amount'])
+        if min_amount is not None and max_amount is not None:
             query += " AND transaction_amount BETWEEN ? AND ?"
-            params.append(amount - 1000)  # تلرانس پایین
-            params.append(amount + 1000)  # تلرانس بالا
+            params.append(min_amount)
+            params.append(max_amount)
+        elif min_amount is not None:
+            query += " AND transaction_amount >= ?"
+            params.append(min_amount)
+        elif max_amount is not None:
+            query += " AND transaction_amount <= ?"
+            params.append(max_amount)
             
-        if search_params.get('tracking_number'):
+        if tracking_number is not None:
             query += " AND transaction_number LIKE ?"
-            params.append(f"%{search_params['tracking_number']}%")
+            params.append(f"%{tracking_number}%")
         
-        # فقط رکوردهای مغایرت‌گیری نشده را برگردان (مگر اینکه صراحتاً درخواست شده باشد)
-        if not search_params.get('include_reconciled', False):
+        # شرط is_reconciled
+        if is_reconciled is not None:
+            query += " AND is_reconciled = ?"
+            params.append(1 if is_reconciled else 0)
+        elif is_reconciled is None and search_params is None:
+            # اگر صراحتاً مشخص نشده، فقط رکوردهای مغایرت‌گیری نشده را برگردان
             query += " AND is_reconciled = 0"
         
         # اجرای پرس و جو

@@ -7,6 +7,7 @@ import threading
 import tkinter as tk
 from tkinter import messagebox
 from utils.logger_config import setup_logger
+from utils.constants import TransactionTypes
 
 from utils.compare_tracking_numbers import compare_tracking_numbers
 from database.repositories.accounting import (
@@ -95,7 +96,7 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
         bank_date = bank_record['transaction_date']
         bank_amount = bank_record['amount']
         bank_id = bank_record['bank_id']
-        transaction_type = 'Paid Transfer'
+        transaction_type = TransactionTypes.PAID_TRANSFER
 
         # ۰. بررسی ویژه برای تراکنش‌های Paid_Transfer با کلمه "حقوق" و نام واریز کننده
         if ('حقوق' in bank_record.get('description', '') and 

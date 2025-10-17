@@ -7,6 +7,7 @@ import threading
 import tkinter as tk
 from tkinter import messagebox
 from utils.logger_config import setup_logger
+from utils.constants import TransactionTypes
 
 from utils.compare_tracking_numbers import compare_tracking_numbers
 from database.repositories.accounting import get_transactions_by_date_amount_type
@@ -89,7 +90,7 @@ def _reconcile_single_transfer(bank_record, ui_handler, manual_reconciliation_qu
         bank_tracking_num = bank_record['extracted_tracking_number']
 
         # Step 1: Get all potential matches based on date, amount, and type
-        matches = get_transactions_by_date_amount_type(bank_record['bank_id'], bank_date, bank_amount, 'Received Transfer')
+        matches = get_transactions_by_date_amount_type(bank_record['bank_id'], bank_date, bank_amount, TransactionTypes.RECEIVED_TRANSFER)
 
         # Helper function for consistent success handling
         def handle_success(accounting_doc):
