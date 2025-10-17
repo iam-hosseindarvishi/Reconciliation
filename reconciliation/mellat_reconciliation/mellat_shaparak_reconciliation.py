@@ -81,87 +81,104 @@ def _reconcile_in_thread(shaparak_transactions, ui_handler, manual_reconciliatio
 
 def _reconcile_single_shaparak(bank_record, ui_handler, manual_reconciliation_queue):
     """
-    Reconciles a single Shaparak transaction with POS transaction records.
+    مغایرت‌یابی یک تراکنش Shaparak با الگوریتم مشابه POS کشاورزی
     
-    Algorithm:
-    1. Calculate POS date (one day before bank transaction date)
-    2. Search for Mellat POS transactions in pos_transaction table for the calculated date
-    3. Match with accounting transactions based on amount and date
-    4. Mark all related transactions as reconciled
-    
-    Returns True if reconciliation was successful, False otherwise.
+    روند کار:
+    1. کسر یک روز از تاریخ بانک (تاریخ POS)
+    2. دریافت تمام رکوردهای POS بانک ملت (bank_id=1) در آن تاریخ
+    3. برای هر رکورد POS, جستجوی رکورد حسابداری مطابق (مبلغ، تاریخ، شماره پیگیری)
+    4. مغایرت‌یابی رکوردهای POS با حسابداری
+    5. علامت‌گذاری رکورد بانک به عنوان مغایرت‌یابی شده
     """
     try:
-        # Step 1: Calculate POS date (one day before bank date)
+        # مرحله 1: محاسبه تاریخ POS (یک روز قبل از تاریخ بانک)
         bank_date_str = bank_record['transaction_date']
         bank_amount = bank_record['amount']
         bank_id = bank_record['bank_id']
         
         pos_date = calculate_pos_date(bank_date_str)
         if not pos_date:
-            logger.error(f"Could not calculate POS date for bank record {bank_record['id']}")
+            logger.error(f"خطا در محاسبه تاریخ POS برای رکورد بانک {bank_record['id']}")
             fail_reconciliation_result(bank_record['id'], None, None, 'Invalid transaction date', 'Shaparak')
             return False
             
-        logger.info(f"Calculated POS date: {pos_date} for bank date: {bank_date_str}")
+        logger.info(f"تاریخ POS محاسبه شد: {pos_date} (تاریخ بانک: {bank_date_str})")
         
-        # Step 2: Find POS transactions for Mellat bank on the calculated date
-        pos_transactions = get_mellat_pos_transactions_by_date_amount(pos_date, bank_amount, bank_id)
+        # مرحله 2: دریافت تمام تراکنش‌های POS بانک ملت در آن تاریخ
+        pos_transactions = get_mellat_pos_transactions_by_date(pos_date, bank_id)
         
         if not pos_transactions:
-            logger.warning(f"No POS transactions found for Shaparak transaction {bank_record['id']} on {pos_date}")
+            logger.warning(f"هیچ تراکنش POS یافت نشد برای Shaparak {bank_record['id']} در تاریخ {pos_date}")
             fail_reconciliation_result(bank_record['id'], None, None, 'No POS transactions found', 'Shaparak')
             return False
         
-        logger.info(f"Found {len(pos_transactions)} POS transactions for Shaparak reconciliation")
+        logger.info(f"{len(pos_transactions)} تراکنش POS یافت شد برای مغایرت‌یابی Shaparak")
         
-        # Step 3: Find accounting transactions that match the POS date and amount
-        accounting_matches = get_accounting_transactions_for_shaparak(bank_id, pos_date, bank_amount)
+        # مرحله 3 و 4: برای هر رکورد POS, مغایرت‌یابی با حسابداری
+        reconciled_pos_count = 0
+        reconciled_accounting_ids = []
         
-        if not accounting_matches:
-            logger.warning(f"No accounting transactions found for Shaparak transaction {bank_record['id']}")
-            fail_reconciliation_result(bank_record['id'], None, None, 'No accounting transactions found', 'Shaparak')
-            return False
-        
-        # Step 4: Try to find the best match
-        best_accounting_match = None
-        
-        if len(accounting_matches) == 1:
-            best_accounting_match = accounting_matches[0]
-        else:
-            # Multiple matches found - try to find the best one using tracking numbers
-            bank_tracking = bank_record.get('extracted_tracking_number', '')
-            if bank_tracking:
+        for pos_record in pos_transactions:
+            pos_amount = pos_record.get('transaction_amount', 0)
+            pos_tracking = pos_record.get('tracking_number', '')
+            
+            # جستجوی رکورد حسابداری بر اساس مبلغ و تاریخ
+            accounting_matches = get_accounting_transactions_for_pos(bank_id, pos_date, pos_amount)
+            
+            if not accounting_matches:
+                logger.debug(f"رکورد حسابداری برای POS {pos_record['id']} یافت نشد")
+                continue
+            
+            # انتخاب بهترین رکورد حسابداری
+            best_accounting_match = None
+            
+            if len(accounting_matches) == 1:
+                best_accounting_match = accounting_matches[0]
+            else:
+                # چند رکورد یافت شد - مقایسه شماره پیگیری
                 for acc_match in accounting_matches:
                     acc_tracking = acc_match.get('transaction_number', '')
-                    if compare_tracking_numbers(bank_tracking, acc_tracking):
+                    if pos_tracking and acc_tracking and compare_tracking_numbers(pos_tracking, acc_tracking):
                         best_accounting_match = acc_match
                         break
+                
+                # اگر با شماره پیگیری پیدا نشد، اولین رکورد را انتخاب کن
+                if not best_accounting_match:
+                    best_accounting_match = accounting_matches[0]
             
-            # If no tracking match found, use the first one
-            if not best_accounting_match and accounting_matches:
-                best_accounting_match = accounting_matches[0]
+            if best_accounting_match:
+                # مغایرت‌یابی POS با حسابداری
+                if reconcile_pos_with_accounting(pos_record, best_accounting_match):
+                    reconciled_pos_count += 1
+                    reconciled_accounting_ids.append(best_accounting_match['id'])
+                    logger.info(f"POS {pos_record['id']} با حسابداری {best_accounting_match['id']} مغایرت‌یابی شد")
         
-        if not best_accounting_match:
-            logger.warning(f"Could not determine best accounting match for Shaparak transaction {bank_record['id']}")
-            fail_reconciliation_result(bank_record['id'], None, None, 'No suitable accounting match found', 'Shaparak')
-            return False
-        
-        # Step 5: Perform reconciliation
-        result = perform_shaparak_reconciliation(
-            bank_record, best_accounting_match, pos_transactions
-        )
-        
-        if result:
-            logger.info(f"Successfully reconciled Shaparak transaction {bank_record['id']}")
+        # مرحله 5: علامت‌گذاری رکورد بانک به عنوان مغایرت‌یابی شده
+        if reconciled_pos_count > 0:
+            from database.bank_transaction_repository import update_bank_transaction_reconciliation_status
+            update_bank_transaction_reconciliation_status(bank_record['id'], 1)
+            
+            # ثبت نتیجه مغایرت‌یابی
+            description = f"شاپرک - {reconciled_pos_count} تراکنش POS مغایرت‌یابی شد"
+            # ثبت نتیجه برای اولین رکورد حسابداری
+            if reconciled_accounting_ids:
+                success_reconciliation_result(
+                    bank_record['id'],
+                    reconciled_accounting_ids[0],
+                    None,
+                    description,
+                    'Shaparak'
+                )
+            
+            logger.info(f"مغایرت‌یابی Shaparak موفق: بانک={bank_record['id']}, POS={reconciled_pos_count}")
             return True
         else:
-            logger.error(f"Failed to perform reconciliation for Shaparak transaction {bank_record['id']}")
-            fail_reconciliation_result(bank_record['id'], None, None, 'Reconciliation operation failed', 'Shaparak')
+            logger.warning(f"هیچ رکورد POS مغایرت‌یابی نشد برای Shaparak {bank_record['id']}")
+            fail_reconciliation_result(bank_record['id'], None, None, 'No POS reconciled', 'Shaparak')
             return False
             
     except Exception as e:
-        logger.error(f"Error reconciling Shaparak transaction {bank_record['id']}: {e}", exc_info=True)
+        logger.error(f"خطا در مغایرت‌یابی Shaparak {bank_record['id']}: {e}", exc_info=True)
         fail_reconciliation_result(bank_record['id'], None, None, f"Processing error: {str(e)}", 'Shaparak')
         return False
 
@@ -187,153 +204,112 @@ def calculate_pos_date(bank_date_str):
         return None
 
 
-def get_mellat_pos_transactions_by_date_amount(pos_date, amount, bank_id):
+def get_mellat_pos_transactions_by_date(pos_date, bank_id):
     """
-    Get POS transactions from pos_transaction table for Mellat bank on a specific date and amount
+    دریافت تمام تراکنش‌های POS بانک ملت در تاریخ مشخص
     
     Args:
-        pos_date: Date to search for POS transactions
-        amount: Transaction amount
-        bank_id: Bank ID (should be Mellat - ID 1)
+        pos_date: تاریخ مورد نظر
+        bank_id: شناسه بانک (باید ملت باشد - ID=1)
         
     Returns:
-        list: List of matching POS transactions
+        list: لیست تراکنش‌های POS مغایرت‌یابی نشده
     """
     conn = None
     try:
         conn = create_connection()
         cursor = conn.cursor()
         
-        # Search for POS transactions with matching amount and date for Mellat bank
+        # جستجوی تمام تراکنش‌های POS بانک ملت در آن تاریخ
         cursor.execute("""
             SELECT * FROM PosTransactions 
             WHERE transaction_date = ? 
-            AND ABS(transaction_amount) = ?
             AND bank_id = ?
             AND is_reconciled = 0
-        """, (pos_date, abs(float(amount)), bank_id))
+        """, (pos_date, bank_id))
         
         columns = [description[0] for description in cursor.description]
         result = [dict(zip(columns, row)) for row in cursor.fetchall()]
         
-        logger.info(f"Found {len(result)} POS transactions for date {pos_date}, amount {amount}, bank {bank_id}")
+        logger.info(f"{len(result)} تراکنش POS یافت شد برای تاریخ {pos_date} و بانک {bank_id}")
         return result
         
     except Exception as e:
-        logger.error(f"Error getting POS transactions: {str(e)}")
+        logger.error(f"خطا در دریافت تراکنش‌های POS: {str(e)}")
         return []
     finally:
         if conn:
             conn.close()
 
 
-def get_accounting_transactions_for_shaparak(bank_id, transaction_date, amount):
+def get_accounting_transactions_for_pos(bank_id, transaction_date, amount):
     """
-    Get accounting transactions that match the Shaparak criteria
+    جستجوی رکوردهای حسابداری برای POS
     
     Args:
-        bank_id: Bank ID
-        transaction_date: Transaction date
-        amount: Transaction amount
+        bank_id: شناسه بانک
+        transaction_date: تاریخ تراکنش
+        amount: مبلغ تراکنش
         
     Returns:
-        list: List of matching accounting transactions
+        list: لیست رکوردهای حسابداری مغایرت‌یابی نشده
     """
     conn = None
     try:
         conn = create_connection()
         cursor = conn.cursor()
         
-        # Search for accounting transactions with matching criteria
-        # Using the same pattern as the agricultural bank reconciliation
+        # جستجوی رکوردهای حسابداری POS با مبلغ و تاریخ مطابق
         cursor.execute("""
             SELECT * FROM AccountingTransactions 
             WHERE bank_id = ? 
             AND due_date = ?
             AND ABS(transaction_amount) = ?
-            AND (transaction_type = 'Pos' OR transaction_type = 'Pos / Received Transfer')
+            AND (transaction_type = 'Pos' OR transaction_type = 'Pos / Received Transfer' 
+                 OR transaction_type = 'Received_Transfer')
             AND is_reconciled = 0
         """, (bank_id, transaction_date, abs(float(amount))))
         
         columns = [description[0] for description in cursor.description]
         result = [dict(zip(columns, row)) for row in cursor.fetchall()]
         
-        logger.info(f"Found {len(result)} accounting transactions for Shaparak reconciliation")
+        logger.info(f"{len(result)} رکورد حسابداری POS یافت شد")
         return result
         
     except Exception as e:
-        logger.error(f"Error getting accounting transactions for Shaparak: {str(e)}")
+        logger.error(f"خطا در جستجوی حسابداری POS: {str(e)}")
         return []
     finally:
         if conn:
             conn.close()
 
 
-def perform_shaparak_reconciliation(bank_record, accounting_record, pos_transactions):
+def reconcile_pos_with_accounting(pos_record, accounting_record):
     """
-    Perform the actual reconciliation between bank, accounting, and POS records
+    مغایرت‌یابی یک رکورد POS با رکورد حسابداری
     
     Args:
-        bank_record: Bank transaction record
-        accounting_record: Accounting transaction record  
-        pos_transactions: List of POS transactions
+        pos_record: رکورد POS
+        accounting_record: رکورد حسابداری
         
     Returns:
-        bool: True if successful
+        bool: True اگر موفق باشد
     """
     try:
-        # Import required functions
-        from database.bank_transaction_repository import update_bank_transaction_reconciliation_status
         from database.repositories.accounting.transaction_crud import update_accounting_transaction_reconciliation_status
         from database.pos_transactions_repository import update_reconciliation_status
         
-        # Mark bank transaction as reconciled
-        update_bank_transaction_reconciliation_status(bank_record['id'], True)
+        # علامت‌گذاری رکورد حسابداری به عنوان مغایرت‌یابی شده
+        update_accounting_transaction_reconciliation_status(accounting_record['id'], 1)
         
-        # Mark accounting transaction as reconciled
-        update_accounting_transaction_reconciliation_status(accounting_record['id'], True)
+        # علامت‌گذاری رکورد POS به عنوان مغایرت‌یابی شده
+        update_reconciliation_status(pos_record['id'], 1)
         
-        # Mark all related POS transactions as reconciled
-        for pos_transaction in pos_transactions:
-            update_reconciliation_status(pos_transaction['id'], True)
-            logger.info(f"POS transaction {pos_transaction['id']} marked as reconciled")
-        
-        # Record the reconciliation result
-        pos_id = pos_transactions[0]['id'] if pos_transactions else None
-        description = f"شاپرک - مغایرت‌یابی با {len(pos_transactions)} تراکنش پوز - مبلغ: {bank_record['amount']}"
-        
-        success_reconciliation_result(
-            bank_record['id'],
-            accounting_record['id'],
-            pos_id,
-            description,
-            'Shaparak'
-        )
-        
-        logger.info(f"Shaparak reconciliation successful: Bank ID={bank_record['id']}, " +
-                   f"Acc ID={accounting_record['id']}, POS count={len(pos_transactions)}")
+        logger.info(f"POS {pos_record['id']} و حسابداری {accounting_record['id']} مغایرت‌یابی شدند")
         return True
         
     except Exception as e:
-        logger.error(f"Error in Shaparak reconciliation operation: {str(e)}")
+        logger.error(f"خطا در مغایرت‌یابی POS با حسابداری: {str(e)}")
         return False
 
 
-def mark_related_pos_transactions_reconciled(pos_transactions):
-    """
-    Mark all related POS transactions as reconciled
-    
-    Args:
-        pos_transactions: List of POS transactions to mark as reconciled
-    """
-    try:
-        from database.pos_transactions_repository import update_reconciliation_status
-        
-        for pos_transaction in pos_transactions:
-            update_reconciliation_status(pos_transaction['id'], True)
-            logger.info(f"POS transaction {pos_transaction['id']} marked as reconciled")
-        
-        logger.info(f"Marked {len(pos_transactions)} POS transactions as reconciled")
-        
-    except Exception as e:
-        logger.error(f"Error marking POS transactions as reconciled: {str(e)}")

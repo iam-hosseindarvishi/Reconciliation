@@ -228,9 +228,9 @@ class ManualReconciliationTab(ttk.Frame):
         accounting_scrollbar_x = ttk.Scrollbar(accounting_tree_frame, orient=tk.HORIZONTAL)
         accounting_scrollbar_x.pack(side=tk.BOTTOM, fill=tk.X)
         
-        # ستون‌های Treeview حسابداری
+        # ستون‌های Treeview حسابداری (با افزودن ستون اختلاف)
         self.accounting_tree = ttk.Treeview(accounting_tree_frame, 
-                                          columns=("id", "tracking_number", "date", "amount", "description", "type", "bank", "system"),
+                                          columns=("id", "tracking_number", "date", "amount", "difference", "description", "type", "bank", "system"),
                                           show="headings",
                                           yscrollcommand=accounting_scrollbar_y.set,
                                           xscrollcommand=accounting_scrollbar_x.set)
@@ -244,6 +244,7 @@ class ManualReconciliationTab(ttk.Frame):
         self.accounting_tree.heading("tracking_number", text="شماره پیگیری")
         self.accounting_tree.heading("date", text="تاریخ")
         self.accounting_tree.heading("amount", text="مبلغ")
+        self.accounting_tree.heading("difference", text="اختلاف (کارمزد)")
         self.accounting_tree.heading("description", text="توضیحات")
         self.accounting_tree.heading("type", text="نوع تراکنش")
         self.accounting_tree.heading("bank", text="بانک")
@@ -254,7 +255,8 @@ class ManualReconciliationTab(ttk.Frame):
         self.accounting_tree.column("tracking_number", width=120, anchor=tk.CENTER)
         self.accounting_tree.column("date", width=100, anchor=tk.CENTER)
         self.accounting_tree.column("amount", width=120, anchor=tk.CENTER)
-        self.accounting_tree.column("description", width=200)
+        self.accounting_tree.column("difference", width=100, anchor=tk.CENTER)
+        self.accounting_tree.column("description", width=180)
         self.accounting_tree.column("type", width=100, anchor=tk.CENTER)
         self.accounting_tree.column("bank", width=100, anchor=tk.CENTER)
         self.accounting_tree.column("system", width=100, anchor=tk.CENTER)
@@ -513,31 +515,64 @@ class ManualReconciliationTab(ttk.Frame):
             logging.info(f"پارامترهای جستجو: تاریخ={search_date}, مبلغ={bank_amount}, نوع={transaction_type}")
             logging.info(f"رکورد بانک انتخاب شده: تاریخ={bank_date}, نوع تراکنش بانک={bank_transaction_type}")
             
-            # جستجو با تابع advanced_search موجود
-            self.accounting_records = get_transactions_advanced_search(
-                bank_id=None,  # جستجو در تمام بانک‌ها
-                start_date=search_date,
-                end_date=search_date,
-                transaction_type=transaction_type,
-                min_amount=bank_amount,
-                max_amount=bank_amount,
-                is_reconciled=False
-            )
+            # برای تراکنش‌های پرداختی، بدون فیلتر مبلغ جستجو می‌کنیم (چون کارمزد دارند)
+            is_paid_transaction = transaction_type in [TransactionTypes.PAID_TRANSFER, TransactionTypes.PAID_CHECK]
+            
+            if is_paid_transaction:
+                # برای تراکنش‌های پرداختی: تمام تراکنش‌های هم تاریخ و هم نوع
+                logging.info("تراکنش پرداختی: جستجو بدون فیلتر مبلغ (به دلیل کارمزد)")
+                self.accounting_records = get_transactions_advanced_search(
+                    bank_id=None,  # جستجو در تمام بانک‌ها
+                    start_date=search_date,
+                    end_date=search_date,
+                    transaction_type=transaction_type,
+                    # بدون فیلتر مبلغ برای تراکنش‌های پرداختی
+                    is_reconciled=False
+                )
+            else:
+                # برای سایر تراکنش‌ها: جستجو با مبلغ دقیق
+                self.accounting_records = get_transactions_advanced_search(
+                    bank_id=None,  # جستجو در تمام بانک‌ها
+                    start_date=search_date,
+                    end_date=search_date,
+                    transaction_type=transaction_type,
+                    min_amount=bank_amount,
+                    max_amount=bank_amount,
+                    is_reconciled=False
+                )
             
             logging.info(f"تعداد رکوردهای یافت شده: {len(self.accounting_records)}")
+            
+            # برای تراکنش‌های پرداختی، مرتب سازی بر اساس نزدیکی مبلغ
+            if is_paid_transaction and self.accounting_records:
+                # مرتب سازی بر اساس نزدیک‌ترین مبلغ به مبلغ بانک
+                self.accounting_records.sort(
+                    key=lambda r: abs(float(r.get('transaction_amount', 0)) - float(bank_amount))
+                )
+                logging.info("رکوردها بر اساس نزدیکی مبلغ مرتب شدند")
             
             # نمایش رکوردها در Treeview (به جز رکوردهای کارمزد)
             for record in self.accounting_records:
                 # فیلتر کردن رکوردهای کارمزد
-                transaction_type = record.get('transaction_type', '')
-                if transaction_type == TransactionTypes.BANK_FEES or 'کارمزد' in record.get('description', ''):
+                record_type = record.get('transaction_type', '')
+                if record_type == TransactionTypes.BANK_FEES or 'کارمزد' in record.get('description', ''):
                     continue  # پرش از نمایش رکوردهای کارمزد
                 
                 # تبدیل تاریخ میلادی به شمسی
                 shamsi_date = gregorian_to_persian(record.get('due_date', record.get('transaction_date', '')))
                 
                 # فرمت‌بندی مبلغ
-                amount = f"{record.get('transaction_amount', 0):,}"
+                record_amount = float(record.get('transaction_amount', 0))
+                amount = f"{record_amount:,.0f}"
+                
+                # محاسبه اختلاف مبلغ (کارمزد احتمالی) برای تراکنش‌های پرداختی
+                difference_text = ""
+                if is_paid_transaction:
+                    difference = float(bank_amount) - record_amount
+                    if abs(difference) > 0.01:  # فقط اگر اختلاف معنادار باشد
+                        difference_text = f"{difference:,.0f}"
+                    else:
+                        difference_text = "0"
                 
                 # نوع تراکنش
                 type_text = record.get('transaction_type', '')
@@ -554,6 +589,7 @@ class ManualReconciliationTab(ttk.Frame):
                     record.get('transaction_number', ''),
                     shamsi_date,
                     amount,
+                    difference_text,
                     record.get('description', ''),
                     type_text,
                     bank_name,
