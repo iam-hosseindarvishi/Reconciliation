@@ -119,7 +119,9 @@ def determine_transaction_type(trantitle, trandesc, depositorname, bed, bes, ful
     # این بخش باید اولین بررسی باشد تا کارمزدها به عنوان انتقال اشتباه گرفته نشوند
     if "كارمزد" in trantitle or "کارمزد" in trantitle:
         return KESHAVARZI_TRANSACTION_TYPES['BANK_FEES']
-    
+    # واریزی از چک
+    if trantitle=='واريز انتقالي با چ' and ('چک' in trandesc):
+        return KESHAVARZI_TRANSACTION_TYPES['RECEIVED_CHECK']
     if trantitle == "برداشت انتقالي" and "کارمزد ثبت چک" in trandesc:
         return KESHAVARZI_TRANSACTION_TYPES['BANK_FEES']
     
