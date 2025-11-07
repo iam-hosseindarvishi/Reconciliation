@@ -32,7 +32,7 @@ def reconcile_keshavarzi_transfers(bank_transactions, ui_handler=None):
         for i, bank_transaction in enumerate(bank_transactions):
             try:
                 # تعیین نوع انتقال (دریافتی یا پرداختی)
-                transaction_type = determine_transfer_type(bank_transaction)
+                transaction_type = bank_transaction.get('transaction_type', '').strip()
                 
                 if not transaction_type:
                     logger.warning(f"نوع تراکنش انتقال مشخص نیست: {bank_transaction.get('id')}")
@@ -67,19 +67,19 @@ def reconcile_keshavarzi_transfers(bank_transactions, ui_handler=None):
             ui_handler.log_error(f"خطا در فرآیند مغایرت‌گیری انتقال‌ها: {str(e)}")
         return 0
 
-def determine_transfer_type(bank_transaction):
-    """
-    تعیین نوع انتقال (دریافتی یا پرداختی) بر اساس اطلاعات تراکنش بانک
-    """
-    transaction_type = bank_transaction.get('transaction_type', '').strip()
+# def determine_transfer_type(bank_transaction):
+#     """
+#     تعیین نوع انتقال (دریافتی یا پرداختی) بر اساس اطلاعات تراکنش بانک
+#     """
+#     transaction_type = bank_transaction.get('transaction_type', '').strip()
     
-    # تبدیل نوع تراکنش بانک به نوع حسابداری
-    if 'Received_Transfer' in transaction_type or 'دریافتی' in transaction_type:
-        return 'Received Transfer'
-    elif 'Paid_Transfer' in transaction_type or 'پرداختی' in transaction_type:
-        return 'Paid Transfer'
+#     # تبدیل نوع تراکنش بانک به نوع حسابداری
+#     if 'Received_Transfer' in transaction_type or 'دریافتی' in transaction_type:
+#         return 'Received Transfer'
+#     elif 'Paid_Transfer' in transaction_type or 'پرداختی' in transaction_type:
+#         return 'Paid Transfer'
     
-    return None
+#     return None
 
 def reconcile_single_transfer(bank_transaction, transfer_type):
     """

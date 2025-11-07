@@ -35,7 +35,7 @@ def reconcile_keshavarzi_checks(bank_transactions, ui_handler=None):
         for i, bank_transaction in enumerate(bank_transactions):
             try:
                 # تعیین نوع چک (دریافتی یا پرداختی)
-                transaction_type = determine_check_type(bank_transaction)
+                transaction_type = bank_transaction.get('transaction_type', '').strip()
                 
                 if not transaction_type:
                     logger.warning(f"نوع تراکنش چک مشخص نیست: {bank_transaction.get('id')}")
@@ -70,19 +70,19 @@ def reconcile_keshavarzi_checks(bank_transactions, ui_handler=None):
             ui_handler.log_error(f"خطا در فرآیند مغایرت‌گیری چک‌ها: {str(e)}")
         return 0
 
-def determine_check_type(bank_transaction):
-    """
-    تعیین نوع چک (دریافتی یا پرداختی) بر اساس اطلاعات تراکنش بانک
-    """
-    transaction_type = bank_transaction.get('transaction_type', '').strip()
+# def determine_check_type(bank_transaction):
+#     """
+#     تعیین نوع چک (دریافتی یا پرداختی) بر اساس اطلاعات تراکنش بانک
+#     """
+#     transaction_type = bank_transaction.get('transaction_type', '').strip()
     
-    # تبدیل نوع تراکنش بانک به نوع حسابداری
-    if 'Received_Check' in transaction_type or 'دریافتی' in transaction_type:
-        return 'Received_Check'
-    elif 'Paid_Check' in transaction_type or 'پرداختی' in transaction_type:
-        return 'Paid_Check'
+#     # تبدیل نوع تراکنش بانک به نوع حسابداری
+#     if 'Received_Check' in transaction_type or 'دریافتی' in transaction_type:
+#         return 'Received_Check'
+#     elif 'Paid_Check' in transaction_type or 'پرداختی' in transaction_type:
+#         return 'Paid_Check'
     
-    return None
+#     return None
 
 def reconcile_single_check(bank_transaction, check_type):
     """
@@ -145,7 +145,7 @@ def get_transactions_by_collection_date_and_amount(bank_id, collection_date, amo
             SELECT * FROM AccountingTransactions 
             WHERE bank_id = ? 
             AND collection_date = ?
-            AND ABS(transaction_amount) = ?
+            AND transaction_amount = ?
             AND transaction_type = ?
             AND is_reconciled = 0
         """, (bank_id, collection_date, abs_amount, transaction_type))
