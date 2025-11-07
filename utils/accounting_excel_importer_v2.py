@@ -32,7 +32,7 @@ def import_accounting_excel_v2(accounting_file_path, bank_id):
         try:
             # تعیین نوع تراکنش بر اساس ستون "نوع"
             type_name=str(row.get('نوع', '')).strip()
-            transaction_type = TRANSACTION_TYPE_MAP.get(str(row.get(type_name)).strip(), None)
+            transaction_type = TRANSACTION_TYPE_MAP.get(type_name,None)
             if not transaction_type:
                transaction_type=TransactionTypes.UNKNOWN
             
