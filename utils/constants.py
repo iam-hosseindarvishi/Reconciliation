@@ -37,6 +37,8 @@ class TransactionTypes:
     PAID_TRANSFER = 'Paid_Transfer'
     RECEIVED_TRANSFER = 'Received_Transfer'
     BANK_FEES = 'Bank_Fees'
+    POS_TRANSFER_RECEIVED = 'Pos_Transfer_Received'
+    POS_TRANSFER_PAID = 'Pos_Transfer_Paid'
     POS = 'Pos'  # برای سیستم حسابداری
     SHAPARAK = 'Shaparak'  # برای تراکنش‌های شاپرک
     UNKNOWN = 'Unknown'
@@ -47,6 +49,9 @@ class TransactionTypes:
         RECEIVED_CHECK,
         PAID_CHECK, 
         PAID_TRANSFER,
+        POS_TRANSFER_RECEIVED,
+        POS_TRANSFER_PAID,
+
         RECEIVED_TRANSFER,
         BANK_FEES,
         POS,
@@ -65,7 +70,13 @@ class TransactionTypes:
         'دریافتی': RECEIVED_TRANSFER,
         'پرداختی': PAID_TRANSFER,
         'پوز': POS,
-        'چک': RECEIVED_CHECK
+        'چک': RECEIVED_CHECK,
+        'شاپرک': SHAPARAK,
+        'اسناد دريافتني/تجاري': RECEIVED_CHECK,
+        'اسناد پرداختني تجاري':PAID_CHECK,
+        'پوز /حواله/فيش و دريافتني تجاري':POS_TRANSFER_RECEIVED,
+        'پوز /حواله/فيش و پرداختني تجاري':POS_TRANSFER_PAID,
+        'واريزي به بانک/صندوق':POS_TRANSFER_RECEIVED
     }
     
     # نقشه تبدیل انگلیسی به فارسی

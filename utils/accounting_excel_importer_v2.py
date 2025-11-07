@@ -3,7 +3,8 @@ from database.repositories.accounting import create_accounting_transaction
 from utils.helpers import persian_to_gregorian, normalize_shamsi_date
 from utils.logger_config import setup_logger
 import re
-
+from utils.constants import TRANSACTION_TYPE_MAP
+from utils.constants import TransactionTypes
 # راه‌اندازی لاگر
 
 
@@ -31,10 +32,9 @@ def import_accounting_excel_v2(accounting_file_path, bank_id):
         try:
             # تعیین نوع تراکنش بر اساس ستون "نوع"
             type_name=str(row.get('نوع', '')).strip()
-            transaction_type = determine_transaction_type(type_name)
+            transaction_type = TRANSACTION_TYPE_MAP.get(str(row.get(type_name)).strip(), None)
             if not transaction_type:
-                logger.warning(f"نوع تراکنش نامعتبر در سطر {idx+1}: {row.get('نوع', '')}")
-                continue  # نوع تراکنش نامعتبر، رد شود
+               transaction_type=TransactionTypes.UNKNOWN
             
             # استخراج مبلغ از ستون بدهکار یا بستانکار
             amount = 0
@@ -75,33 +75,28 @@ def import_accounting_excel_v2(accounting_file_path, bank_id):
     
     return report
 
-def determine_transaction_type(type_str):
-    """
-    تعیین نوع تراکنش بر اساس ستون "نوع"
-    """
-    # type_str = type_str
+# def determine_transaction_type(type_str):
+#     """
+#     تعیین نوع تراکنش بر اساس ستون "نوع"
+#     """
+#     # type_str = type_str
     
-    # نگاشت انواع تراکنش‌ها
-    transaction_type_map = {
-        'پوز /حواله/فيش و دريافتني تجاري': 'Pos / Received Transfer',
-        # 'حواله دريافتني تجاري': 'Received Transfer',
-        # 'فيش دريافتني تجاري': 'Received Transfer',
-        # 'دريافتني تجاري': 'Received Transfer',
-        'پوز /حواله/فيش و پرداختني تجاري': 'Pos / Paid Transfer',
-        # 'حواله پرداختني تجاري': 'Paid Transfer',
-        # 'فيش پرداختني تجاري': 'Paid Transfer',
-        # 'پرداختني تجاري': 'Paid Transfer',
-        'اسناد دریافتنی/تجاری': 'Received Check',
-        'اسناد پرداختی تجاری': 'Paid Check'
-    }
+#     # نگاشت انواع تراکنش‌ها
+#     transaction_type_map = {
+#         'پوز /حواله/فيش و دريافتني تجاري': 'Pos / Received Transfer',
+      
+#         'پوز /حواله/فيش و پرداختني تجاري': 'Pos / Paid Transfer',
+#         'اسناد دريافتني/تجاري': 'Received Check',
+#         'اسناد پرداختی تجاری': 'Paid Check'
+#     }
     
-    # بررسی نوع تراکنش
-    for key, value in transaction_type_map.items():
-        if key in type_str:
-            return value
+    # # بررسی نوع تراکنش
+    # for key, value in transaction_type_map.items():
+    #     if key in type_str:
+    #         return value
     
-    logger.warning(f"نوع تراکنش ناشناخته: {type_str}")
-    return None
+    # logger.warning(f"نوع تراکنش ناشناخته: {type_str}")
+    # return None
 
 def extract_card_number(description):
     """

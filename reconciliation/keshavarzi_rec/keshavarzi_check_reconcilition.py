@@ -78,9 +78,9 @@ def determine_check_type(bank_transaction):
     
     # تبدیل نوع تراکنش بانک به نوع حسابداری
     if 'Received_Check' in transaction_type or 'دریافتی' in transaction_type:
-        return 'Received Check'
+        return 'Received_Check'
     elif 'Paid_Check' in transaction_type or 'پرداختی' in transaction_type:
-        return 'Paid Check'
+        return 'Paid_Check'
     
     return None
 
