@@ -2,7 +2,6 @@
 فایل مغایرت‌گیری چک‌های بانک کشاورزی
 شامل چک‌های دریافتی و پرداختی
 """
-import logging
 from datetime import datetime, timedelta
 from database.accounting_repository import get_transactions_advanced_search
 from database.bank_transaction_repository import update_bank_transaction_reconciliation_status
@@ -11,10 +10,11 @@ from database.repositories.accounting import (
     get_transactions_by_date_less_than_amount_type
 )
 from database.repositories.reconciliation_repository import ReconciliationRepository, ReconciliationHelpers
-from utils.logger_config import setup_logger
-
-# راه‌اندازی لاگر
-logger = setup_logger('reconciliation.keshavarzi_check')
+from utils.unified_logger import (
+    log_info, log_warning, log_error, 
+    log_operation_start, log_operation_end,
+    log_reconciliation_summary
+)
 
 def reconcile_keshavarzi_checks(bank_transactions, ui_handler=None):
     """
@@ -28,7 +28,7 @@ def reconcile_keshavarzi_checks(bank_transactions, ui_handler=None):
         reconciled_count = 0
         total_count = len(bank_transactions)
         
-        logger.info(f"شروع مغایرت‌گیری {total_count} تراکنش چک کشاورزی")
+        log_operation_start("Keshavarzi Check Reconciliation", f"تعداد کل تراکنش‌ها: {total_count}")
         if ui_handler:
             ui_handler.log_info(f"شروع مغایرت‌گیری {total_count} تراکنش چک کشاورزی")
         
@@ -38,7 +38,7 @@ def reconcile_keshavarzi_checks(bank_transactions, ui_handler=None):
                 transaction_type = bank_transaction.get('transaction_type', '').strip()
                 
                 if not transaction_type:
-                    logger.warning(f"نوع تراکنش چک مشخص نیست: {bank_transaction.get('id')}")
+                    log_warning(f"نوع تراکنش چک مشخص نیست: {bank_transaction.get('id')}")
                     continue
                 
                 # مغایرت‌گیری بر اساس نوع
@@ -46,7 +46,7 @@ def reconcile_keshavarzi_checks(bank_transactions, ui_handler=None):
                 
                 if result:
                     reconciled_count += 1
-                    logger.info(f"چک با شناسه {bank_transaction.get('id')} مغایرت‌گیری شد")
+                    log_info(f"چک با شناسه {bank_transaction.get('id')} مغایرت‌گیری شد")
                 
                 # به‌روزرسانی پیشرفت
                 if ui_handler:
@@ -55,17 +55,19 @@ def reconcile_keshavarzi_checks(bank_transactions, ui_handler=None):
                     ui_handler.update_detailed_status(f"مغایرت‌گیری چک {i + 1} از {total_count}")
             
             except Exception as e:
-                logger.error(f"خطا در مغایرت‌گیری چک {bank_transaction.get('id')}: {str(e)}")
+                log_error(f"خطا در مغایرت‌گیری چک {bank_transaction.get('id')}: {str(e)}")
                 continue
         
-        logger.info(f"مغایرت‌گیری چک‌ها تکمیل شد. {reconciled_count} از {total_count} مغایرت‌گیری شدند")
+        log_operation_end("Keshavarzi Check Reconciliation", True, f"تطبیق یافته: {reconciled_count} از {total_count}")
+        log_reconciliation_summary("کشاورزی", "چک", total_count, reconciled_count, total_count - reconciled_count)
         if ui_handler:
             ui_handler.log_info(f"مغایرت‌گیری چک‌ها تکمیل شد. {reconciled_count} از {total_count} مغایرت‌گیری شدند")
         
         return reconciled_count
         
     except Exception as e:
-        logger.error(f"خطا در فرآیند مغایرت‌گیری چک‌ها: {str(e)}")
+        log_operation_end("Keshavarzi Check Reconciliation", False, str(e))
+        log_error(f"خطا در فرآیند مغایرت‌گیری چک‌ها: {str(e)}")
         if ui_handler:
             ui_handler.log_error(f"خطا در فرآیند مغایرت‌گیری چک‌ها: {str(e)}")
         return 0
@@ -106,7 +108,7 @@ def reconcile_single_check(bank_transaction, check_type):
         )
         
         if not accounting_transactions:
-            logger.warning(f"هیچ تراکنش حسابداری یافت نشد برای چک {bank_transaction.get('id')}")
+            log_warning(f"هیچ تراکنش حسابداری یافت نشد برای چک {bank_transaction.get('id')}")
             return False
         
         # اگر فقط یک رکورد برگشت
@@ -121,11 +123,11 @@ def reconcile_single_check(bank_transaction, check_type):
             if matched_transaction:
                 return perform_reconciliation(bank_transaction, matched_transaction, None, check_type)
         
-        logger.warning(f"نتوانستیم تراکنش مناسب برای چک {bank_transaction.get('id')} پیدا کنیم")
+        log_warning(f"نتوانستیم تراکنش مناسب برای چک {bank_transaction.get('id')} پیدا کنیم")
         return False
         
     except Exception as e:
-        logger.error(f"خطا در مغایرت‌گیری چک منفرد: {str(e)}")
+        log_error(f"خطا در مغایرت‌گیری چک منفرد: {str(e)}")
         return False
 
 # توابع get_transactions_by_collection_date_and_amount، verify_tracking_number و find_matching_by_tracking_number به ReconciliationRepository منتقل شدند
