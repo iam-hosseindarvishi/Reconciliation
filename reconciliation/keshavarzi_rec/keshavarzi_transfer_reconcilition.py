@@ -2,16 +2,16 @@
 فایل مغایرت‌گیری انتقال‌های بانک کشاورزی
 شامل انتقال‌های دریافتی و پرداختی
 """
+import logging
 from datetime import datetime, timedelta
+from database.init_db import create_connection
 from database.repositories.accounting import get_transactions_by_date_amount_type
 from database.bank_transaction_repository import update_bank_transaction_reconciliation_status
 from database.reconciliation_results_repository import create_reconciliation_result
-from database.repositories.reconciliation_repository import ReconciliationRepository, ReconciliationHelpers
-from utils.unified_logger import (
-    log_info, log_warning, log_error, 
-    log_operation_start, log_operation_end,
-    log_reconciliation_summary
-)
+from utils.logger_config import setup_logger
+
+# راه‌اندازی لاگر
+logger = setup_logger('reconciliation.keshavarzi_transfer')
 
 def reconcile_keshavarzi_transfers(bank_transactions, ui_handler=None):
     """
@@ -25,7 +25,7 @@ def reconcile_keshavarzi_transfers(bank_transactions, ui_handler=None):
         reconciled_count = 0
         total_count = len(bank_transactions)
         
-        log_operation_start("Keshavarzi Transfer Reconciliation", f"تعداد کل تراکنش‌ها: {total_count}")
+        logger.info(f"شروع مغایرت‌گیری {total_count} تراکنش انتقال کشاورزی")
         if ui_handler:
             ui_handler.log_info(f"شروع مغایرت‌گیری {total_count} تراکنش انتقال کشاورزی")
         
@@ -35,7 +35,7 @@ def reconcile_keshavarzi_transfers(bank_transactions, ui_handler=None):
                 transaction_type = bank_transaction.get('transaction_type', '').strip()
                 
                 if not transaction_type:
-                    log_warning(f"نوع تراکنش انتقال مشخص نیست: {bank_transaction.get('id')}")
+                    logger.warning(f"نوع تراکنش انتقال مشخص نیست: {bank_transaction.get('id')}")
                     continue
                 
                 # مغایرت‌گیری بر اساس نوع
@@ -43,7 +43,7 @@ def reconcile_keshavarzi_transfers(bank_transactions, ui_handler=None):
                 
                 if result:
                     reconciled_count += 1
-                    log_info(f"انتقال با شناسه {bank_transaction.get('id')} مغایرت‌گیری شد")
+                    logger.info(f"انتقال با شناسه {bank_transaction.get('id')} مغایرت‌گیری شد")
                 
                 # به‌روزرسانی پیشرفت
                 if ui_handler:
@@ -52,19 +52,17 @@ def reconcile_keshavarzi_transfers(bank_transactions, ui_handler=None):
                     ui_handler.update_detailed_status(f"مغایرت‌گیری انتقال {i + 1} از {total_count}")
             
             except Exception as e:
-                log_error(f"خطا در مغایرت‌گیری انتقال {bank_transaction.get('id')}: {str(e)}")
+                logger.error(f"خطا در مغایرت‌گیری انتقال {bank_transaction.get('id')}: {str(e)}")
                 continue
         
-        log_operation_end("Keshavarzi Transfer Reconciliation", True, f"تطبیق یافته: {reconciled_count} از {total_count}")
-        log_reconciliation_summary("کشاورزی", "انتقال", total_count, reconciled_count, total_count - reconciled_count)
+        logger.info(f"مغایرت‌گیری انتقال‌ها تکمیل شد. {reconciled_count} از {total_count} مغایرت‌گیری شدند")
         if ui_handler:
             ui_handler.log_info(f"مغایرت‌گیری انتقال‌ها تکمیل شد. {reconciled_count} از {total_count} مغایرت‌گیری شدند")
         
         return reconciled_count
         
     except Exception as e:
-        log_operation_end("Keshavarzi Transfer Reconciliation", False, str(e))
-        log_error(f"خطا در فرآیند مغایرت‌گیری انتقال‌ها: {str(e)}")
+        logger.error(f"خطا در فرآیند مغایرت‌گیری انتقال‌ها: {str(e)}")
         if ui_handler:
             ui_handler.log_error(f"خطا در فرآیند مغایرت‌گیری انتقال‌ها: {str(e)}")
         return 0
@@ -100,12 +98,12 @@ def reconcile_single_transfer(bank_transaction, transfer_type):
         bank_date = bank_transaction.get('transaction_date')
         
         # جستجوی تراکنش‌های حسابداری بر اساس due_date و مبلغ
-        accounting_transactions = ReconciliationRepository.get_accounting_by_date_amount_type_abs(
+        accounting_transactions = get_transactions_by_date_amount_type_abs(
             bank_id, bank_date, bank_amount, transfer_type
         )
         
         if not accounting_transactions:
-            log_warning(f"هیچ تراکنش حسابداری یافت نشد برای انتقال {bank_transaction.get('id')}")
+            logger.warning(f"هیچ تراکنش حسابداری یافت نشد برای انتقال {bank_transaction.get('id')}")
             return False
         
         # اگر فقط یک رکورد برگشت
@@ -118,11 +116,11 @@ def reconcile_single_transfer(bank_transaction, transfer_type):
             if matched_transaction:
                 return perform_reconciliation(bank_transaction, matched_transaction, None, transfer_type)
         
-        log_warning(f"نتوانستیم تراکنش مناسب برای انتقال {bank_transaction.get('id')} پیدا کنیم")
+        logger.warning(f"نتوانستیم تراکنش مناسب برای انتقال {bank_transaction.get('id')} پیدا کنیم")
         return False
         
     except Exception as e:
-        log_error(f"خطا در مغایرت‌گیری انتقال منفرد: {str(e)}")
+        logger.error(f"خطا در مغایرت‌گیری انتقال منفرد: {str(e)}")
         return False
 
 def find_best_match_for_transfer(bank_transaction, accounting_transactions):
@@ -136,16 +134,16 @@ def find_best_match_for_transfer(bank_transaction, accounting_transactions):
     # مرحله 1: جستجو بر اساس شماره پیگیری
     tracking_match = find_matching_by_tracking_number(bank_transaction, accounting_transactions)
     if tracking_match:
-        log_info("تطبیق بر اساس شماره پیگیری یافت شد")
+        logger.info("تطبیق بر اساس شماره پیگیری یافت شد")
         return tracking_match
     
     # مرحله 2: جستجو بر اساس شماره کارت
     card_match = find_matching_by_card_number(bank_transaction, accounting_transactions)
     if card_match:
-        log_info("تطبیق بر اساس شماره کارت یافت شد")
+        logger.info("تطبیق بر اساس شماره کارت یافت شد")
         return card_match
     
-    log_warning("هیچ تطبیق مناسبی یافت نشد")
+    logger.warning("هیچ تطبیق مناسبی یافت نشد")
     return None
 
 def find_matching_by_tracking_number(bank_transaction, accounting_transactions):
@@ -166,7 +164,7 @@ def find_matching_by_tracking_number(bank_transaction, accounting_transactions):
             acc_tracking in bank_extracted_tracking or
             acc_tracking in bank_reference
         ):
-            log_info(f"تطبیق شماره پیگیری: {acc_tracking}")
+            logger.info(f"تطبیق شماره پیگیری: {acc_tracking}")
             return acc_transaction
     
     return None
@@ -189,19 +187,58 @@ def find_matching_by_card_number(bank_transaction, accounting_transactions):
         # جستجوی شماره کارت در توضیحات
         # معمولاً بعد از کلمه "ک" قرار می‌گیرد
         if source_card_number in description:
-            log_info(f"تطبیق شماره کارت: {source_card_number}")
+            logger.info(f"تطبیق شماره کارت: {source_card_number}")
             return acc_transaction
         
         # جستجوی چهار رقم آخر شماره کارت
         if len(source_card_number) >= 4:
             last_four_digits = source_card_number[-4:]
             if last_four_digits in description:
-                log_info(f"تطبیق چهار رقم آخر کارت: {last_four_digits}")
+                logger.info(f"تطبیق چهار رقم آخر کارت: {last_four_digits}")
                 return acc_transaction
     
     return None
 
-# تابع get_transactions_by_date_amount_type_abs به ReconciliationRepository منتقل شد
+def get_transactions_by_date_amount_type_abs(bank_id, transaction_date, amount, transaction_type):
+    """
+    دریافت تراکنش‌های حسابداری با مقایسه مبلغ مطلق (برای حل مشکل مبالغ منفی بانک)
+    """
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        
+        # تبدیل مبلغ منفی به مثبت برای مقایسه
+        abs_amount = abs(float(amount))
+        
+        # تعیین نوع سیستم جدید
+        new_system_type = ''
+        if transaction_type in ['Pos', 'Received Transfer']:
+            new_system_type = 'Pos / Received Transfer'
+        elif transaction_type == 'Paid Transfer':
+            new_system_type = 'Pos / Paid Transfer'
+        
+        cursor.execute("""
+            SELECT * FROM AccountingTransactions 
+            WHERE bank_id = ? 
+            AND due_date = ?
+            AND ABS(transaction_amount) = ?
+            AND (transaction_type = ? OR transaction_type = ?)
+            AND is_reconciled = 0
+        """, (bank_id, transaction_date, abs_amount, transaction_type, new_system_type))
+        
+        columns = [description[0] for description in cursor.description]
+        result = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        
+        logger.info(f"یافت شد {len(result)} تراکنش از نوع {transaction_type} با مبلغ مطلق {abs_amount} در تاریخ {transaction_date}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"خطا در دریافت تراکنش‌ها با مبلغ مطلق: {str(e)}")
+        return []
+    finally:
+        if conn:
+            conn.close()
 
 def perform_reconciliation(bank_transaction, accounting_transaction, pos_transaction, transaction_type):
     """
@@ -214,7 +251,7 @@ def perform_reconciliation(bank_transaction, accounting_transaction, pos_transac
         
         # به‌روزرسانی وضعیت تراکنش حسابداری
         if accounting_transaction:
-            ReconciliationRepository.update_accounting_reconciliation_status(
+            update_accounting_transaction_reconciliation_status(
                 accounting_transaction.get('id'), True
             )
         
@@ -232,11 +269,39 @@ def perform_reconciliation(bank_transaction, accounting_transaction, pos_transac
             type_matched=transaction_type
         )
         
-        log_info(f"مغایرت‌گیری موفق: Bank ID={bank_id}, Acc ID={acc_id}")
+        logger.info(f"مغایرت‌گیری موفق: Bank ID={bank_id}, Acc ID={acc_id}")
         return True
         
     except Exception as e:
-        log_error(f"خطا در انجام مغایرت‌گیری: {str(e)}")
+        logger.error(f"خطا در انجام مغایرت‌گیری: {str(e)}")
         return False
 
-# تابع update_accounting_transaction_reconciliation_status به ReconciliationRepository منتقل شد
+def update_accounting_transaction_reconciliation_status(transaction_id, status):
+    """
+    به‌روزرسانی وضعیت مغایرت‌گیری تراکنش حسابداری
+    """
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        status_int = int(bool(status))
+        cursor.execute("""
+            UPDATE AccountingTransactions 
+            SET is_reconciled = ? 
+            WHERE id = ?
+        """, (status_int, transaction_id))
+        
+        if cursor.rowcount > 0:
+            conn.commit()
+            logger.info(f"وضعیت تطبیق تراکنش حسابداری {transaction_id} به {status_int} تغییر کرد")
+        else:
+            logger.warning(f"تراکنش حسابداری با شناسه {transaction_id} یافت نشد")
+            
+    except Exception as e:
+        logger.error(f"خطا در به‌روزرسانی وضعیت تطبیق تراکنش حسابداری: {str(e)}")
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        if conn:
+            conn.close()

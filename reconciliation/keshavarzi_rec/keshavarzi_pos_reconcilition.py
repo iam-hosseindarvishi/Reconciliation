@@ -2,7 +2,9 @@
 فایل مغایرت‌گیری POS بانک کشاورزی
 شامل الگوریتم پیچیده مغایرت‌گیری POS با استفاده از جدول pos_transactions
 """
+import logging
 from datetime import datetime, timedelta
+from database.init_db import create_connection
 from database.repositories.accounting import get_transactions_by_date_amount_type
 from database.bank_transaction_repository import update_bank_transaction_reconciliation_status
 from database.pos_transactions_repository import (
@@ -11,12 +13,10 @@ from database.pos_transactions_repository import (
     update_reconciliation_status
 )
 from database.reconciliation_results_repository import create_reconciliation_result
-from database.repositories.reconciliation_repository import ReconciliationRepository, ReconciliationHelpers
-from utils.unified_logger import (
-    log_info, log_warning, log_error, 
-    log_operation_start, log_operation_end,
-    log_reconciliation_summary
-)
+from utils.logger_config import setup_logger
+
+# راه‌اندازی لاگر
+logger = setup_logger('reconciliation.keshavarzi_pos')
 
 def reconcile_keshavarzi_pos(bank_transactions, ui_handler=None):
     """
@@ -30,7 +30,7 @@ def reconcile_keshavarzi_pos(bank_transactions, ui_handler=None):
         reconciled_count = 0
         total_count = len(bank_transactions)
         
-        log_operation_start("Keshavarzi POS Reconciliation", f"تعداد کل تراکنش‌ها: {total_count}")
+        logger.info(f"شروع مغایرت‌گیری {total_count} تراکنش POS کشاورزی")
         if ui_handler:
             ui_handler.log_info(f"شروع مغایرت‌گیری {total_count} تراکنش POS کشاورزی")
         
@@ -41,7 +41,7 @@ def reconcile_keshavarzi_pos(bank_transactions, ui_handler=None):
                 
                 if result:
                     reconciled_count += 1
-                    log_info(f"POS با شناسه {bank_transaction.get('id')} مغایرت‌گیری شد")
+                    logger.info(f"POS با شناسه {bank_transaction.get('id')} مغایرت‌گیری شد")
                 
                 # به‌روزرسانی پیشرفت
                 if ui_handler:
@@ -50,19 +50,17 @@ def reconcile_keshavarzi_pos(bank_transactions, ui_handler=None):
                     ui_handler.update_detailed_status(f"مغایرت‌گیری POS {i + 1} از {total_count}")
             
             except Exception as e:
-                log_error(f"خطا در مغایرت‌گیری POS {bank_transaction.get('id')}: {str(e)}")
+                logger.error(f"خطا در مغایرت‌گیری POS {bank_transaction.get('id')}: {str(e)}")
                 continue
         
-        log_operation_end("Keshavarzi POS Reconciliation", True, f"تطبیق یافته: {reconciled_count} از {total_count}")
-        log_reconciliation_summary("کشاورزی", "POS", total_count, reconciled_count, total_count - reconciled_count)
+        logger.info(f"مغایرت‌گیری POS‌ها تکمیل شد. {reconciled_count} از {total_count} مغایرت‌گیری شدند")
         if ui_handler:
             ui_handler.log_info(f"مغایرت‌گیری POS‌ها تکمیل شد. {reconciled_count} از {total_count} مغایرت‌گیری شدند")
         
         return reconciled_count
         
     except Exception as e:
-        log_operation_end("Keshavarzi POS Reconciliation", False, str(e))
-        log_error(f"خطا در فرآیند مغایرت‌گیری POS‌ها: {str(e)}")
+        logger.error(f"خطا در فرآیند مغایرت‌گیری POS‌ها: {str(e)}")
         if ui_handler:
             ui_handler.log_error(f"خطا در فرآیند مغایرت‌گیری POS‌ها: {str(e)}")
         return 0
@@ -81,28 +79,28 @@ def reconcile_single_pos(bank_transaction):
         # مرحله 1: دریافت extracted_terminal_id از رکورد بانک
         extracted_terminal_id = bank_transaction.get('extracted_terminal_id')
         if not extracted_terminal_id:
-            log_warning(f"extracted_terminal_id یافت نشد برای تراکنش {bank_transaction.get('id')}")
+            logger.warning(f"extracted_terminal_id یافت نشد برای تراکنش {bank_transaction.get('id')}")
             return False
         
         # مرحله 2: محاسبه pos_date (یک روز کمتر از تاریخ بانک)
         bank_date_str = bank_transaction.get('transaction_date')
         if not bank_date_str:
-            log_warning(f"تاریخ تراکنش یافت نشد برای {bank_transaction.get('id')}")
+            logger.warning(f"تاریخ تراکنش یافت نشد برای {bank_transaction.get('id')}")
             return False
         
-        pos_date = ReconciliationHelpers.calculate_pos_date_from_bank_date(bank_date_str)
-        log_info(f"تاریخ محاسبه شده POS: {pos_date} (از تاریخ بانک: {bank_date_str})")
+        pos_date = calculate_pos_date(bank_date_str)
+        logger.info(f"تاریخ محاسبه شده POS: {pos_date} (از تاریخ بانک: {bank_date_str})")
         
         # مرحله 3: پیدا کردن terminal_id از جدول PosTransactions
-        terminal_id = ReconciliationRepository.find_terminal_id_by_terminal_number(extracted_terminal_id)
+        terminal_id = find_terminal_id_by_terminal_number(extracted_terminal_id)
         if not terminal_id:
-            log_warning(f"terminal_id یافت نشد برای terminal_number: {extracted_terminal_id}")
+            logger.warning(f"terminal_id یافت نشد برای terminal_number: {extracted_terminal_id}")
             return apply_fallback_reconciliation_strategy(bank_transaction, extracted_terminal_id, pos_date)
         
-        log_info(f"terminal_id یافت شد: {terminal_id} برای terminal_number: {extracted_terminal_id}")
+        logger.info(f"terminal_id یافت شد: {terminal_id} برای terminal_number: {extracted_terminal_id}")
         
         # مرحله 4: جستجوی terminal_id در جدول حسابداری به عنوان شماره پیگیری
-        accounting_match = ReconciliationRepository.find_accounting_by_terminal_id(
+        accounting_match = find_accounting_by_terminal_id(
             bank_transaction.get('bank_id'), terminal_id, bank_transaction.get('amount')
         )
         
@@ -117,19 +115,122 @@ def reconcile_single_pos(bank_transaction):
                 )
                 if result:
                     # مغایرت‌گیری تمام POS‌های مرتبط در آن روز
-                    ReconciliationRepository.mark_pos_transactions_reconciled_by_terminal_date(terminal_id, pos_date)
+                    mark_related_pos_transactions_reconciled(terminal_id, pos_date)
                     return True
         
         # مرحله 5: اگر روش بالا کار نکرد، استراتژی جایگزین
         return apply_fallback_reconciliation_strategy(bank_transaction, extracted_terminal_id, pos_date)
         
     except Exception as e:
-        log_error(f"خطا در مغایرت‌گیری POS منفرد: {str(e)}")
+        logger.error(f"خطا در مغایرت‌گیری POS منفرد: {str(e)}")
         return False
 
-# توابع calculate_pos_date و find_terminal_id_by_terminal_number به ReconciliationRepository و ReconciliationHelpers منتقل شدند
+def calculate_pos_date(bank_date_str):
+    """
+    محاسبه تاریخ POS (یک روز کمتر از تاریخ بانک)
+    """
+    try:
+        # فرض می‌کنیم format تاریخ YYYY-MM-DD است
+        bank_date = datetime.strptime(bank_date_str, '%Y-%m-%d')
+        pos_date = bank_date - timedelta(days=1)
+        return pos_date.strftime('%Y-%m-%d')
+    except Exception as e:
+        logger.error(f"خطا در محاسبه تاریخ POS: {str(e)}")
+        return None
 
-# توابع find_accounting_by_terminal_id و mark_related_pos_transactions_reconciled به ReconciliationRepository منتقل شدند
+def find_terminal_id_by_terminal_number(terminal_number):
+    """
+    پیدا کردن terminal_id از جدول PosTransactions بر اساس terminal_number
+    """
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT terminal_id FROM PosTransactions 
+            WHERE terminal_number = ? 
+            LIMIT 1
+        """, (terminal_number,))
+        
+        result = cursor.fetchone()
+        if result:
+            return result[0]
+        
+        return None
+        
+    except Exception as e:
+        logger.error(f"خطا در پیدا کردن terminal_id: {str(e)}")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+def find_accounting_by_terminal_id(bank_id, terminal_id, amount):
+    """
+    جستجوی رکورد حسابداری بر اساس terminal_id به عنوان شماره پیگیری
+    """
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        
+        # تبدیل مبلغ منفی به مثبت برای مقایسه
+        abs_amount = abs(float(amount))
+        
+        cursor.execute("""
+            SELECT * FROM AccountingTransactions 
+            WHERE bank_id = ? 
+            AND transaction_number = ? 
+            AND ABS(transaction_amount) = ?
+            AND is_reconciled = 0
+        """, (bank_id, str(terminal_id), abs_amount))
+        
+        columns = [description[0] for description in cursor.description]
+        result = cursor.fetchone()
+        
+        if result:
+            return dict(zip(columns, result))
+        
+        return None
+        
+    except Exception as e:
+        logger.error(f"خطا در جستجوی حسابداری بر اساس terminal_id: {str(e)}")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+def mark_related_pos_transactions_reconciled(terminal_id, pos_date):
+    """
+    علامت‌گذاری تمام تراکنش‌های POS مرتبط در آن روز به عنوان مغایرت‌گیری شده
+    """
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        
+        # پیدا کردن تمام تراکنش‌های POS با terminal_id و تاریخ مشخص
+        cursor.execute("""
+            SELECT id FROM PosTransactions 
+            WHERE terminal_id = ? 
+            AND transaction_date = ?
+        """, (terminal_id, pos_date))
+        
+        pos_transactions = cursor.fetchall()
+        
+        # علامت‌گذاری هر تراکنش به عنوان reconciled
+        for (pos_id,) in pos_transactions:
+            update_reconciliation_status(pos_id, True)
+            logger.info(f"تراکنش POS {pos_id} به عنوان reconciled علامت‌گذاری شد")
+        
+        logger.info(f"{len(pos_transactions)} تراکنش POS برای terminal_id={terminal_id} در تاریخ {pos_date} reconciled شدند")
+        
+    except Exception as e:
+        logger.error(f"خطا در علامت‌گذاری POS های مرتبط: {str(e)}")
+    finally:
+        if conn:
+            conn.close()
 
 def apply_fallback_reconciliation_strategy(bank_transaction, terminal_number, pos_date):
     """
@@ -138,13 +239,13 @@ def apply_fallback_reconciliation_strategy(bank_transaction, terminal_number, po
     شامل مغایرت‌گیری تک‌تک رکوردهای POS با حسابداری
     """
     try:
-        log_info(f"اعمال استراتژی جایگزین برای terminal_number: {terminal_number}")
+        logger.info(f"اعمال استراتژی جایگزین برای terminal_number: {terminal_number}")
         
         # دریافت تراکنش‌های POS برای این terminal و تاریخ
-        pos_transactions = ReconciliationRepository.get_pos_transactions_by_terminal_and_date(terminal_number, pos_date)
+        pos_transactions = get_pos_transactions_by_terminal_and_date(terminal_number, pos_date)
         
         if not pos_transactions:
-            log_warning(f"هیچ تراکنش POS یافت نشد برای terminal: {terminal_number}, date: {pos_date}")
+            logger.warning(f"هیچ تراکنش POS یافت نشد برای terminal: {terminal_number}, date: {pos_date}")
             return False
         
         reconciled_pos_count = 0
@@ -158,21 +259,43 @@ def apply_fallback_reconciliation_strategy(bank_transaction, terminal_number, po
         # اگر حداقل یک POS مغایرت‌گیری شد، رکورد بانک را هم reconciled کنیم
         if reconciled_pos_count > 0:
             update_bank_transaction_reconciliation_status(bank_transaction.get('id'), True)
-            log_info(f"رکورد بانک {bank_transaction.get('id')} reconciled شد - {reconciled_pos_count} POS مغایرت‌گیری شدند")
+            logger.info(f"رکورد بانک {bank_transaction.get('id')} reconciled شد - {reconciled_pos_count} POS مغایرت‌گیری شدند")
             return True
         
         return False
         
     except Exception as e:
-        log_error(f"خطا در استراتژی جایگزین: {str(e)}")
+        logger.error(f"خطا در استراتژی جایگزین: {str(e)}")
         return False
 
-# تابع get_pos_transactions_by_terminal_and_date به ReconciliationRepository منتقل شد
 def get_pos_transactions_by_terminal_and_date(terminal_number, date):
     """
     دریافت تراکنش‌های POS بر اساس شماره ترمینال و تاریخ
     """
-    return ReconciliationRepository.get_pos_transactions_by_terminal_and_date(terminal_number, date)
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT * FROM PosTransactions 
+            WHERE terminal_number = ? 
+            AND transaction_date = ?
+            AND is_reconciled = 0
+        """, (terminal_number, date))
+        
+        columns = [description[0] for description in cursor.description]
+        result = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        
+        logger.info(f"یافت شد {len(result)} تراکنش POS برای terminal={terminal_number}, date={date}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"خطا در دریافت تراکنش‌های POS: {str(e)}")
+        return []
+    finally:
+        if conn:
+            conn.close()
 
 def reconcile_individual_pos_transaction(pos_transaction, bank_id):
     """
@@ -188,7 +311,7 @@ def reconcile_individual_pos_transaction(pos_transaction, bank_id):
         )
         
         if not accounting_transactions:
-            log_warning(f"هیچ تراکنش حسابداری یافت نشد برای POS {pos_transaction.get('id')}")
+            logger.warning(f"هیچ تراکنش حسابداری یافت نشد برای POS {pos_transaction.get('id')}")
             return False
         
         # اگر فقط یک رکورد برگشت
@@ -273,12 +396,47 @@ def find_accounting_by_tracking_number_pos(pos_transaction, accounting_transacti
     
     return None
 
-# تابع get_transactions_by_date_amount_type_pos_abs به ReconciliationRepository منتقل شد
 def get_transactions_by_date_amount_type_pos_abs(bank_id, transaction_date, amount, transaction_type):
     """
     دریافت تراکنش‌های حسابداری با مقایسه مبلغ مطلق برای POS
+    (برای حل مشکل مبالغ منفی در بانک)
     """
-    return ReconciliationRepository.get_accounting_by_date_amount_type_abs(bank_id, transaction_date, amount, transaction_type)
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        
+        # تبدیل مبلغ منفی به مثبت برای مقایسه
+        abs_amount = abs(float(amount))
+        
+        # تعیین نوع سیستم جدید
+        new_system_type = ''
+        if transaction_type in ['Pos', 'Received Transfer']:
+            new_system_type = 'Pos / Received Transfer'
+        elif transaction_type == 'Paid Transfer':
+            new_system_type = 'Pos / Paid Transfer'
+        
+        cursor.execute("""
+            SELECT * FROM AccountingTransactions 
+            WHERE bank_id = ? 
+            AND due_date = ?
+            AND ABS(transaction_amount) = ?
+            AND (transaction_type = ? OR transaction_type = ?)
+            AND is_reconciled = 0
+        """, (bank_id, transaction_date, abs_amount, transaction_type, new_system_type))
+        
+        columns = [description[0] for description in cursor.description]
+        result = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        
+        logger.info(f"یافت شد {len(result)} تراکنش از نوع {transaction_type} با مبلغ مطلق {abs_amount} در تاریخ {transaction_date}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"خطا در دریافت تراکنش‌ها با مبلغ مطلق: {str(e)}")
+        return []
+    finally:
+        if conn:
+            conn.close()
 
 def perform_reconciliation(bank_transaction, accounting_transaction, pos_transaction, transaction_type):
     """
@@ -320,9 +478,32 @@ def perform_reconciliation(bank_transaction, accounting_transaction, pos_transac
         logger.error(f"خطا در انجام مغایرت‌گیری: {str(e)}")
         return False
 
-# تابع update_accounting_transaction_reconciliation_status به ReconciliationRepository منتقل شد
 def update_accounting_transaction_reconciliation_status(transaction_id, status):
     """
     به‌روزرسانی وضعیت مغایرت‌گیری تراکنش حسابداری
     """
-    return ReconciliationRepository.update_accounting_reconciliation_status(transaction_id, status)
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        status_int = int(bool(status))
+        cursor.execute("""
+            UPDATE AccountingTransactions 
+            SET is_reconciled = ? 
+            WHERE id = ?
+        """, (status_int, transaction_id))
+        
+        if cursor.rowcount > 0:
+            conn.commit()
+            logger.info(f"وضعیت تطبیق تراکنش حسابداری {transaction_id} به {status_int} تغییر کرد")
+        else:
+            logger.warning(f"تراکنش حسابداری با شناسه {transaction_id} یافت نشد")
+            
+    except Exception as e:
+        logger.error(f"خطا در به‌روزرسانی وضعیت تطبیق تراکنش حسابداری: {str(e)}")
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        if conn:
+            conn.close()
