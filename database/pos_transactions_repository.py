@@ -160,3 +160,24 @@ def get_transactions_by_bank(bank_id):
     finally:
         if conn:
             conn.close()
+
+def get_unreconciled_transactions_by_bank(bank_id):
+    """دریافت تراکنش‌های POS مغایرت‌نشده برای بانک"""
+    conn = None
+    try:
+        conn = create_connection()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM PosTransactions 
+            WHERE bank_id = ? AND is_reconciled = 0
+        """, (bank_id,))
+        result = [dict(row) for row in cursor.fetchall()]
+        logger.info(f"تعداد {len(result)} تراکنش POS مغایرت‌نشده برای بانک {bank_id} یافت شد")
+        return result
+    except Exception as e:
+        logger.error(f"خطا در دریافت تراکنش‌های POS مغایرت‌نشده: {str(e)}")
+        raise
+    finally:
+        if conn:
+            conn.close()

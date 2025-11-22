@@ -243,3 +243,45 @@ def delete_transaction(transaction_id):
     finally:
         if conn:
             conn.close()
+
+def get_unreconciled_by_type(transaction_type):
+    """دریافت تراکنش‌های بانک مغایرت‌نشده بر اساس نوع"""
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM BankTransactions 
+            WHERE transaction_type = ? AND is_reconciled = 0
+        """, (transaction_type,))
+        result = [dict(row) for row in cursor.fetchall()]
+        logger.info(f"تعداد {len(result)} تراکنش بانک از نوع {transaction_type} مغایرت‌نشده یافت شد")
+        return result
+    except Exception as e:
+        logger.error(f"خطا در دریافت تراکنش‌های بانک مغایرت‌نشده: {str(e)}")
+        raise
+    finally:
+        if conn:
+            conn.close()
+
+def get_unreconciled_by_amount_and_type(amount, transaction_type):
+    """دریافت تراکنش‌های بانک بر اساس مبلغ و نوع"""
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM BankTransactions 
+            WHERE amount = ? AND transaction_type = ? AND is_reconciled = 0
+        """, (amount, transaction_type))
+        result = [dict(row) for row in cursor.fetchall()]
+        logger.info(f"تعداد {len(result)} تراکنش بانک برای مبلغ {amount} یافت شد")
+        return result
+    except Exception as e:
+        logger.error(f"خطا در دریافت تراکنش‌های بانک: {str(e)}")
+        raise
+    finally:
+        if conn:
+            conn.close()

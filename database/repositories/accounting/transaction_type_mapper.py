@@ -67,26 +67,31 @@ class TransactionTypeMapper:
         Returns:
             tuple: (شرط SQL, لیست پارامترها)
         """
-        # تبدیل هر دو فرمت space و underscore
-        type_with_space = transaction_type.replace('_', ' ')
-        type_with_underscore = transaction_type.replace(' ', '_')
-        
         # دریافت نوع جدید اگر وجود دارد
         original_type, new_type = cls.get_both_types(transaction_type)
         
         # ساخت لیست تمام حالات ممکن
         possible_types = [original_type]
         
-        # اضافه کردن فرمت‌های مختلف
-        if type_with_space != original_type:
-            possible_types.append(type_with_space)
-        if type_with_underscore != original_type:
-            possible_types.append(type_with_underscore)
+        # اضافه کردن نوع جدید اگر وجود دارد
         if new_type:
             possible_types.append(new_type)
         
-        # حذف تکراری‌ها
-        possible_types = list(set(possible_types))
+        # اضافه کردن فرمت‌های مختلف فقط اگر نوع اصلی فاقد فاصله باشد
+        # و فقط برای مواردی که نیاز به تبدیل بین underscore و space دارند
+        if ' ' not in transaction_type and '_' in transaction_type:
+            # اگر نوع ورودی دارای underscore است، فضای خالی را هم اضافه کن
+            type_with_space = transaction_type.replace('_', ' ')
+            if type_with_space != original_type:
+                possible_types.append(type_with_space)
+        elif ' ' in transaction_type and '/' not in transaction_type:
+            # اگر نوع ورودی دارای فضای خالی است (اما نه '/')، underscore را هم اضافه کن
+            type_with_underscore = transaction_type.replace(' ', '_')
+            if type_with_underscore != original_type:
+                possible_types.append(type_with_underscore)
+        
+        # حذف تکراری‌ها و خالی‌ها
+        possible_types = list(set([t for t in possible_types if t]))
         
         if len(possible_types) == 1:
             sql_condition = f"transaction_type = {param_placeholder}"

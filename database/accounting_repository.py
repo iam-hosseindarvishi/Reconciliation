@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import sqlite3
 from database.init_db import create_connection
 from utils.logger_config import setup_logger
 
@@ -445,6 +446,103 @@ def delete_transaction(transaction_id):
             logger.warning(f"تراکنشی با شناسه {transaction_id} یافت نشد")
     except Exception as e:
         logger.error(f"خطا در حذف تراکنش {transaction_id}: {str(e)}")
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        if conn:
+            conn.close()
+
+def get_unreconciled_pos_transactions(bank_id):
+    """دریافت تراکنش‌های POS مغایرت‌نشده"""
+    conn = None
+    try:
+        conn = create_connection()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM PosTransactions 
+            WHERE bank_id = ? AND is_reconciled = 0
+        """, (bank_id,))
+        result = [dict(row) for row in cursor.fetchall()]
+        logger.info(f"تعداد {len(result)} تراکنش POS مغایرت‌نشده برای بانک {bank_id} یافت شد")
+        return result
+    except Exception as e:
+        logger.error(f"خطا در دریافت تراکنش‌های POS مغایرت‌نشده: {str(e)}")
+        raise
+    finally:
+        if conn:
+            conn.close()
+
+def get_accounting_by_amount_and_types(amount, transaction_types):
+    """دریافت تراکنش‌های حسابداری بر اساس مبلغ و انواع"""
+    conn = None
+    try:
+        conn = create_connection()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        placeholders = ','.join('?' * len(transaction_types))
+        query = f"""
+            SELECT * FROM AccountingTransactions
+            WHERE transaction_amount = ? 
+            AND transaction_type IN ({placeholders})
+            AND is_reconciled = 0
+        """
+        params = [amount] + transaction_types
+        cursor.execute(query, params)
+        result = [dict(row) for row in cursor.fetchall()]
+        logger.info(f"تعداد {len(result)} تراکنش حسابداری برای مبلغ {amount} یافت شد")
+        return result
+    except Exception as e:
+        logger.error(f"خطا در دریافت تراکنش‌های حسابداری: {str(e)}")
+        raise
+    finally:
+        if conn:
+            conn.close()
+
+def get_unreconciled_by_type(transaction_type):
+    """دریافت تراکنش‌های حسابداری مغایرت‌نشده بر اساس نوع"""
+    conn = None
+    try:
+        conn = create_connection()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM AccountingTransactions 
+            WHERE transaction_type = ? AND is_reconciled = 0
+        """, (transaction_type,))
+        result = [dict(row) for row in cursor.fetchall()]
+        logger.info(f"تعداد {len(result)} تراکنش از نوع {transaction_type} مغایرت‌نشده یافت شد")
+        return result
+    except Exception as e:
+        logger.error(f"خطا در دریافت تراکنش‌های مغایرت‌نشده: {str(e)}")
+        raise
+    finally:
+        if conn:
+            conn.close()
+
+def update_reconciliation_status(transaction_id, status):
+    """تحدیث وضعیت تطبیق تراکنش حسابداری"""
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        status_int = int(bool(status))
+        cursor.execute("""
+            UPDATE AccountingTransactions 
+            SET is_reconciled = ? 
+            WHERE id = ?
+        """, (status_int, transaction_id))
+        if cursor.rowcount > 0:
+            conn.commit()
+            logger.info(f"وضعیت تطبیق تراکنش حسابداری {transaction_id} به {status_int} تغییر کرد")
+            return True
+        else:
+            logger.warning(f"تراکنشی با شناسه {transaction_id} یافت نشد")
+            return False
+    except Exception as e:
+        logger.error(f"خطا در تحدیث وضعیت تطبیق: {str(e)}")
         if conn:
             conn.rollback()
         raise

@@ -41,6 +41,9 @@ def success_reconciliation_result(bank_record_id, acc_record_id, pos_record_id, 
             
         logger.info(f"Successfully completed reconciliation for {match_type}: {description}")
         
+        # Return success status for compatibility
+        return {'status': 'success'}
+        
     except Exception as e:
         logger.error(f"Error submitting successful reconciliation result: {e}", exc_info=True)
         raise
@@ -78,6 +81,9 @@ def fail_reconciliation_result(bank_record_id, acc_record_id, pos_record_id, des
             logger.info(f"Bank transaction {bank_record_id} marked as failed reconciliation")
             
         logger.warning(f"Recorded failed reconciliation for {match_type}: {description}")
+        
+        # Return failed status for compatibility
+        return {'status': 'failed'}
         
     except Exception as e:
         logger.error(f"Error submitting failed reconciliation result: {e}", exc_info=True)
