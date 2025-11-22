@@ -474,14 +474,20 @@ def get_unreconciled_pos_transactions(bank_id):
         if conn:
             conn.close()
 
-def get_accounting_by_amount_and_types(amount, transaction_types):
+def get_accounting_by_amount_and_types(amount, transaction_types,bank_id=None):
     """دریافت تراکنش‌های حسابداری بر اساس مبلغ و انواع"""
     conn = None
     try:
         conn = create_connection()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        
+        abs_amount=abs(float(amount));
+        if isinstance(transaction_types, str):
+            transaction_types=[x.strip() for x in transaction_types.split(',')]
+        else:
+            transaction_types=[x.strip() if isinstance(x, str) else x for x in transaction_types]
+        if(len(transaction_types)==0):
+            return []
         placeholders = ','.join('?' * len(transaction_types))
         query = f"""
             SELECT * FROM AccountingTransactions
@@ -489,7 +495,10 @@ def get_accounting_by_amount_and_types(amount, transaction_types):
             AND transaction_type IN ({placeholders})
             AND is_reconciled = 0
         """
-        params = [amount] + transaction_types
+        params = [abs_amount] + transaction_types
+        if bank_id:
+            query += " AND bank_id = ?"
+            params.append(bank_id)
         cursor.execute(query, params)
         result = [dict(row) for row in cursor.fetchall()]
         logger.info(f"تعداد {len(result)} تراکنش حسابداری برای مبلغ {amount} یافت شد")
