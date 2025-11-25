@@ -17,7 +17,7 @@ logger = setup_logger('reconciliation.ai_matcher')
 
 class AIMatcher:
     def __init__(self, n8n_webhook_url: str = None):
-        self.n8n_webhook_url = n8n_webhook_url or "http://localhost:5678/webhook/reconcile"
+        self.n8n_webhook_url =  "http://localhost:5678/webhook-test/reconciled"
         self.timeout = 30
         self.retry_count = 3
         self.rate_limit_delay = 0.5
@@ -84,7 +84,8 @@ class AIMatcher:
             amount = pos_record.get('transaction_amount')
             accounting_candidates = get_accounting_by_amount_and_types(
                 amount,
-                ['Pos', 'Pos / Received Transfer']
+                ['Pos', 'Pos_Transfer_Received'],
+                pos_record['bank_id']
             )
 
             if not accounting_candidates:
@@ -163,9 +164,9 @@ class AIMatcher:
             amount = bank_record.get('amount')
 
             if transaction_type == 'Received_Transfer':
-                accounting_types = ['Received_Transfer', 'Pos / Received Transfer']
+                accounting_types = ['Received_Transfer', 'Pos_Transfer_Received']
             elif transaction_type == 'Paid_Transfer':
-                accounting_types = ['Paid_Transfer', 'Pos / Paid Transfer']
+                accounting_types = ['Paid_Transfer', 'Pos_Transfer_Paid']
             elif transaction_type == 'Received_Check':
                 accounting_types = ['Received_Check']
             elif transaction_type == 'Paid_Check':
