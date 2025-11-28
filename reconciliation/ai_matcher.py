@@ -17,7 +17,7 @@ logger = setup_logger('reconciliation.ai_matcher')
 
 class AIMatcher:
     def __init__(self, n8n_webhook_url: str = None):
-        self.n8n_webhook_url =  "http://localhost:5678/webhook-test/reconciled"
+        self.n8n_webhook_url = "http://localhost:5678/webhook/reconciled"
         self.timeout = 30
         self.retry_count = 3
         self.rate_limit_delay = 0.5
