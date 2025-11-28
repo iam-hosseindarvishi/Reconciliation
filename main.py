@@ -17,6 +17,7 @@ from ui.manual_reconciliation_tab import ManualReconciliationTab
 from ui.dashboard_tab import DashboardTab
 from ui.report_tab import ReportTab
 from ui.bank_fees_tab import BankFeesTab
+from ui.smart_reconciliation_tab import SmartReconciliationTab
 from utils.logger_config import setup_logger
 
 # تنظیم کدگذاری کنسول برای نمایش درست متون فارسی
@@ -142,6 +143,16 @@ def main():
             logger.info("تب مغایرت‌یابی دستی با موفقیت بارگذاری شد")
         except Exception as e:
             logger.error(f"خطا در بارگذاری تب مغایرت‌یابی دستی: {str(e)}")
+            raise
+            
+        try:
+            # افزودن تب مغایرت‌یابی هوشمند
+            logger.info("در حال بارگذاری تب مغایرت‌یابی هوشمند...")
+            smart_reconciliation_tab = SmartReconciliationTab(notebook)
+            notebook.add(smart_reconciliation_tab, text="مغایرت‌یابی هوشمند")
+            logger.info("تب مغایرت‌یابی هوشمند با موفقیت بارگذاری شد")
+        except Exception as e:
+            logger.error(f"خطا در بارگذاری تب مغایرت‌یابی هوشمند: {str(e)}")
             raise
             
         try:
