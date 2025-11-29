@@ -1,7 +1,9 @@
 import requests
 import json
 import time
+import threading
 from typing import Dict, List, Optional, Tuple
+from queue import Queue
 from utils.logger_config import setup_logger
 from utils.ai_request_formatter import (
     format_pos_request,
@@ -18,65 +20,72 @@ logger = setup_logger('reconciliation.ai_matcher')
 class AIMatcher:
     def __init__(self, n8n_webhook_url: str = None):
         self.n8n_webhook_url = "http://localhost:5678/webhook/reconciled"
-        self.timeout = 30
+        self.timeout = 300
         self.retry_count = 3
-        self.rate_limit_delay = 0.5
+        self.processing_lock = threading.Lock()
 
     def send_to_ai(self, data: Dict) -> Dict:
-        """ارسال داده به n8n workflow و دریافت نتیجه"""
-        for attempt in range(self.retry_count):
-            try:
-                response = requests.post(
-                    self.n8n_webhook_url,
-                    json=data,
-                    headers={'Content-Type': 'application/json'},
-                    timeout=self.timeout
-                )
+        """ارسال داده به n8n workflow و دریافت نتیجه - منتظر پاسخ می‌ماند"""
+        with self.processing_lock:
+            for attempt in range(self.retry_count):
+                try:
+                    transaction_id = data.get('pos_record', data.get('bank_record', {})).get('id')
+                    logger.info(f"ارسال تراکنش {transaction_id} به AI (تلاش {attempt + 1}/{self.retry_count})")
+                    
+                    response = requests.post(
+                        self.n8n_webhook_url,
+                        json=data,
+                        headers={'Content-Type': 'application/json'},
+                        timeout=self.timeout
+                    )
 
-                if response.status_code == 200:
-                    logger.info(f"پاسخ موفق از AI برای تراکنش {data.get('pos_record', data.get('bank_record', {})).get('id')}")
-                    return response.json()
-                else:
-                    logger.warning(f"پاسخ ناموفق از AI: HTTP {response.status_code}")
+                    if response.status_code == 200:
+                        logger.info(f"پاسخ موفق از AI برای تراکنش {transaction_id}")
+                        return response.json()
+                    else:
+                        logger.warning(f"پاسخ ناموفق از AI: HTTP {response.status_code}")
+                        if attempt < self.retry_count - 1:
+                            logger.info(f"منتظر 10 ثانیه قبل از تلاش مجدد...")
+                            time.sleep(10)
+                            continue
+                        return {
+                            "error": f"HTTP {response.status_code}",
+                            "detail": response.text,
+                            "matched": False,
+                            "confidence": 0
+                        }
+
+                except requests.exceptions.Timeout:
+                    logger.warning(f"Timeout در تلاش {attempt + 1}/{self.retry_count} - n8n آماده پاسخ نیست")
                     if attempt < self.retry_count - 1:
-                        time.sleep(self.timeout / self.retry_count)
+                        logger.info(f"منتظر 10 ثانیه قبل از تلاش مجدد...")
+                        time.sleep(10)
                         continue
                     return {
-                        "error": f"HTTP {response.status_code}",
-                        "detail": response.text,
+                        "error": "Timeout",
+                        "detail": "AI طول‌کشید و پاسخ نداد",
                         "matched": False,
                         "confidence": 0
                     }
 
-            except requests.exceptions.Timeout:
-                logger.warning(f"Timeout در تلاش {attempt + 1}/{self.retry_count}")
-                if attempt < self.retry_count - 1:
-                    time.sleep(self.timeout / self.retry_count)
-                    continue
-                return {
-                    "error": "Timeout",
-                    "detail": "AI طول‌کشید و پاسخ نداد",
-                    "matched": False,
-                    "confidence": 0
-                }
+                except Exception as e:
+                    logger.error(f"خطا در ارتباط با AI: {str(e)}")
+                    if attempt < self.retry_count - 1:
+                        logger.info(f"منتظر 5 ثانیه قبل از تلاش مجدد...")
+                        time.sleep(5)
+                        continue
+                    return {
+                        "error": "Request failed",
+                        "detail": str(e),
+                        "matched": False,
+                        "confidence": 0
+                    }
 
-            except Exception as e:
-                logger.error(f"خطا در ارتباط با AI: {str(e)}")
-                if attempt < self.retry_count - 1:
-                    time.sleep(1)
-                    continue
-                return {
-                    "error": "Request failed",
-                    "detail": str(e),
-                    "matched": False,
-                    "confidence": 0
-                }
-
-        return {
-            "error": "Maximum retries exceeded",
-            "matched": False,
-            "confidence": 0
-        }
+            return {
+                "error": "Maximum retries exceeded",
+                "matched": False,
+                "confidence": 0
+            }
 
     def process_pos_transaction(self, pos_record: Dict) -> Tuple[bool, Dict]:
         """پردازش تراکنش POS"""
@@ -101,8 +110,6 @@ class AIMatcher:
 
             ai_request = format_pos_request(pos_record, accounting_candidates)
             ai_response = self.send_to_ai(ai_request)
-
-            time.sleep(self.rate_limit_delay)
 
             if ai_response.get('error'):
                 logger.error(f"خطا در پاسخ AI: {ai_response.get('error')}")
@@ -193,7 +200,6 @@ class AIMatcher:
                 ai_request = format_bank_transfer_request(bank_record, accounting_candidates, transaction_type)
 
             ai_response = self.send_to_ai(ai_request)
-            time.sleep(self.rate_limit_delay)
 
             if ai_response.get('error'):
                 logger.error(f"خطا در پاسخ AI: {ai_response.get('error')}")
