@@ -41,7 +41,10 @@ class AIMatcher:
 
                     if response.status_code == 200:
                         logger.info(f"پاسخ موفق از AI برای تراکنش {transaction_id}")
-                        return response.json()
+                        result = response.json()
+                        if isinstance(result, list) and len(result) > 0:
+                            return result[0]
+                        return result
                     else:
                         logger.warning(f"پاسخ ناموفق از AI: HTTP {response.status_code}")
                         if attempt < self.retry_count - 1:
