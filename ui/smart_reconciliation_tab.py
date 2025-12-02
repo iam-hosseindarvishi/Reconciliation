@@ -116,6 +116,17 @@ class SmartReconciliationTab(ttk.Frame):
             style='Bold.TButton'
         ).pack(side="left", padx=5)
 
+        self.stop_button = ttk.Button(
+            btn_frame,
+            text="توقف فرآیند",
+            command=self.stop_reconciliation,
+            bootstyle=DANGER,
+            width=12,
+            style='Bold.TButton',
+            state="disabled"
+        )
+        self.stop_button.pack(side="left", padx=5)
+
         progress_frame = ttk.LabelFrame(self, text="وضعیت مغایرت‌یابی هوشمند", style='Header.TLabelframe')
         progress_frame.pack(fill="x", pady=5, padx=10)
 
@@ -200,6 +211,16 @@ class SmartReconciliationTab(ttk.Frame):
             self.logger.info(f"Webhook تنظیم شد: {url}")
             messagebox.showinfo("موفق", "Webhook با موفقیت تنظیم شد")
 
+    def stop_reconciliation(self):
+        """توقف فرآیند مغایرت‌یابی هوشمند"""
+        if self.is_processing:
+            self.is_processing = False
+            self.logger.warning("درخواست توقف فرآیند از سوی کاربر")
+            self.update_status("فرآیند متوقف شد...")
+            self.stop_button.config(state="disabled")
+        else:
+            messagebox.showinfo("اطلاعات", "فرآیند درحال اجرا نیست")
+
     def start_smart_reconciliation(self):
         """شروع فرآیند مغایرت‌یابی هوشمند"""
         try:
@@ -216,6 +237,8 @@ class SmartReconciliationTab(ttk.Frame):
             self.results_tree.delete(*self.results_tree.get_children())
             self.log_text.delete('1.0', 'end')
 
+            self.stop_button.config(state="normal")
+
             bank_name = self.selected_bank_var.get()
             bank_id = self.banks_dict[bank_name]
 
@@ -230,6 +253,7 @@ class SmartReconciliationTab(ttk.Frame):
         except Exception as e:
             self.logger.error(f"خطا در شروع فرآیند: {str(e)}")
             self.is_processing = False
+            self.stop_button.config(state="disabled")
 
     def run_smart_reconciliation(self, bank_id, bank_name):
         """اجرای فرآیند مغایرت‌یابی هوشمند"""
@@ -334,6 +358,7 @@ class SmartReconciliationTab(ttk.Frame):
             self.update_status(f"خطا: {str(e)}")
         finally:
             self.is_processing = False
+            self.after_idle(lambda: self.stop_button.config(state="disabled"))
 
     def update_status(self, message):
         """بروزرسانی وضعیت"""

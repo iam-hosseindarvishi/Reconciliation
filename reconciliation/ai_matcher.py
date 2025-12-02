@@ -14,6 +14,8 @@ from database.accounting_repository import get_accounting_by_amount_and_types, u
 from database.pos_transactions_repository import update_reconciliation_status as update_pos_status
 from database.bank_transaction_repository import update_bank_transaction_reconciliation_status
 from database.reconciliation_results_repository import create_reconciliation_result
+from database.init_db import create_connection
+import sqlite3
 
 logger = setup_logger('reconciliation.ai_matcher')
 
@@ -31,6 +33,29 @@ class AIMatcher:
         if not is_valid:
             logger.warning(f"matched_id {matched_id} در لیست رکوردهای صحیح یافت نشد. آیدی های صحیح: {valid_ids}")
         return is_valid
+
+    def is_accounting_unreconciled(self, accounting_id: int) -> bool:
+        """بررسی کنید که آیا رکورد حسابداری هنوز مغایرت‌نشده است (is_reconciled = 0)"""
+        conn = None
+        try:
+            conn = create_connection()
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT is_reconciled FROM AccountingTransactions WHERE id = ?", (accounting_id,))
+            result = cursor.fetchone()
+            if result is None:
+                logger.warning(f"رکورد حسابداری {accounting_id} در پایگاه داده یافت نشد")
+                return False
+            is_unreconciled = result['is_reconciled'] == 0
+            if not is_unreconciled:
+                logger.warning(f"رکورد حسابداری {accounting_id} قبلاً مغایرت‌یابی شده است")
+            return is_unreconciled
+        except Exception as e:
+            logger.error(f"خطا در بررسی وضعیت رکورد حسابداری {accounting_id}: {str(e)}")
+            return False
+        finally:
+            if conn:
+                conn.close()
 
     def send_to_ai(self, data: Dict) -> Dict:
         """ارسال داده به n8n workflow و دریافت نتیجه - منتظر پاسخ می‌ماند"""
@@ -148,6 +173,18 @@ class AIMatcher:
                         "suggestions": ai_response.get('suggestions', [])
                     }
                 
+                if not self.is_accounting_unreconciled(matched_id):
+                    logger.warning(f"POS {pos_record.get('id')}: رکورد حسابداری {matched_id} دیگر در دسترس نیست - نیاز به بررسی دستی")
+                    return False, {
+                        "type": "POS",
+                        "source_id": pos_record.get('id'),
+                        "matched_id": None,
+                        "confidence": ai_response.get('confidence', 0),
+                        "status": "needs_review",
+                        "reason": f"رکورد حسابداری {matched_id} قبلاً مغایرت‌یابی شده یا حذف شده است",
+                        "suggestions": ai_response.get('suggestions', [])
+                    }
+                
                 update_pos_status(pos_record.get('id'), True)
                 update_accounting_status(matched_id, True)
                 create_reconciliation_result(
@@ -248,6 +285,18 @@ class AIMatcher:
                         "confidence": ai_response.get('confidence', 0),
                         "status": "needs_review",
                         "reason": f"matched_id {matched_id} در لیست رکوردهای صحیح یافت نشد",
+                        "suggestions": ai_response.get('suggestions', [])
+                    }
+                
+                if not self.is_accounting_unreconciled(matched_id):
+                    logger.warning(f"{transaction_type} {bank_record.get('id')}: رکورد حسابداری {matched_id} دیگر در دسترس نیست - نیاز به بررسی دستی")
+                    return False, {
+                        "type": transaction_type,
+                        "source_id": bank_record.get('id'),
+                        "matched_id": None,
+                        "confidence": ai_response.get('confidence', 0),
+                        "status": "needs_review",
+                        "reason": f"رکورد حسابداری {matched_id} قبلاً مغایرت‌یابی شده یا حذف شده است",
                         "suggestions": ai_response.get('suggestions', [])
                     }
                 
