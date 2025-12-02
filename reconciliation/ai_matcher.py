@@ -24,6 +24,14 @@ class AIMatcher:
         self.retry_count = 3
         self.processing_lock = threading.Lock()
 
+    def validate_matched_id(self, matched_id, accounting_candidates: List[Dict]) -> bool:
+        """تایید اینکه matched_id در لیست رکوردهای ارسالی وجود دارد"""
+        valid_ids = [candidate.get('id') for candidate in accounting_candidates]
+        is_valid = matched_id in valid_ids
+        if not is_valid:
+            logger.warning(f"matched_id {matched_id} در لیست رکوردهای صحیح یافت نشد. آیدی های صحیح: {valid_ids}")
+        return is_valid
+
     def send_to_ai(self, data: Dict) -> Dict:
         """ارسال داده به n8n workflow و دریافت نتیجه - منتظر پاسخ می‌ماند"""
         with self.processing_lock:
@@ -127,6 +135,19 @@ class AIMatcher:
 
             if ai_response.get('matched') and ai_response.get('confidence', 0) >= 0.8:
                 matched_id = ai_response.get('matched_accounting_id')
+                
+                if not self.validate_matched_id(matched_id, accounting_candidates):
+                    logger.warning(f"POS {pos_record.get('id')}: matched_id {matched_id} معتبر نیست - نیاز به بررسی دستی")
+                    return False, {
+                        "type": "POS",
+                        "source_id": pos_record.get('id'),
+                        "matched_id": None,
+                        "confidence": ai_response.get('confidence', 0),
+                        "status": "needs_review",
+                        "reason": f"matched_id {matched_id} در لیست رکوردهای صحیح یافت نشد",
+                        "suggestions": ai_response.get('suggestions', [])
+                    }
+                
                 update_pos_status(pos_record.get('id'), True)
                 update_accounting_status(matched_id, True)
                 create_reconciliation_result(
@@ -217,6 +238,19 @@ class AIMatcher:
 
             if ai_response.get('matched') and ai_response.get('confidence', 0) >= 0.8:
                 matched_id = ai_response.get('matched_accounting_id')
+                
+                if not self.validate_matched_id(matched_id, accounting_candidates):
+                    logger.warning(f"{transaction_type} {bank_record.get('id')}: matched_id {matched_id} معتبر نیست - نیاز به بررسی دستی")
+                    return False, {
+                        "type": transaction_type,
+                        "source_id": bank_record.get('id'),
+                        "matched_id": None,
+                        "confidence": ai_response.get('confidence', 0),
+                        "status": "needs_review",
+                        "reason": f"matched_id {matched_id} در لیست رکوردهای صحیح یافت نشد",
+                        "suggestions": ai_response.get('suggestions', [])
+                    }
+                
                 update_bank_transaction_reconciliation_status(bank_record.get('id'), True)
                 update_accounting_status(matched_id, True)
                 create_reconciliation_result(
