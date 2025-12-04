@@ -34,6 +34,13 @@ def format_pos_request(pos_record, accounting_candidates):
                 "tracking": "last 6 digits of POS tracking should match accounting transaction_number",
                 "date": "accounting date usually equal to POS date, but can vary ±15 days",
                 "terminal": "terminal_id might appear in accounting description for sum of day"
+            },
+            "confidence_guidelines": {
+                "0.95_plus": "Amount + Tracking + Date all match perfectly (0-1 day difference)",
+                "0.85_0.94": "Amount + Tracking match perfectly, Date within ±3 days",
+                "0.75_0.84": "Amount + Tracking match, Date within ±7 days, missing 1 optional field",
+                "0.65_0.74": "Amount matches, Tracking matches but Date difference > 7 days",
+                "below_0.65": "Only amount matches or multiple fields missing"
             }
         }
         logger.info(f"درخواست POS فرمت شد برای ترمینال {pos_record.get('terminal_number')}")
@@ -75,6 +82,13 @@ def format_bank_transfer_request(bank_record, accounting_candidates, transaction
                 "card": "source_card_number (last 4) should appear in description",
                 "date": "dates can differ by 1-2 days due to registration delays",
                 "name": "depositor_name should match customer_name if available"
+            },
+            "confidence_guidelines": {
+                "0.95_plus": "Amount exact match + Tracking match + Date within 1 day",
+                "0.85_0.94": "Amount exact match + Tracking match, Date within ±2 days",
+                "0.75_0.84": "Amount (with fee) + Tracking match, Date within ±3 days",
+                "0.65_0.74": "Amount match + tracking match but Date > 3 days, or missing name confirmation",
+                "below_0.65": "Only amount matches or tracking missing"
             }
         }
         logger.info(f"درخواست انتقال بانکی فرمت شد برای مبلغ {bank_record.get('amount')}")
@@ -111,6 +125,13 @@ def format_check_request(bank_record, accounting_candidates, transaction_type):
                 "amount": "must match exactly",
                 "check_number": "extracted_tracking_number must match transaction_number",
                 "date": "bank transaction_date should match collection_date (not due_date!)"
+            },
+            "confidence_guidelines": {
+                "0.95_plus": "Amount exact + Check number exact + Date matches collection_date",
+                "0.85_0.94": "Amount exact + Check number match, Date within ±1 day",
+                "0.75_0.84": "Amount exact + Check number match, Date within ±3 days",
+                "0.65_0.74": "Amount exact + Check number match, Date difference ±5 days",
+                "below_0.65": "Only amount matches or multiple fields missing"
             }
         }
         logger.info(f"درخواست چک فرمت شد برای مبلغ {bank_record.get('amount')}")

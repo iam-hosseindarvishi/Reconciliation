@@ -22,6 +22,7 @@ logger = setup_logger('reconciliation.ai_matcher')
 class AIMatcher:
     def __init__(self, n8n_webhook_url: str = None):
         self.n8n_webhook_url = "http://localhost:5678/webhook/reconciled"
+        #self.n8n_webhook_url = "http://localhost:5678/webhook-test/reconciled"
         self.timeout = 300
         self.retry_count = 3
         self.processing_lock = threading.Lock()
@@ -56,6 +57,64 @@ class AIMatcher:
         finally:
             if conn:
                 conn.close()
+
+    def is_pos_transaction_unreconciled(self, pos_id: int) -> bool:
+        """بررسی کنید که آیا تراکنش POS هنوز مغایرت‌نشده است (is_reconciled = 0)"""
+        conn = None
+        try:
+            conn = create_connection()
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT is_reconciled FROM PosTransactions WHERE id = ?", (pos_id,))
+            result = cursor.fetchone()
+            if result is None:
+                logger.warning(f"تراکنش POS {pos_id} در پایگاه داده یافت نشد")
+                return False
+            is_unreconciled = result['is_reconciled'] == 0
+            if not is_unreconciled:
+                logger.warning(f"تراکنش POS {pos_id} قبلاً مغایرت‌یابی شده است")
+            return is_unreconciled
+        except Exception as e:
+            logger.error(f"خطا در بررسی وضعیت تراکنش POS {pos_id}: {str(e)}")
+            return False
+        finally:
+            if conn:
+                conn.close()
+
+    def is_bank_transaction_unreconciled(self, bank_id: int) -> bool:
+        """بررسی کنید که آیا تراکنش بانکی هنوز مغایرت‌نشده است (is_reconciled = 0)"""
+        conn = None
+        try:
+            from config.settings import DB_PATH
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT is_reconciled FROM BankTransactions WHERE id = ?", (bank_id,))
+            result = cursor.fetchone()
+            if result is None:
+                logger.warning(f"تراکنش بانکی {bank_id} در پایگاه داده یافت نشد")
+                return False
+            is_unreconciled = result['is_reconciled'] == 0
+            if not is_unreconciled:
+                logger.warning(f"تراکنش بانکی {bank_id} قبلاً مغایرت‌یابی شده است")
+            return is_unreconciled
+        except Exception as e:
+            logger.error(f"خطا در بررسی وضعیت تراکنش بانکی {bank_id}: {str(e)}")
+            return False
+        finally:
+            if conn:
+                conn.close()
+
+    def are_accounting_candidates_unreconciled(self, accounting_candidates: List[Dict]) -> bool:
+        """بررسی اینکه تمامی رکوردهای حسابداری هنوز مغایرت‌نشده هستند"""
+        if not accounting_candidates:
+            return True
+        
+        for candidate in accounting_candidates:
+            if not self.is_accounting_unreconciled(candidate.get('id')):
+                logger.warning(f"رکورد حسابداری {candidate.get('id')} دیگر معتبر نیست")
+                return False
+        return True
 
     def send_to_ai(self, data: Dict) -> Dict:
         """ارسال داده به n8n workflow و دریافت نتیجه - منتظر پاسخ می‌ماند"""
@@ -126,6 +185,17 @@ class AIMatcher:
     def process_pos_transaction(self, pos_record: Dict) -> Tuple[bool, Dict]:
         """پردازش تراکنش POS"""
         try:
+            if not self.is_pos_transaction_unreconciled(pos_record.get('id')):
+                logger.warning(f"تراکنش POS {pos_record.get('id')} قبلاً مغایرت‌یابی شده است - نیاز به بررسی ندارد")
+                return False, {
+                    "type": "POS",
+                    "source_id": pos_record.get('id'),
+                    "matched_id": None,
+                    "confidence": 0,
+                    "status": "already_reconciled",
+                    "reason": "تراکنش قبلاً مغایرت‌یابی شده است"
+                }
+
             amount = pos_record.get('transaction_amount')
             accounting_candidates = get_accounting_by_amount_and_types(
                 amount,
@@ -144,6 +214,17 @@ class AIMatcher:
                     "reason": "هیچ تراکنش حسابداری هم‌مبلغ یافت نشد"
                 }
 
+            if not self.are_accounting_candidates_unreconciled(accounting_candidates):
+                logger.warning(f"برخی از رکوردهای حسابداری برای POS {pos_record.get('id')} قبلاً مغایرت‌یابی شده‌اند")
+                return False, {
+                    "type": "POS",
+                    "source_id": pos_record.get('id'),
+                    "matched_id": None,
+                    "confidence": 0,
+                    "status": "candidates_reconciled",
+                    "reason": "برخی از رکوردهای حسابداری قبلاً مغایرت‌یابی شده‌اند"
+                }
+
             ai_request = format_pos_request(pos_record, accounting_candidates)
             ai_response = self.send_to_ai(ai_request)
 
@@ -158,7 +239,7 @@ class AIMatcher:
                     "reason": f"خطا از AI: {ai_response.get('detail', 'نامشخص')}"
                 }
 
-            if ai_response.get('matched') and ai_response.get('confidence', 0) >= 0.8:
+            if ai_response.get('matched'):
                 matched_id = ai_response.get('matched_accounting_id')
                 
                 if not self.validate_matched_id(matched_id, accounting_candidates):
@@ -229,6 +310,17 @@ class AIMatcher:
     def process_bank_transaction(self, bank_record: Dict, transaction_type: str) -> Tuple[bool, Dict]:
         """پردازش تراکنش بانکی"""
         try:
+            if not self.is_bank_transaction_unreconciled(bank_record.get('id')):
+                logger.warning(f"تراکنش بانکی {transaction_type} {bank_record.get('id')} قبلاً مغایرت‌یابی شده است - نیاز به بررسی ندارد")
+                return False, {
+                    "type": transaction_type,
+                    "source_id": bank_record.get('id'),
+                    "matched_id": None,
+                    "confidence": 0,
+                    "status": "already_reconciled",
+                    "reason": "تراکنش قبلاً مغایرت‌یابی شده است"
+                }
+
             amount = bank_record.get('amount')
 
             if transaction_type == 'Received_Transfer':
@@ -255,6 +347,17 @@ class AIMatcher:
                     "reason": "هیچ تراکنش حسابداری هم‌مبلغ یافت نشد"
                 }
 
+            if not self.are_accounting_candidates_unreconciled(accounting_candidates):
+                logger.warning(f"برخی از رکوردهای حسابداری برای {transaction_type} {bank_record.get('id')} قبلاً مغایرت‌یابی شده‌اند")
+                return False, {
+                    "type": transaction_type,
+                    "source_id": bank_record.get('id'),
+                    "matched_id": None,
+                    "confidence": 0,
+                    "status": "candidates_reconciled",
+                    "reason": "برخی از رکوردهای حسابداری قبلاً مغایرت‌یابی شده‌اند"
+                }
+
             if 'Check' in transaction_type:
                 ai_request = format_check_request(bank_record, accounting_candidates, transaction_type)
             else:
@@ -273,7 +376,7 @@ class AIMatcher:
                     "reason": f"خطا از AI: {ai_response.get('detail', 'نامشخص')}"
                 }
 
-            if ai_response.get('matched') and ai_response.get('confidence', 0) >= 0.8:
+            if ai_response.get('matched'):
                 matched_id = ai_response.get('matched_accounting_id')
                 
                 if not self.validate_matched_id(matched_id, accounting_candidates):
