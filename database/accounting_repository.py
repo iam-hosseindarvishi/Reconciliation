@@ -558,3 +558,29 @@ def update_reconciliation_status(transaction_id, status):
     finally:
         if conn:
             conn.close()
+
+def update_ai_processed(transaction_id, ai_processed):
+    """به‌روزرسانی وضعیت پردازش AI تراکنش حسابداری"""
+    conn = None
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        ai_processed_int = int(bool(ai_processed))
+        cursor.execute("""
+            UPDATE AccountingTransactions 
+            SET ai_processed = ? 
+            WHERE id = ?
+        """, (ai_processed_int, transaction_id))
+        if cursor.rowcount > 0:
+            conn.commit()
+            logger.info(f"وضعیت پردازش AI تراکنش حسابداری {transaction_id} به {ai_processed_int} تغییر کرد")
+        else:
+            logger.warning(f"تراکنشی با شناسه {transaction_id} یافت نشد")
+    except Exception as e:
+        logger.error(f"خطا در به‌روزرسانی وضعیت پردازش AI تراکنش حسابداری {transaction_id}: {str(e)}")
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        if conn:
+            conn.close()

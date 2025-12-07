@@ -10,9 +10,9 @@ from utils.ai_request_formatter import (
     format_bank_transfer_request,
     format_check_request
 )
-from database.accounting_repository import get_accounting_by_amount_and_types, update_reconciliation_status as update_accounting_status
-from database.pos_transactions_repository import update_reconciliation_status as update_pos_status
-from database.bank_transaction_repository import update_bank_transaction_reconciliation_status
+from database.accounting_repository import get_accounting_by_amount_and_types, update_reconciliation_status as update_accounting_status, update_ai_processed as update_accounting_ai_processed
+from database.pos_transactions_repository import update_reconciliation_status as update_pos_status, update_ai_processed as update_pos_ai_processed
+from database.bank_transaction_repository import update_bank_transaction_reconciliation_status, update_ai_processed as update_bank_ai_processed
 from database.reconciliation_results_repository import create_reconciliation_result
 from database.init_db import create_connection
 import sqlite3
@@ -195,6 +195,17 @@ class AIMatcher:
                     "status": "already_reconciled",
                     "reason": "تراکنش قبلاً مغایرت‌یابی شده است"
                 }
+            
+            if pos_record.get('ai_processed') == 1:
+                logger.info(f"تراکنش POS {pos_record.get('id')} قبلاً توسط AI پردازش شده است - پرش می‌شود")
+                return False, {
+                    "type": "POS",
+                    "source_id": pos_record.get('id'),
+                    "matched_id": None,
+                    "confidence": 0,
+                    "status": "already_processed_by_ai",
+                    "reason": "تراکنش قبلاً توسط AI پردازش شده است"
+                }
 
             amount = pos_record.get('transaction_amount')
             accounting_candidates = get_accounting_by_amount_and_types(
@@ -227,6 +238,10 @@ class AIMatcher:
 
             ai_request = format_pos_request(pos_record, accounting_candidates)
             ai_response = self.send_to_ai(ai_request)
+            
+            update_pos_ai_processed(pos_record.get('id'), True)
+            for candidate in accounting_candidates:
+                update_accounting_ai_processed(candidate.get('id'), True)
 
             if ai_response.get('error'):
                 logger.error(f"خطا در پاسخ AI: {ai_response.get('error')}")
@@ -320,6 +335,17 @@ class AIMatcher:
                     "status": "already_reconciled",
                     "reason": "تراکنش قبلاً مغایرت‌یابی شده است"
                 }
+            
+            if bank_record.get('ai_processed') == 1:
+                logger.info(f"تراکنش بانکی {transaction_type} {bank_record.get('id')} قبلاً توسط AI پردازش شده است - پرش می‌شود")
+                return False, {
+                    "type": transaction_type,
+                    "source_id": bank_record.get('id'),
+                    "matched_id": None,
+                    "confidence": 0,
+                    "status": "already_processed_by_ai",
+                    "reason": "تراکنش قبلاً توسط AI پردازش شده است"
+                }
 
             amount = bank_record.get('amount')
 
@@ -364,6 +390,10 @@ class AIMatcher:
                 ai_request = format_bank_transfer_request(bank_record, accounting_candidates, transaction_type)
 
             ai_response = self.send_to_ai(ai_request)
+            
+            update_bank_ai_processed(bank_record.get('id'), True)
+            for candidate in accounting_candidates:
+                update_accounting_ai_processed(candidate.get('id'), True)
 
             if ai_response.get('error'):
                 logger.error(f"خطا در پاسخ AI: {ai_response.get('error')}")
