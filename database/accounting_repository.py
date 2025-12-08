@@ -494,6 +494,7 @@ def get_accounting_by_amount_and_types(amount, transaction_types,bank_id=None):
             WHERE transaction_amount = ? 
             AND transaction_type IN ({placeholders})
             AND is_reconciled = 0
+            AND ai_processed = 0
         """
         params = [abs_amount] + transaction_types
         if bank_id:

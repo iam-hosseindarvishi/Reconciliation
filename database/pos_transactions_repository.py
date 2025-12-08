@@ -170,7 +170,7 @@ def get_unreconciled_transactions_by_bank(bank_id):
         cursor = conn.cursor()
         cursor.execute("""
             SELECT * FROM PosTransactions 
-            WHERE bank_id = ? AND is_reconciled = 0
+            WHERE bank_id = ? AND is_reconciled = 0 AND ai_processed = 0
         """, (bank_id,))
         result = [dict(row) for row in cursor.fetchall()]
         logger.info(f"تعداد {len(result)} تراکنش POS مغایرت‌نشده برای بانک {bank_id} یافت شد")
