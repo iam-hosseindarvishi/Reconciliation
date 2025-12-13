@@ -1,9 +1,9 @@
-import requests
 import json
 import time
 import threading
 from typing import Dict, List, Optional, Tuple
 from queue import Queue
+from openai import OpenAI
 from utils.logger_config import setup_logger
 from utils.ai_request_formatter import (
     format_pos_request,
@@ -21,8 +21,10 @@ logger = setup_logger('reconciliation.ai_matcher')
 
 class AIMatcher:
     def __init__(self, n8n_webhook_url: str = None):
-        self.n8n_webhook_url = "http://localhost:5678/webhook/reconciled"
-        #self.n8n_webhook_url = "http://localhost:5678/webhook-test/reconciled"
+        self.client = OpenAI(
+            api_key="sk-BE1XKfnpgENsftbPkuT51V7GKbB1V892Q3GZg1kYMt80VH0M",
+            base_url="https://api.moonshot.ai/v1",
+        )
         self.timeout = 300
         self.retry_count = 3
         self.processing_lock = threading.Lock()
@@ -117,51 +119,92 @@ class AIMatcher:
         return True
 
     def send_to_ai(self, data: Dict) -> Dict:
-        """ارسال داده به n8n workflow و دریافت نتیجه - منتظر پاسخ می‌ماند"""
+        """ارسال داده به AI و دریافت نتیجه"""
         with self.processing_lock:
             for attempt in range(self.retry_count):
                 try:
                     transaction_id = data.get('pos_record', data.get('bank_record', {})).get('id')
                     logger.info(f"ارسال تراکنش {transaction_id} به AI (تلاش {attempt + 1}/{self.retry_count})")
                     
-                    response = requests.post(
-                        self.n8n_webhook_url,
-                        json=data,
-                        headers={'Content-Type': 'application/json'},
-                        timeout=self.timeout
+                    completion = self.client.chat.completions.create(
+                        model="kimi-k2-turbo-preview",
+                        messages=[
+                            {"role": "system", "content": """TASK: You are an accounting reconciliation assistant. Match POS/Bank records with accounting records.
+INPUT: You will receive JSON data containing:
+- pos_record or bank_record: The transaction to match
+- accounting_candidates: List of possible matches
+- matching_rules: Rules for matching
+CRITICAL INSTRUCTION:
+- You MUST ONLY return an ID from the accounting_candidates list
+- DO NOT invent or hallucinate IDs
+- If no match found, return matched=false and matched_accounting_id=null
+- NEVER return an ID that doesn't exist in accounting_candidates
+DATA CLEANING:
+- transaction_number in accounting_candidates has ".0" suffix (e.g., "506647.0")
+- Remove the ".0" suffix before comparison
+- Convert "114224.0" → "114224"
+MATCHING ALGORITHM (in order of priority):
+1. Amount MUST match exactly (REQUIRED)
+2. Tracking number: Extract last 6 digits from pos_record.tracking_number
+   - Example: "312379114224" → "114224"
+   - Must match transaction_number after removing ".0"
+   - This is the STRONGEST indicator
+3. Card: Last 4 digits must match pattern "ک XXXX" in description
+   - Example: card "603799******6073" → last 4 = "6073"
+   - Look for "ک 6073" in description
+4. Date: ±15 days difference is acceptable
+   - Prefer closer dates
+SCORING:
+- tracking_match = 0.5 (most important)
+- card_match = 0.3
+- date_match = 0.2 (based on proximity: 0 days = 0.2, 15 days = 0.0)
+- Total confidence = sum of scores
+STEP BY STEP:
+1. Filter candidates by amount (exact match only)
+2. For each remaining candidate:
+   a. Extract last 6 digits from POS tracking_number
+   b. Clean candidate transaction_number (remove .0)
+   c. Check if they match → tracking_match
+   d. Check if card last 4 digits in description → card_match
+   e. Calculate date difference → date_match score
+   f. Calculate total confidence
+3. Return the candidate with HIGHEST confidence
+4. If confidence < 0.6, return matched=false
+OUTPUT FORMAT (MUST be valid JSON, NO markdown):
+{
+  "matched": boolean,
+  "matched_accounting_id": number or null (MUST exist in candidates!),
+  "confidence": number (0.0-1.0),
+  "reason": "explanation in Persian",
+  "match_details": {
+    "amount_match": boolean,
+    "card_match": boolean,
+    "tracking_match": boolean,
+    "date_difference_days": number,
+    "terminal_match": boolean
+  }
+}
+VERIFY BEFORE RESPONDING:
+- Check: Is matched_accounting_id in the candidates list? If NO, return matched=false
+- Check: Does the logic match the rules?
+- Check: Is the output valid JSON (no markdown)?"""},
+                            {"role": "user", "content": f"DATA TO ANALYZE: {json.dumps(data, ensure_ascii=False)}"}
+                        ],
+                        temperature=0.6,
                     )
 
-                    if response.status_code == 200:
-                        logger.info(f"پاسخ موفق از AI برای تراکنش {transaction_id}")
-                        result = response.json()
-                        if isinstance(result, list) and len(result) > 0:
-                            return result[0]
-                        return result
-                    else:
-                        logger.warning(f"پاسخ ناموفق از AI: HTTP {response.status_code}")
-                        if attempt < self.retry_count - 1:
-                            logger.info(f"منتظر 10 ثانیه قبل از تلاش مجدد...")
-                            time.sleep(10)
-                            continue
-                        return {
-                            "error": f"HTTP {response.status_code}",
-                            "detail": response.text,
-                            "matched": False,
-                            "confidence": 0
-                        }
-
-                except requests.exceptions.Timeout:
-                    logger.warning(f"Timeout در تلاش {attempt + 1}/{self.retry_count} - n8n آماده پاسخ نیست")
-                    if attempt < self.retry_count - 1:
-                        logger.info(f"منتظر 10 ثانیه قبل از تلاش مجدد...")
-                        time.sleep(10)
-                        continue
-                    return {
-                        "error": "Timeout",
-                        "detail": "AI طول‌کشید و پاسخ نداد",
-                        "matched": False,
-                        "confidence": 0
-                    }
+                    response_content = completion.choices[0].message.content
+                    # Clean up potential markdown code blocks
+                    if response_content.startswith("```json"):
+                        response_content = response_content[7:]
+                    if response_content.startswith("```"):
+                        response_content = response_content[3:]
+                    if response_content.endswith("```"):
+                        response_content = response_content[:-3]
+                    
+                    result = json.loads(response_content.strip())
+                    logger.info(f"پاسخ موفق از AI برای تراکنش {transaction_id}")
+                    return result
 
                 except Exception as e:
                     logger.error(f"خطا در ارتباط با AI: {str(e)}")
@@ -175,7 +218,7 @@ class AIMatcher:
                         "matched": False,
                         "confidence": 0
                     }
-
+            
             return {
                 "error": "Maximum retries exceeded",
                 "matched": False,
@@ -474,7 +517,4 @@ class AIMatcher:
                 "reason": str(e)
             }
 
-    def set_webhook_url(self, url: str):
-        """تنظیم URL webhook n8n"""
-        self.n8n_webhook_url = url
-        logger.info(f"URL webhook تنظیم شد: {url}")
+
