@@ -265,6 +265,7 @@ VERIFY BEFORE RESPONDING:
                         result = self._send_to_gemini(data)
                         
                     logger.info(f"پاسخ موفق از {self.current_provider} برای تراکنش {transaction_id}")
+      
                     return result
 
                 except Exception as e:
