@@ -4,6 +4,7 @@ import threading
 from typing import Dict, List, Optional, Tuple
 from queue import Queue
 from openai import OpenAI
+from google import genai
 from utils.logger_config import setup_logger
 from utils.ai_request_formatter import (
     format_pos_request,
@@ -19,15 +20,55 @@ import sqlite3
 
 logger = setup_logger('reconciliation.ai_matcher')
 
+class RateLimiter:
+    def __init__(self, limit=5, period=60):
+        self.limit = limit
+        self.period = period
+        self.count = 0
+        self.start_time = time.time()
+        self.lock = threading.Lock()
+
+    def wait_if_needed(self):
+        with self.lock:
+            now = time.time()
+            elapsed = now - self.start_time
+            
+            if elapsed >= self.period:
+                # Reset
+                self.count = 0
+                self.start_time = now
+                elapsed = 0
+            
+            if self.count >= self.limit:
+                sleep_time = self.period - elapsed
+                if sleep_time > 0:
+                    logger.info(f"Rate limit reached. Waiting {sleep_time:.2f} seconds...")
+                    time.sleep(sleep_time)
+                # After sleep, reset
+                self.count = 0
+                self.start_time = time.time()
+            
+            self.count += 1
+
 class AIMatcher:
     def __init__(self, n8n_webhook_url: str = None):
-        self.client = OpenAI(
+        self.kimi_client = OpenAI(
             api_key="sk-BE1XKfnpgENsftbPkuT51V7GKbB1V892Q3GZg1kYMt80VH0M",
             base_url="https://api.moonshot.ai/v1",
         )
+        self.gemini_client = genai.Client(api_key="AIzaSyCgek8OVeMoejuKvIungOyZKTgsgDrrzV8")
+        self.current_provider = 'kimi'
+        self.kimi_limiter = RateLimiter()
+        self.gemini_limiter = RateLimiter()
+        self.ui_callback = None
+        
         self.timeout = 300
         self.retry_count = 3
         self.processing_lock = threading.Lock()
+
+    def set_ui_callback(self, callback):
+        """تنظیم تابع فراخوانی UI برای تعامل با کاربر"""
+        self.ui_callback = callback
 
     def validate_matched_id(self, matched_id, accounting_candidates: List[Dict]) -> bool:
         """تایید اینکه matched_id در لیست رکوردهای ارسالی وجود دارد"""
@@ -118,18 +159,8 @@ class AIMatcher:
                 return False
         return True
 
-    def send_to_ai(self, data: Dict) -> Dict:
-        """ارسال داده به AI و دریافت نتیجه"""
-        with self.processing_lock:
-            for attempt in range(self.retry_count):
-                try:
-                    transaction_id = data.get('pos_record', data.get('bank_record', {})).get('id')
-                    logger.info(f"ارسال تراکنش {transaction_id} به AI (تلاش {attempt + 1}/{self.retry_count})")
-                    
-                    completion = self.client.chat.completions.create(
-                        model="kimi-k2-turbo-preview",
-                        messages=[
-                            {"role": "system", "content": """TASK: You are an accounting reconciliation assistant. Match POS/Bank records with accounting records.
+    def _get_system_prompt(self) -> str:
+        return """TASK: You are an accounting reconciliation assistant. Match POS/Bank records with accounting records.
 INPUT: You will receive JSON data containing:
 - pos_record or bank_record: The transaction to match
 - accounting_candidates: List of possible matches
@@ -187,43 +218,81 @@ OUTPUT FORMAT (MUST be valid JSON, NO markdown):
 VERIFY BEFORE RESPONDING:
 - Check: Is matched_accounting_id in the candidates list? If NO, return matched=false
 - Check: Does the logic match the rules?
-- Check: Is the output valid JSON (no markdown)?"""},
-                            {"role": "user", "content": f"DATA TO ANALYZE: {json.dumps(data, ensure_ascii=False)}"}
-                        ],
-                        temperature=0.6,
-                    )
+- Check: Is the output valid JSON (no markdown)?"""
 
-                    response_content = completion.choices[0].message.content
-                    # Clean up potential markdown code blocks
-                    if response_content.startswith("```json"):
-                        response_content = response_content[7:]
-                    if response_content.startswith("```"):
-                        response_content = response_content[3:]
-                    if response_content.endswith("```"):
-                        response_content = response_content[:-3]
+    def _send_to_kimi(self, data: Dict) -> Dict:
+        self.kimi_limiter.wait_if_needed()
+        completion = self.kimi_client.chat.completions.create(
+            model="kimi-k2-turbo-preview",
+            messages=[
+                {"role": "system", "content": self._get_system_prompt()},
+                {"role": "user", "content": f"DATA TO ANALYZE: {json.dumps(data, ensure_ascii=False)}"}
+            ],
+            temperature=0.6,
+        )
+        return self._parse_response(completion.choices[0].message.content)
+
+    def _send_to_gemini(self, data: Dict) -> Dict:
+        self.gemini_limiter.wait_if_needed()
+        response = self.gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=f"{self._get_system_prompt()}\n\nDATA TO ANALYZE: {json.dumps(data, ensure_ascii=False)}",
+        )
+        return self._parse_response(response.text)
+
+    def _parse_response(self, response_content: str) -> Dict:
+        # Clean up potential markdown code blocks
+        if response_content.startswith("```json"):
+            response_content = response_content[7:]
+        if response_content.startswith("```"):
+            response_content = response_content[3:]
+        if response_content.endswith("```"):
+            response_content = response_content[:-3]
+        
+        return json.loads(response_content.strip())
+
+    def send_to_ai(self, data: Dict) -> Dict:
+        """ارسال داده به AI و دریافت نتیجه"""
+        with self.processing_lock:
+            while True:
+                try:
+                    transaction_id = data.get('pos_record', data.get('bank_record', {})).get('id')
+                    logger.info(f"ارسال تراکنش {transaction_id} به {self.current_provider}...")
                     
-                    result = json.loads(response_content.strip())
-                    logger.info(f"پاسخ موفق از AI برای تراکنش {transaction_id}")
+                    if self.current_provider == 'kimi':
+                        result = self._send_to_kimi(data)
+                    else:
+                        result = self._send_to_gemini(data)
+                        
+                    logger.info(f"پاسخ موفق از {self.current_provider} برای تراکنش {transaction_id}")
                     return result
 
                 except Exception as e:
-                    logger.error(f"خطا در ارتباط با AI: {str(e)}")
-                    if attempt < self.retry_count - 1:
-                        logger.info(f"منتظر 5 ثانیه قبل از تلاش مجدد...")
-                        time.sleep(5)
-                        continue
+                    logger.error(f"خطا در ارتباط با {self.current_provider}: {str(e)}")
+                    
+                    if self.ui_callback:
+                        action = self.ui_callback(f"خطا در ارتباط با {self.current_provider}:\n{str(e)}")
+                        if action == 'retry_kimi':
+                            self.current_provider = 'kimi'
+                            continue
+                        elif action == 'switch_gemini':
+                            self.current_provider = 'gemini'
+                            continue
+                        elif action == 'cancel':
+                            return {
+                                "error": "Cancelled by user",
+                                "detail": str(e),
+                                "matched": False,
+                                "confidence": 0
+                            }
+                    
+                    # If no callback or unhandled, return error
                     return {
                         "error": "Request failed",
                         "detail": str(e),
                         "matched": False,
                         "confidence": 0
                     }
-            
-            return {
-                "error": "Maximum retries exceeded",
-                "matched": False,
-                "confidence": 0
-            }
 
     def process_pos_transaction(self, pos_record: Dict) -> Tuple[bool, Dict]:
         """پردازش تراکنش POS"""

@@ -37,10 +37,71 @@ class SmartReconciliationTab(ttk.Frame):
         self.selected_bank_var = StringVar()
         self.n8n_webhook_url = "http://localhost:5678/webhook/reconcile"
         self.ai_matcher = AIMatcher(self.n8n_webhook_url)
+        self.ai_matcher.set_ui_callback(self.ask_user_action)
         self.is_processing = False
         self.results = []
         self.create_widgets()
         self.load_banks_to_combobox()
+
+    def ask_user_action(self, error_msg):
+        """نمایش خطا به کاربر و دریافت تصمیم"""
+        result_container = {}
+        event = threading.Event()
+        
+        def show_dialog():
+            # Create a custom Toplevel dialog
+            dialog = ttk.Toplevel(self)
+            dialog.title("خطا در ارتباط با هوش مصنوعی")
+            dialog.geometry("500x300")
+            dialog.resizable(False, False)
+            
+            # Center the dialog relative to parent
+            try:
+                x = self.winfo_rootx() + (self.winfo_width() // 2) - 250
+                y = self.winfo_rooty() + (self.winfo_height() // 2) - 150
+                dialog.geometry(f"+{x}+{y}")
+            except:
+                pass
+            
+            ttk.Label(dialog, text="خطایی در ارتباط با سرویس هوش مصنوعی رخ داده است:", font=self.default_font).pack(pady=10, padx=10, anchor="w")
+            
+            msg_frame = ttk.Frame(dialog)
+            msg_frame.pack(fill="both", expand=True, padx=10, pady=5)
+            
+            txt = ScrolledText(msg_frame, height=5, font=self.log_font)
+            txt.pack(fill="both", expand=True)
+            txt.insert("end", error_msg)
+            txt.configure(state="disabled")
+            
+            btn_frame = ttk.Frame(dialog)
+            btn_frame.pack(fill="x", pady=20, padx=10)
+            
+            def on_retry_kimi():
+                result_container['action'] = 'retry_kimi'
+                dialog.destroy()
+                event.set()
+                
+            def on_switch_gemini():
+                result_container['action'] = 'switch_gemini'
+                dialog.destroy()
+                event.set()
+                
+            def on_cancel():
+                result_container['action'] = 'cancel'
+                dialog.destroy()
+                event.set()
+            
+            ttk.Button(btn_frame, text="ادامه با Kimi", command=on_retry_kimi, bootstyle="primary").pack(side="left", padx=5, expand=True, fill="x")
+            ttk.Button(btn_frame, text="ادامه با Gemini", command=on_switch_gemini, bootstyle="info").pack(side="left", padx=5, expand=True, fill="x")
+            ttk.Button(btn_frame, text="انصراف", command=on_cancel, bootstyle="danger").pack(side="left", padx=5, expand=True, fill="x")
+            
+            dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+            dialog.transient(self)
+            dialog.grab_set()
+            
+        self.after(0, show_dialog)
+        event.wait()
+        return result_container.get('action', 'cancel')
 
     def setup_logging(self):
         """راه‌اندازی سیستم لاگینگ"""
