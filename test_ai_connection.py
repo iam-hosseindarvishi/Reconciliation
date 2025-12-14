@@ -24,6 +24,10 @@ except ImportError as e:
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Force UTF-8 for stdout
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding='utf-8')
+
 def test_providers():
     print("Initializing AIMatcher...")
     matcher = AIMatcher()

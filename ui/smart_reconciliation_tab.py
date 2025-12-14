@@ -71,7 +71,7 @@ class SmartReconciliationTab(ttk.Frame):
             txt = ScrolledText(msg_frame, height=5, font=self.log_font)
             txt.pack(fill="both", expand=True)
             txt.insert("end", error_msg)
-            txt.configure(state="disabled")
+            txt.text.configure(state="disabled")
             
             btn_frame = ttk.Frame(dialog)
             btn_frame.pack(fill="x", pady=20, padx=10)
