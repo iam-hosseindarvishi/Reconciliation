@@ -225,7 +225,8 @@ VERIFY BEFORE RESPONDING:
             ],
             "stream": False,
             "options": {
-                "temperature": 0.6
+                "temperature": 0.6,
+                "num_ctx":2048
             }
         }
         
