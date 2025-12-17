@@ -76,13 +76,8 @@ class SmartReconciliationTab(ttk.Frame):
             btn_frame = ttk.Frame(dialog)
             btn_frame.pack(fill="x", pady=20, padx=10)
             
-            def on_retry_kimi():
-                result_container['action'] = 'retry_kimi'
-                dialog.destroy()
-                event.set()
-                
-            def on_switch_gemini():
-                result_container['action'] = 'switch_gemini'
+            def on_retry():
+                result_container['action'] = 'retry'
                 dialog.destroy()
                 event.set()
                 
@@ -91,8 +86,7 @@ class SmartReconciliationTab(ttk.Frame):
                 dialog.destroy()
                 event.set()
             
-            ttk.Button(btn_frame, text="ادامه با Kimi", command=on_retry_kimi, bootstyle="primary").pack(side="left", padx=5, expand=True, fill="x")
-            ttk.Button(btn_frame, text="ادامه با Gemini", command=on_switch_gemini, bootstyle="info").pack(side="left", padx=5, expand=True, fill="x")
+            ttk.Button(btn_frame, text="تلاش مجدد", command=on_retry, bootstyle="primary").pack(side="left", padx=5, expand=True, fill="x")
             ttk.Button(btn_frame, text="انصراف", command=on_cancel, bootstyle="danger").pack(side="left", padx=5, expand=True, fill="x")
             
             dialog.protocol("WM_DELETE_WINDOW", on_cancel)

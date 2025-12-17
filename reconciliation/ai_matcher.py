@@ -1,10 +1,9 @@
 import json
 import time
 import threading
+import requests
 from typing import Dict, List, Optional, Tuple
 from queue import Queue
-from openai import OpenAI
-from google import genai
 from utils.logger_config import setup_logger
 from utils.ai_request_formatter import (
     format_pos_request,
@@ -52,14 +51,9 @@ class RateLimiter:
 
 class AIMatcher:
     def __init__(self, n8n_webhook_url: str = None):
-        self.kimi_client = OpenAI(
-            api_key="sk-BE1XKfnpgENsftbPkuT51V7GKbB1V892Q3GZg1kYMt80VH0M",
-            base_url="https://api.moonshot.ai/v1",
-        )
-        self.gemini_client = genai.Client(api_key="AIzaSyCgek8OVeMoejuKvIungOyZKTgsgDrrzV8")
-        self.current_provider = 'kimi'
-        self.kimi_limiter = RateLimiter()
-        self.gemini_limiter = RateLimiter()
+        self.ollama_url = "http://localhost:11434/api/chat"
+        self.model_name = "gemma3:latest"
+        self.limiter = RateLimiter()
         self.ui_callback = None
         
         self.timeout = 300
@@ -220,25 +214,27 @@ VERIFY BEFORE RESPONDING:
 - Check: Does the logic match the rules?
 - Check: Is the output valid JSON (no markdown)?"""
 
-    def _send_to_kimi(self, data: Dict) -> Dict:
-        self.kimi_limiter.wait_if_needed()
-        completion = self.kimi_client.chat.completions.create(
-            model="kimi-k2-turbo-preview",
-            messages=[
+    def _send_to_ollama(self, data: Dict) -> Dict:
+        self.limiter.wait_if_needed()
+        
+        payload = {
+            "model": self.model_name,
+            "messages": [
                 {"role": "system", "content": self._get_system_prompt()},
                 {"role": "user", "content": f"DATA TO ANALYZE: {json.dumps(data, ensure_ascii=False)}"}
             ],
-            temperature=0.6,
-        )
-        return self._parse_response(completion.choices[0].message.content)
-
-    def _send_to_gemini(self, data: Dict) -> Dict:
-        self.gemini_limiter.wait_if_needed()
-        response = self.gemini_client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=f"{self._get_system_prompt()}\n\nDATA TO ANALYZE: {json.dumps(data, ensure_ascii=False)}",
-        )
-        return self._parse_response(response.text)
+            "stream": False,
+            "options": {
+                "temperature": 0.6
+            }
+        }
+        
+        response = requests.post(self.ollama_url, json=payload, timeout=self.timeout)
+        response.raise_for_status()
+        
+        result_json = response.json()
+        content = result_json.get("message", {}).get("content", "")
+        return self._parse_response(content)
 
     def _parse_response(self, response_content: str) -> Dict:
         # Clean up potential markdown code blocks
@@ -257,27 +253,20 @@ VERIFY BEFORE RESPONDING:
             while True:
                 try:
                     transaction_id = data.get('pos_record', data.get('bank_record', {})).get('id')
-                    logger.info(f"ارسال تراکنش {transaction_id} به {self.current_provider}...")
+                    logger.info(f"ارسال تراکنش {transaction_id} به Ollama...")
                     
-                    if self.current_provider == 'kimi':
-                        result = self._send_to_kimi(data)
-                    else:
-                        result = self._send_to_gemini(data)
+                    result = self._send_to_ollama(data)
                         
-                    logger.info(f"پاسخ موفق از {self.current_provider} برای تراکنش {transaction_id}")
+                    logger.info(f"پاسخ موفق از Ollama برای تراکنش {transaction_id}")
       
                     return result
 
                 except Exception as e:
-                    logger.error(f"خطا در ارتباط با {self.current_provider}: {str(e)}")
+                    logger.error(f"خطا در ارتباط با Ollama: {str(e)}")
                     
                     if self.ui_callback:
-                        action = self.ui_callback(f"خطا در ارتباط با {self.current_provider}:\n{str(e)}")
-                        if action == 'retry_kimi':
-                            self.current_provider = 'kimi'
-                            continue
-                        elif action == 'switch_gemini':
-                            self.current_provider = 'gemini'
+                        action = self.ui_callback(f"خطا در ارتباط با Ollama:\n{str(e)}")
+                        if action == 'retry':
                             continue
                         elif action == 'cancel':
                             return {

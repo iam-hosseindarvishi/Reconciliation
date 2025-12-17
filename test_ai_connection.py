@@ -55,44 +55,32 @@ def test_providers():
         ]
     }
 
-    print("\n--- Testing Kimi AI ---")
-    matcher.current_provider = 'kimi'
+    print("\n--- Testing Ollama (Gemma 3) ---")
     try:
         start = time.time()
         result = matcher.send_to_ai(dummy_data)
         duration = time.time() - start
-        print(f"Kimi Result (took {duration:.2f}s):", result)
+        print(f"Ollama Result (took {duration:.2f}s):", result)
     except Exception as e:
-        print("Kimi Failed:", e)
-
-    print("\n--- Testing Gemini AI ---")
-    matcher.current_provider = 'gemini'
-    try:
-        start = time.time()
-        result = matcher.send_to_ai(dummy_data)
-        duration = time.time() - start
-        print(f"Gemini Result (took {duration:.2f}s):", result)
-    except Exception as e:
-        print("Gemini Failed:", e)
+        print("Ollama Failed:", e)
 
     print("\n--- Testing Rate Limiter (Simulation) ---")
     # We will simulate 6 requests to check if it waits
     # We'll use a mock send method to avoid actual API calls and save tokens/time
     
-    original_send_kimi = matcher._send_to_kimi
+    original_send_ollama = matcher._send_to_ollama
     
     def mock_send(data):
-        matcher.kimi_limiter.wait_if_needed()
+        matcher.limiter.wait_if_needed()
         return {"matched": False}
     
-    matcher._send_to_kimi = mock_send
-    matcher.current_provider = 'kimi'
+    matcher._send_to_ollama = mock_send
     
     # Reset limiter for test
-    matcher.kimi_limiter.count = 0
-    matcher.kimi_limiter.start_time = time.time()
+    matcher.limiter.count = 0
+    matcher.limiter.start_time = time.time()
     # Reduce period for testing
-    matcher.kimi_limiter.period = 5 
+    matcher.limiter.period = 5 
     
     print("Sending 6 requests (Limit is 5 per 5 seconds)...")
     start_total = time.time()
@@ -104,7 +92,7 @@ def test_providers():
     print(f"Total time for 6 requests: {time.time() - start_total:.2f}s")
     
     # Restore
-    matcher._send_to_kimi = original_send_kimi
+    matcher._send_to_ollama = original_send_ollama
 
 if __name__ == "__main__":
     test_providers()
